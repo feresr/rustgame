@@ -16,7 +16,6 @@ impl Mesh {
             gl::GenVertexArrays(1, (&mut vao) as *mut u32);
             gl::GenBuffers(2, (&mut buffers) as *mut u32);
             gl::BindVertexArray(vao);
-
             // bind ARRAY_BUFFER to VAO
             {
                 gl::BindBuffer(gl::ARRAY_BUFFER, buffers[0]);

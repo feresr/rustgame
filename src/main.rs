@@ -8,24 +8,20 @@ impl engine::Game for MyGame {
     fn init(&self) {
         println!("init")
     }
-    fn update(&self, delta: f64) {
-        println!("update")
-    }
+    fn update(&self, delta: f64) {}
+
     fn render(&mut self, batch: &mut Batch) {
         let rect = RectF {
             x: -0.9,
             y: -0.9,
-            w: 1.0,
-            h: 1.0,
+            w: 0.6,
+            h: 0.6,
         };
-        batch.rect(rect, &Color { r: 0, g: 0, b: 0 });
-        let rect2 = RectF {
-            x: 0.2,
-            y: 0.2,
-            w: 1.0,
-            h: 1.0,
-        };
-        batch.rect(rect2, &Color { r: 0, g: 0, b: 0 });
+        batch.rect(&rect);
+
+        batch.circle((0.0, 0.0), 0.5, 64);
+
+        batch.tri((0.4, 0.2), (0.9, 0.2), (0.4, 0.9))
     }
 }
 
