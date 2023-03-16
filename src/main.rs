@@ -5,10 +5,9 @@ use engine::graphics::{batch::*, common::*};
 struct MyGame;
 
 impl engine::Game for MyGame {
-    fn init(&self) {
-        println!("init")
-    }
-    fn update(&self, delta: f64) {}
+    fn init(&self) {}
+
+    fn update(&self, _delta: f64) {}
 
     fn render(&mut self, batch: &mut Batch) {
         let rect = RectF {
@@ -19,9 +18,14 @@ impl engine::Game for MyGame {
         };
         batch.rect(&rect);
 
+        batch.render();
+        batch.clear();
+
         batch.circle((0.0, 0.0), 0.5, 64);
 
-        batch.tri((0.4, 0.2), (0.9, 0.2), (0.4, 0.9))
+        batch.tri((0.4, 0.2), (0.9, 0.2), (0.4, 0.9));
+
+        batch.render();
     }
 }
 

@@ -1,3 +1,4 @@
+#![deny(elided_lifetimes_in_paths)]
 extern crate gl;
 extern crate sdl2;
 
@@ -12,7 +13,7 @@ use sdl2::{Sdl, VideoSubsystem};
 pub trait Game {
     fn init(&self);
     fn update(&self, delta: f64);
-    fn render(&mut self, batch: &mut graphics::batch::Batch);
+    fn render(&mut self, batch: &mut graphics::batch::Batch<'_>);
 }
 
 pub fn start<T: Game>(mut game: T) {
@@ -40,7 +41,11 @@ pub fn start<T: Game>(mut game: T) {
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     game.init();
-    let mut batch = graphics::batch::Batch::default();
+    let shader = graphics::shader::Shader::new(
+        graphics::VERTEX_SHADER_SOURCE,
+        graphics::FRAGMENT_SHADER_SOURCE,
+    );
+    let mut batch = graphics::batch::Batch::new(&shader);
     batch.init();
     unsafe {
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -63,7 +68,6 @@ pub fn start<T: Game>(mut game: T) {
         }
         batch.clear();
         game.render(&mut batch);
-        batch.render();
         window.gl_swap_window();
         ::std::thread::sleep(::std::time::Duration::new(0, 1_000_000_000u32 / 60));
     }
