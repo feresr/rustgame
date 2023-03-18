@@ -9,12 +9,15 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 use sdl2::{Sdl, VideoSubsystem};
+use std::time::Instant;
 
 pub trait Game {
     fn init(&self);
-    fn update(&self, delta: f64);
-    fn render(&mut self, batch: &mut graphics::batch::Batch<'_>);
+    fn update(&mut self);
+    fn render(&self, batch: &mut graphics::batch::Batch<'_>);
 }
+
+const FPS: u32 = 1_000_000_000u32 / 60;
 
 pub fn start<T: Game>(mut game: T) {
     // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
@@ -61,14 +64,27 @@ pub fn start<T: Game>(mut game: T) {
                 _ => {}
             }
         }
-        game.update(0.0);
-        unsafe {
-            gl::ClearColor(0.0, 0.3, 0.7, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+        let start = Instant::now();
+        {
+            game.update();
+            unsafe {
+                gl::ClearColor(0.0, 0.3, 0.7, 1.0);
+                gl::Clear(gl::COLOR_BUFFER_BIT);
+            }
+            batch.clear();
+            game.render(&mut batch);
+            window.gl_swap_window();
         }
-        batch.clear();
-        game.render(&mut batch);
-        window.gl_swap_window();
-        ::std::thread::sleep(::std::time::Duration::new(0, 1_000_000_000u32 / 60));
+        let delta = start.elapsed();
+        println!("frame took: {}ms", delta.as_millis());
+        let sleep_for = if delta.as_nanos() as u32 <= FPS {
+            FPS - delta.as_nanos() as u32
+        } else {
+            // todo!: panic only in debug? maybe add a tolerance..
+            //panic!("Game running too slow! delta: {}ms", delta.as_millis());
+            0
+        };
+        println!("sleeping for remaining: {}ms", sleep_for / 1000000);
+        ::std::thread::sleep(::std::time::Duration::new(0, sleep_for));
     }
 }

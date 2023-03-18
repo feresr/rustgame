@@ -2,14 +2,21 @@ extern crate engine;
 
 use engine::graphics::{batch::*, common::*};
 
-struct MyGame;
+struct MyGame {
+    position: (f32, f32),
+    velocity : f32
+}
 
 impl engine::Game for MyGame {
     fn init(&self) {}
 
-    fn update(&self, _delta: f64) {}
+    fn update(&mut self) {
+        self.position.0 = f32::sin(self.velocity * 1.0) * 0.9;
+        self.position.1 = f32::cos(self.velocity * 5.0) * 0.25;
+        self.velocity += 0.008;
+    }
 
-    fn render(&mut self, batch: &mut Batch) {
+    fn render(&self, batch: &mut Batch) {
         let rect = RectF {
             x: -0.9,
             y: -0.9,
@@ -18,10 +25,7 @@ impl engine::Game for MyGame {
         };
         batch.rect(&rect);
 
-        batch.render();
-        batch.clear();
-
-        batch.circle((0.0, 0.0), 0.5, 64);
+        batch.circle(self.position, 0.2, 3 + (self.position.0.abs() * 10.0) as u32);
 
         batch.tri((0.4, 0.2), (0.9, 0.2), (0.4, 0.9));
 
@@ -30,5 +34,8 @@ impl engine::Game for MyGame {
 }
 
 fn main() {
-    engine::start(MyGame);
+    engine::start(MyGame {
+        position: (0.0, 0.0),
+        velocity: 0.0
+    });
 }
