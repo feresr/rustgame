@@ -40,12 +40,12 @@ impl engine::Game for MyGame {
         batch.circle(
             self.position,
             0.2,
-            3 + (self.position.0.abs() * 10.0) as u32,
+            3 + (self.position.0.abs() * 14.0) as u32,
         );
 
-        batch.pop_material();
-
         batch.rect(&rect);
+
+        batch.pop_material();
 
         batch.render();
     }

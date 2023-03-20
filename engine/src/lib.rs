@@ -49,6 +49,8 @@ pub fn start(mut game: impl Game) {
     );
     let material = graphics::material::Material::new(shader);
     let mut mesh = graphics::mesh::Mesh::new();
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
 
     unsafe {
         // todo: disable
@@ -73,7 +75,8 @@ pub fn start(mut game: impl Game) {
                 gl::ClearColor(0.0, 0.3, 0.7, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT);
             }
-            let mut batch = graphics::batch::Batch::new(&mut mesh, &material);
+            // Todo: understand why this workaround works but owning vertices and indices inside the batch doesn't.
+            let mut batch = graphics::batch::Batch::new(&mut mesh, &material, &mut vertices, &mut indices);
             batch.init();
             game.render(&mut batch);
             batch.clear();
