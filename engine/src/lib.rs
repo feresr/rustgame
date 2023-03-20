@@ -49,6 +49,7 @@ pub fn start(game: &mut impl Game) {
         graphics::FRAGMENT_SHADER_SOURCE,
     );
     let material = graphics::material::Material::new(shader);
+    let mut mesh = graphics::mesh::Mesh::new();
 
     unsafe {
         gl::Disable(gl::CULL_FACE);
@@ -73,7 +74,7 @@ pub fn start(game: &mut impl Game) {
                 gl::Clear(gl::COLOR_BUFFER_BIT);
             }
             // Todo: Do not create new batches per frame, initialises OpenGL primitives
-            let mut batch = graphics::batch::Batch::new(&material);
+            let mut batch = graphics::batch::Batch::new(&mut mesh, &material);
             batch.init();
             game.render(&mut batch);
             batch.clear();

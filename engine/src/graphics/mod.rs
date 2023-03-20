@@ -2,7 +2,7 @@ pub mod batch;
 pub mod common;
 pub mod shader;
 pub mod material;
-mod mesh;
+pub mod mesh;
 mod drawcall;
 
 pub const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n

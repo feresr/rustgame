@@ -9,7 +9,7 @@ use super::mesh::*;
 
 // Sprite batcher used to draw text and textures
 pub struct Batch<'a> {
-    mesh: Mesh,
+    mesh: &'a mut Mesh,
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
     batches: Vec<DrawBatch<'a>>,
@@ -134,17 +134,12 @@ impl<'a> Batch<'a> {
         self.batches.push(value);
     }
 
-    pub fn new(material: &'a Material) -> Batch<'a> {
-        let draw_batch = DrawBatch {
-            offset: 0,
-            elements: 0,
-            material,
-        };
+    pub fn new(mesh: &'a mut Mesh, material: &'a Material) -> Batch<'a> {
         return Batch {
-            mesh: Mesh::new(),
+            mesh,
             vertices: Vec::new(),
             indices: Vec::new(),
-            batches: vec![draw_batch],
+            batches: Vec::new(),
             default_material: material,
         };
     }
