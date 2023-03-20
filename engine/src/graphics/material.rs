@@ -7,7 +7,7 @@ pub struct Material {
     data: Vec<f32>,
 }
 
-impl <'a> Material {
+impl<'a> Material {
     pub fn new(shader: Shader) -> Material {
         return Material {
             shader,
@@ -20,16 +20,39 @@ impl <'a> Material {
     }
 
     pub fn set_valuef(&mut self, name: &str, value: f32) {
-        let u = self.shader.uniforms.iter().find(|it| it.name.eq(name));
-        if let Some(uniform) = u {
-            println!("{}", uniform.name);
+        if let Some(uniform) = self.find_uniform(name) {
+            self.shader.set();
             unsafe {
                 gl::Uniform1f(uniform.location, value);
             }
         }
-        
     }
-    pub fn set_value2f(&mut self, _name: &str, _value: (f32, f32)) {}
-    pub fn set_value3f(&mut self, _name: &str, _value: (f32, f32, f32)) {}
-    pub fn set_value4f(&mut self, _name: &str, _value: (f32, f32, f32, f32)) {}
+    pub fn set_value2f(&mut self, name: &str, value: (f32, f32)) {
+        if let Some(uniform) = self.find_uniform(name) {
+            self.shader.set();
+            unsafe {
+                gl::Uniform2f(uniform.location, value.0, value.1);
+            }
+        }
+    }
+    pub fn set_value3f(&mut self, name: &str, value: (f32, f32, f32)) {
+        if let Some(uniform) = self.find_uniform(name) {
+            self.shader.set();
+            unsafe {
+                gl::Uniform3f(uniform.location, value.0, value.1, value.2);
+            }
+        }
+    }
+    pub fn set_value4f(&mut self, name: &str, value: (f32, f32, f32, f32)) {
+        if let Some(uniform) = self.find_uniform(name) {
+            self.shader.set();
+            unsafe {
+                gl::Uniform4f(uniform.location, value.0, value.1, value.2, value.3);
+            }
+        }
+    }
+
+    fn find_uniform(&self, name: &str) -> Option<&Uniform> {
+        self.shader.uniforms.iter().find(|it| it.name.eq(name))
+    }
 }

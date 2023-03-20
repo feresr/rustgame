@@ -105,7 +105,7 @@ impl Shader {
                 // todo: this is pretty bad
                 let uniform_name = &name[0..(length as usize)];
                 let u8slice = &*(uniform_name as *const [i8] as *const [u8]);
-                let location = 0; //gl::GetUniformLocation(shader_program, uniform_name[0] as *const i8 );
+                let location = gl::GetUniformLocation(shader_program, uniform_name.as_ptr() as *const i8);
 
                 let info = Uniform {
                     name: String::from_utf8_lossy(u8slice).to_string(),

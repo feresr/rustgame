@@ -10,17 +10,18 @@ struct MyGame {
     shader: Option<Shader>,
 }
 
-pub const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
+const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
             layout (location = 0) in vec2 aPos;\n
             void main()\n
             {\n
                gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);\n
             }";
-pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
+const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             out vec4 FragColor;\n
+            uniform vec3 color;
             void main()\n
             {\n
-                FragColor = vec4(0.0, 0.8f, 0.2f, 1.0f);\n
+                FragColor = vec4(color.rgb, 1.0f);\n
             }";
 
 impl engine::Game for MyGame {
@@ -50,7 +51,6 @@ impl engine::Game for MyGame {
     }
 
     fn init(&mut self) {
-        // open gl is not active yet
         self.shader = Option::Some(Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE));
         let material = Material::new(self.shader.clone().unwrap());
         self.material = Option::Some(material);
@@ -60,11 +60,19 @@ impl engine::Game for MyGame {
         self.position.0 = f32::sin(self.velocity * 1.0) * 0.9;
         self.position.1 = f32::cos(self.velocity * 5.0) * 0.25;
         self.velocity += 0.008;
+
+        let r = (1.0 + f32::sin(self.velocity * 2.0)) / 2.0;
+        let g = (1.0 + f32::sin(self.velocity)) / 2.0;
+        let b = (1.0 + f32::sin(self.velocity * 1.5)) / 2.0;
+        self.material
+            .as_mut()
+            .unwrap()
+            .set_value3f("color", (r, g, b));
     }
 }
 
 fn main() {
-    engine::start(&mut MyGame {
+    engine::start(MyGame {
         position: (0.0, 0.0),
         velocity: 0.0,
         material: Option::None,

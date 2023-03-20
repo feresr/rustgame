@@ -19,7 +19,7 @@ pub trait Game {
 
 const FPS: u32 = 1_000_000_000u32 / 60;
 
-pub fn start(game: &mut impl Game) {
+pub fn start(mut game: impl Game) {
     // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
     let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
@@ -34,7 +34,6 @@ pub fn start(game: &mut impl Game) {
         .build()
         .unwrap();
 
-    // Unlike the other example above, nobody created a context for your window, so you need to create one.
     let _ctx = window.gl_create_context().unwrap();
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
 
@@ -52,6 +51,7 @@ pub fn start(game: &mut impl Game) {
     let mut mesh = graphics::mesh::Mesh::new();
 
     unsafe {
+        // todo: disable
         gl::Disable(gl::CULL_FACE);
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
     }
@@ -73,7 +73,6 @@ pub fn start(game: &mut impl Game) {
                 gl::ClearColor(0.0, 0.3, 0.7, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT);
             }
-            // Todo: Do not create new batches per frame, initialises OpenGL primitives
             let mut batch = graphics::batch::Batch::new(&mut mesh, &material);
             batch.init();
             game.render(&mut batch);
@@ -86,7 +85,7 @@ pub fn start(game: &mut impl Game) {
             FPS - delta.as_nanos() as u32
         } else {
             // todo!: panic only in debug? maybe add a tolerance..
-            //panic!("Game running too slow! delta: {}ms", delta.as_millis());
+            // panic!("Game running too slow! delta: {}ms", delta.as_millis());
             0
         };
         println!("sleeping for remaining: {}ms", sleep_for / 1000000);
