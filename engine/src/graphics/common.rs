@@ -3,6 +3,8 @@ pub struct Color {
     pub g: u8,
     pub b: u8,
 }
+
+#[derive(Debug)]
 pub struct Vertex {
     pub pos: (f32, f32),
     // tex: (f32, f32),

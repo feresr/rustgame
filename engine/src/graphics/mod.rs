@@ -1,7 +1,7 @@
 pub mod batch;
 pub mod common;
 pub mod shader;
-mod material;
+pub mod material;
 mod mesh;
 mod drawcall;
 

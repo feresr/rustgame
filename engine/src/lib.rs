@@ -12,14 +12,14 @@ use sdl2::{Sdl, VideoSubsystem};
 use std::time::Instant;
 
 pub trait Game {
-    fn init(&self);
+    fn init(&mut self);
     fn update(&mut self);
-    fn render(&self, batch: &mut graphics::batch::Batch<'_>);
+    fn render<'b>(&'b self, batch: &mut graphics::batch::Batch<'b>);
 }
 
 const FPS: u32 = 1_000_000_000u32 / 60;
 
-pub fn start<T: Game>(mut game: T) {
+pub fn start(game: &mut impl Game) {
     // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
     let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
@@ -48,9 +48,10 @@ pub fn start<T: Game>(mut game: T) {
         graphics::VERTEX_SHADER_SOURCE,
         graphics::FRAGMENT_SHADER_SOURCE,
     );
-    let mut batch = graphics::batch::Batch::new(&shader);
-    batch.init();
+    let material = graphics::material::Material::new(shader);
+
     unsafe {
+        gl::Disable(gl::CULL_FACE);
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
     }
     'running: loop {
@@ -71,8 +72,11 @@ pub fn start<T: Game>(mut game: T) {
                 gl::ClearColor(0.0, 0.3, 0.7, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT);
             }
-            batch.clear();
+            // Todo: Do not create new batches per frame, initialises OpenGL primitives
+            let mut batch = graphics::batch::Batch::new(&material);
+            batch.init();
             game.render(&mut batch);
+            batch.clear();
             window.gl_swap_window();
         }
         let delta = start.elapsed();

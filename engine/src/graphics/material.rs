@@ -1,17 +1,22 @@
 use super::shader::*;
 extern crate gl;
 
-pub struct Material<'a> {
-    shader: &'a Shader,
+#[derive(PartialEq, Debug)]
+pub struct Material {
+    shader: Shader,
     data: Vec<f32>,
 }
 
-impl <'a> Material<'a> {
-    pub fn new(shader: &'a Shader) -> Material<'a> {
+impl <'a> Material {
+    pub fn new(shader: Shader) -> Material {
         return Material {
             shader,
             data: Vec::new(),
         };
+    }
+
+    pub fn set(&self) {
+        self.shader.set();
     }
 
     pub fn set_valuef(&mut self, name: &str, value: f32) {

@@ -1,5 +1,6 @@
 extern crate gl;
 
+#[derive(PartialEq, Clone, Debug)]
 pub struct Shader {
     program: u32,
     pub uniforms: Vec<Uniform>,
@@ -110,7 +111,7 @@ impl Shader {
                     name: String::from_utf8_lossy(u8slice).to_string(),
                     uniform_type: UniformType::FLOAT,
                     shader_type: ShaderType::FRAGMENT,
-                    location 
+                    location,
                 };
                 uniforms.push(info);
             }
@@ -128,13 +129,13 @@ impl Shader {
         }
     }
 }
-
+#[derive(PartialEq, Clone, Debug)]
 enum ShaderType {
     NONE,
     VERTEX,
     FRAGMENT,
 }
-
+#[derive(PartialEq, Clone, Debug)]
 enum UniformType {
     NONE,
     FLOAT,
@@ -143,9 +144,10 @@ enum UniformType {
     FLOAT4,
 }
 
+#[derive(PartialEq, Clone, Debug)]
 pub struct Uniform {
     pub name: String,
-    pub location : i32,
+    pub location: i32,
     uniform_type: UniformType,
     shader_type: ShaderType,
 }

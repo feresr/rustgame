@@ -1,6 +1,7 @@
 extern crate gl;
 use super::common::*;
 
+#[derive(Debug)]
 pub struct Mesh {
     id: u32,
     count: usize,
