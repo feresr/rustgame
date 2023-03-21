@@ -1,6 +1,8 @@
 #![deny(elided_lifetimes_in_paths)]
 extern crate gl;
 extern crate sdl2;
+use imgui::Context;
+use imgui_sdl2_support::SdlPlatform;
 
 // todo: should this be pub?
 pub mod graphics;
@@ -52,6 +54,21 @@ pub fn start(mut game: impl Game) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
+    /* create context */
+    let mut imgui = Context::create();
+    /* disable creation of files on disc */
+    imgui.set_ini_filename(None);
+    imgui.set_log_filename(None);
+
+    /* setup platform and renderer, and fonts to imgui */
+    imgui
+        .fonts()
+        .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
+    /* create platform and renderer */
+    let mut platform = SdlPlatform::init(&mut imgui);
+    let imgui_renderer =
+        imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video_subsystem.gl_get_proc_address(s) as _);
+
     unsafe {
         // todo: disable
         gl::Disable(gl::CULL_FACE);
@@ -59,6 +76,7 @@ pub fn start(mut game: impl Game) {
     }
     'running: loop {
         for event in event_pump.poll_iter() {
+            platform.handle_event(&mut imgui, &event);
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
@@ -72,14 +90,27 @@ pub fn start(mut game: impl Game) {
         {
             game.update();
             unsafe {
-                gl::ClearColor(0.0, 0.3, 0.7, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT);
             }
             // Todo: understand why this workaround works but owning vertices and indices inside the batch doesn't.
-            let mut batch = graphics::batch::Batch::new(&mut mesh, &material, &mut vertices, &mut indices);
+            let mut batch =
+                graphics::batch::Batch::new(&mut mesh, &material, &mut vertices, &mut indices);
             batch.init();
             game.render(&mut batch);
             batch.clear();
+
+            { // :::: Imgui :::::
+                /* call prepare_frame before calling imgui.new_frame() */
+                platform.prepare_frame(&mut imgui, &window, &event_pump);
+
+                let ui = imgui.new_frame();
+                /* create imgui UI here */
+                ui.show_demo_window(&mut true);
+
+                /* render imgui */
+                imgui_renderer.render(&mut imgui)
+            }
+
             window.gl_swap_window();
         }
         let delta = start.elapsed();

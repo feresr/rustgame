@@ -1,13 +1,13 @@
 use super::shader::*;
 extern crate gl;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Material {
     shader: Shader,
     data: Vec<f32>,
 }
 
-impl<'a> Material {
+impl Material {
     pub fn new(shader: Shader) -> Material {
         return Material {
             shader,
@@ -19,6 +19,7 @@ impl<'a> Material {
         self.shader.set();
     }
 
+    // todo: uploading data to opengl should happen before rendering (DrawCall) not here
     pub fn set_valuef(&mut self, name: &str, value: f32) {
         if let Some(uniform) = self.find_uniform(name) {
             self.shader.set();

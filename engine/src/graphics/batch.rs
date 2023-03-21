@@ -12,7 +12,8 @@ pub struct Batch<'a> {
     mesh: &'a mut Mesh,
     vertices: &'a mut Vec<Vertex>,
     indices: &'a mut Vec<u32>,
-    batches: Vec<DrawBatch<'a>>,
+    batches: Vec<DrawBatch>,
+    material_stack: Vec<Material>,
     default_material: &'a Material,
 }
 
@@ -30,11 +31,16 @@ impl<'a> Batch<'a> {
         self.mesh.bind();
         self.mesh.set_data(&self.vertices);
         self.mesh.set_index_data(&self.indices);
+        println!("material stack is {:?}", self.material_stack.len());
 
         for batch in self.batches.iter() {
             let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material);
             pass.index_start = batch.offset * 3;
             pass.index_count = batch.elements * 3;
+            if pass.index_count == 0 {
+                println!("pass empty {}", pass.index_count);
+                continue;
+            }
             pass.perform();
         }
     }
@@ -99,19 +105,24 @@ impl<'a> Batch<'a> {
         self.indices.clear();
     }
 
-    pub fn push_material(&mut self, material: &'a Material) {
-        let current = self.current_batch();
+    pub fn push_material(&mut self, material: &Material) {
+        let current: &mut DrawBatch = self.current_batch();
+        let m = current.material.clone();
+        self.material_stack.push(m);
+        print!("material stack increased to {}", self.material_stack.len());
+
+        let current: &mut DrawBatch = self.current_batch();
 
         // material already applied, return
-        if current.material == material {
-            println!("Material already applied!!");
+        if current.material == *material {
+            println!("Material already applied!");
             return;
         };
 
         // current batch is empty, replace material
         if current.elements == 0 {
             println!("swapping existing mat material");
-            current.material = material;
+            current.material = material.clone();
             return;
         }
 
@@ -119,17 +130,23 @@ impl<'a> Batch<'a> {
         let value = DrawBatch {
             offset: current.offset + current.elements,
             elements: 0,
-            material: material,
+            material: material.clone(),
         };
         self.batches.push(value);
     }
 
     pub fn pop_material(&mut self) {
+        let mat = if let Some(previus_material) = self.material_stack.pop() {
+            previus_material
+        } else {
+            self.default_material.clone()
+        };
+        print!("material stack decreased to {}", self.material_stack.len());
         let current = self.current_batch();
         let value = DrawBatch {
             offset: current.offset + current.elements,
             elements: 0,
-            material: self.default_material,
+            material: mat,
         };
         self.batches.push(value);
     }
@@ -144,17 +161,18 @@ impl<'a> Batch<'a> {
             mesh,
             vertices,
             indices,
+            material_stack: Vec::new(),
             batches: Vec::new(),
             default_material: material,
         };
     }
 
-    fn current_batch(&mut self) -> &mut DrawBatch<'a> {
+    fn current_batch(&mut self) -> &mut DrawBatch {
         if self.batches.is_empty() {
             let value = DrawBatch {
                 offset: 0,
                 elements: 0,
-                material: self.default_material,
+                material: self.default_material.clone(),
             };
             self.batches.push(value);
         }
@@ -162,8 +180,8 @@ impl<'a> Batch<'a> {
     }
 }
 
-pub struct DrawBatch<'a> {
+pub struct DrawBatch {
     offset: i64,
     elements: i64,
-    material: &'a Material,
+    material: Material,
 }
