@@ -2,6 +2,8 @@ extern crate gl;
 
 use std::f32::consts::TAU;
 
+use imgui::Ui;
+
 use super::common::*;
 use super::drawcall;
 use super::material::*;
@@ -15,6 +17,7 @@ pub struct Batch<'a> {
     batches: Vec<DrawBatch>,
     material_stack: Vec<Material>,
     default_material: &'a Material,
+    pub ui: &'a mut Ui,
 }
 
 impl<'a> Batch<'a> {
@@ -33,6 +36,26 @@ impl<'a> Batch<'a> {
         self.mesh.set_index_data(&self.indices);
         println!("material stack is {:?}", self.material_stack.len());
 
+        self.ui
+            .window("Draw Batches")
+            .size([800.0, 300.0], imgui::Condition::FirstUseEver)
+            .build(|| {
+                for batch in self.batches.iter() {
+                    if batch.elements == 0 {
+                        continue;
+                    }
+                    self.ui.text(format!("elements: {}", batch.elements));
+                    self.ui.text(format!("offset: {}", batch.offset));
+                    self.ui.separator();
+                }
+                self.ui.separator();
+
+                self.ui.text(format!("vertices: {:?}", self.vertices));
+                self.ui.separator();
+                self.ui.text(format!("indices: {:?}", self.indices));
+                self.ui.separator();
+            });
+
         for batch in self.batches.iter() {
             let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material);
             pass.index_start = batch.offset * 3;
@@ -46,7 +69,7 @@ impl<'a> Batch<'a> {
     }
 
     pub fn rect(&mut self, rect: &RectF) {
-        let last_vertex_index = self.indices.len() as u32;
+        let last_vertex_index = self.vertices.len() as u32;
         self.indices.push(1 + last_vertex_index);
         self.indices.push(0 + last_vertex_index);
         self.indices.push(3 + last_vertex_index);
@@ -88,7 +111,7 @@ impl<'a> Batch<'a> {
     }
 
     pub fn tri(&mut self, pos0: (f32, f32), pos1: (f32, f32), pos2: (f32, f32)) {
-        let last_vertex_index = self.indices.len() as u32;
+        let last_vertex_index = self.vertices.len() as u32;
         self.indices.push(0 + last_vertex_index);
         self.indices.push(1 + last_vertex_index);
         self.indices.push(2 + last_vertex_index);
@@ -156,6 +179,7 @@ impl<'a> Batch<'a> {
         material: &'a Material,
         vertices: &'a mut Vec<Vertex>,
         indices: &'a mut Vec<u32>,
+        ui: &'a mut Ui,
     ) -> Batch<'a> {
         return Batch {
             mesh,
@@ -164,6 +188,7 @@ impl<'a> Batch<'a> {
             material_stack: Vec::new(),
             batches: Vec::new(),
             default_material: material,
+            ui,
         };
     }
 

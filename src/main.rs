@@ -9,6 +9,7 @@ struct MyGame {
     material: Option<Material>,
     material2: Option<Material>,
     shader: Option<Shader>,
+    test : bool
 }
 
 const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
@@ -33,7 +34,7 @@ const FRAGMENT_SHADER_SOURCE_2: &str = "#version 330 core\n
             }";
 
 impl engine::Game for MyGame {
-    fn render<'b>(&'b self, batch: &mut Batch<'b>) {
+    fn render<'b>(&'b mut self, batch: &mut Batch<'b>) {
         let rect = RectF {
             x: -0.9,
             y: -0.9,
@@ -43,24 +44,24 @@ impl engine::Game for MyGame {
 
         batch.push_material(self.material.as_ref().unwrap());
 
-        //batch.tri((0.4, 0.2), (0.9, 0.2), (0.4, 0.9));
+        if self.test == true {
+            batch.tri((0.4, 0.2), (0.9, 0.2), (0.4, 0.9));
+        }
 
-        batch.push_material(self.material2.as_ref().unwrap());
-
-        // batch.circle(
-        //     self.position,
-        //     0.2,
-        //     3 + (self.position.0.abs() * 18.0) as u32,
-        // );
-
-        batch.pop_material();
+        batch.circle(
+            (-1.0 + batch.ui.io().mouse_pos[0]/400.0, 1.0 - batch.ui.io().mouse_pos[1]/ 300.0),
+            0.2,
+            3 + (self.position.0.abs() * 18.0) as u32,
+        );
 
         batch.rect(&rect);
 
         batch.pop_material();
 
-        batch.tri((-0.4, 0.2), (-0.9, 0.2), (-0.4, 0.9));
-
+        if self.test == true {
+            batch.tri((-0.5, 0.3), (-0.2, 0.2), (-0.4, 0.9));
+        }
+        batch.ui.checkbox("test", &mut self.test);
         batch.render();
     }
 
@@ -100,5 +101,6 @@ fn main() {
         material: Option::None,
         material2: Option::None,
         shader: Option::None,
+        test : true
     });
 }

@@ -16,7 +16,8 @@ use std::time::Instant;
 pub trait Game {
     fn init(&mut self);
     fn update(&mut self);
-    fn render<'b>(&'b self, batch: &mut graphics::batch::Batch<'b>);
+    // Todo: should rneder take a mut ref? (useful for debug purposes)
+    fn render<'b>(&'b mut self, batch: &mut graphics::batch::Batch<'b>);
 }
 
 const FPS: u32 = 1_000_000_000u32 / 60;
@@ -66,8 +67,9 @@ pub fn start(mut game: impl Game) {
         .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
     /* create platform and renderer */
     let mut platform = SdlPlatform::init(&mut imgui);
-    let imgui_renderer =
-        imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video_subsystem.gl_get_proc_address(s) as _);
+    let imgui_renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
+        video_subsystem.gl_get_proc_address(s) as _
+    });
 
     unsafe {
         // todo: disable
@@ -88,28 +90,26 @@ pub fn start(mut game: impl Game) {
         }
         let start = Instant::now();
         {
-            game.update();
             unsafe {
                 gl::Clear(gl::COLOR_BUFFER_BIT);
             }
-            // Todo: understand why this workaround works but owning vertices and indices inside the batch doesn't.
+            // :::: Imgui
+            /* call prepare_frame before calling imgui.new_frame() */
+            platform.prepare_frame(&mut imgui, &window, &event_pump);
+
+            /* create imgui UI here */
+            let ui = imgui.new_frame();
+
+            game.update();
             let mut batch =
-                graphics::batch::Batch::new(&mut mesh, &material, &mut vertices, &mut indices);
+                graphics::batch::Batch::new(&mut mesh, &material, &mut vertices, &mut indices, ui);
             batch.init();
             game.render(&mut batch);
             batch.clear();
 
-            { // :::: Imgui :::::
-                /* call prepare_frame before calling imgui.new_frame() */
-                platform.prepare_frame(&mut imgui, &window, &event_pump);
-
-                let ui = imgui.new_frame();
-                /* create imgui UI here */
-                ui.show_demo_window(&mut true);
-
-                /* render imgui */
-                imgui_renderer.render(&mut imgui)
-            }
+            /* render imgui */
+            imgui_renderer.render(&mut imgui);
+            // :::: finish Imgui
 
             window.gl_swap_window();
         }
@@ -123,6 +123,6 @@ pub fn start(mut game: impl Game) {
             0
         };
         println!("sleeping for remaining: {}ms", sleep_for / 1000000);
-        ::std::thread::sleep(::std::time::Duration::new(0, sleep_for));
+        ::std::thread::sleep(::std::time::Duration::new(0, sleep_for / 2));
     }
 }
