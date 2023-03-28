@@ -1,4 +1,5 @@
 extern crate gl;
+
 use super::common::*;
 
 #[derive(Debug)]
@@ -26,10 +27,19 @@ impl Mesh {
                     2,
                     gl::FLOAT,
                     gl::FALSE,
-                    (2 * core::mem::size_of::<f32>()) as i32,
+                    (4 * core::mem::size_of::<f32>()) as i32,
                     std::ptr::null(),
                 );
                 gl::EnableVertexAttribArray(0);
+                gl::VertexAttribPointer(
+                    1,
+                    2,
+                    gl::FLOAT,
+                    gl::FALSE,
+                    (4 * core::mem::size_of::<f32>()) as i32,
+                    (2 * std::mem::size_of::<f32>()) as *const std::os::raw::c_void,
+                );
+                gl::EnableVertexAttribArray(1);
             }
             // bind EBO to VAO
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffers[1]);

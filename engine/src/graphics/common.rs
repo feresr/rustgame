@@ -7,7 +7,7 @@ pub struct Color {
 #[derive(Debug)]
 pub struct Vertex {
     pub pos: (f32, f32),
-    // tex: (f32, f32),
+    pub tex: (f32, f32),
     // col: Color,
 }
 

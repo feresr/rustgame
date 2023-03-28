@@ -8,6 +8,7 @@ use super::common::*;
 use super::drawcall;
 use super::material::*;
 use super::mesh::*;
+use super::texture::*;
 
 // Sprite batcher used to draw text and textures
 pub struct Batch<'a> {
@@ -34,7 +35,6 @@ impl<'a> Batch<'a> {
         self.mesh.bind();
         self.mesh.set_data(&self.vertices);
         self.mesh.set_index_data(&self.indices);
-        println!("material stack is {:?}", self.material_stack.len());
 
         self.ui
             .window("Draw Batches")
@@ -46,9 +46,11 @@ impl<'a> Batch<'a> {
                     }
                     self.ui.text(format!("elements: {}", batch.elements));
                     self.ui.text(format!("offset: {}", batch.offset));
+                    self.ui.text(format!("texture: {}", batch.texture.id));
+                    self.ui
+                        .text(format!("sampler: {}", batch.texture_sampler.filter));
                     self.ui.separator();
                 }
-                self.ui.separator();
 
                 self.ui.text(format!("vertices: {:?}", self.vertices));
                 self.ui.separator();
@@ -56,8 +58,12 @@ impl<'a> Batch<'a> {
                 self.ui.separator();
             });
 
-        for batch in self.batches.iter() {
+        for batch in self.batches.iter_mut() {
+            batch.material.set_texture(&batch.texture);
+            batch.material.set_sampler(&batch.texture_sampler);
+
             let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material);
+
             pass.index_start = batch.offset * 3;
             pass.index_count = batch.elements * 3;
             if pass.index_count == 0 {
@@ -68,7 +74,38 @@ impl<'a> Batch<'a> {
         }
     }
 
-    pub fn rect(&mut self, rect: &RectF) {
+    pub fn set_sampler(&mut self, sampler: &TextureSampler) {
+        let current = self.current_batch();
+        if current.elements > 0 && *sampler != current.texture_sampler {
+            self.push_batch();
+        }
+        let current = self.current_batch();
+        current.texture_sampler = sampler.clone();
+    }
+
+    fn push_batch(&mut self) {
+        let current = self.current_batch();
+        let value = DrawBatch {
+            offset: current.offset + current.elements,
+            elements: 0,
+            material: current.material.clone(),
+            texture: current.texture,
+            ..*current
+        };
+        self.batches.push(value);
+    }
+
+    fn push_quad(
+        &mut self,
+        pos0: (f32, f32),
+        pos1: (f32, f32),
+        pos2: (f32, f32),
+        pos3: (f32, f32),
+        tex0: (f32, f32),
+        tex1: (f32, f32),
+        tex2: (f32, f32),
+        tex3: (f32, f32),
+    ) {
         let last_vertex_index = self.vertices.len() as u32;
         self.indices.push(1 + last_vertex_index);
         self.indices.push(0 + last_vertex_index);
@@ -79,22 +116,39 @@ impl<'a> Batch<'a> {
 
         // bottom right
         self.vertices.push(Vertex {
-            pos: (rect.x + rect.w, rect.y),
+            pos: pos0,
+            tex: tex0,
         });
         // top rigth
         self.vertices.push(Vertex {
-            pos: (rect.x + rect.w, rect.y + rect.h),
+            pos: pos1,
+            tex: tex1,
         });
         // bottom left
         self.vertices.push(Vertex {
-            pos: (rect.x, rect.y),
+            pos: pos2,
+            tex: tex2,
         });
         // top left
         self.vertices.push(Vertex {
-            pos: (rect.x, rect.y + rect.h),
+            pos: pos3,
+            tex: tex3,
         });
 
         self.current_batch().elements += 2;
+    }
+
+    pub fn rect(&mut self, rect: &RectF) {
+        self.push_quad(
+            (rect.x + rect.w, rect.y),
+            (rect.x + rect.w, rect.y + rect.h),
+            (rect.x, rect.y),
+            (rect.x, rect.y + rect.h),
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (0.0, 0.0),
+        );
     }
 
     pub fn circle(&mut self, center: (f32, f32), radius: f32, steps: u32) {
@@ -116,9 +170,18 @@ impl<'a> Batch<'a> {
         self.indices.push(1 + last_vertex_index);
         self.indices.push(2 + last_vertex_index);
 
-        self.vertices.push(Vertex { pos: pos0 });
-        self.vertices.push(Vertex { pos: pos1 });
-        self.vertices.push(Vertex { pos: pos2 });
+        self.vertices.push(Vertex {
+            pos: pos0,
+            tex: (0.0, 0.0),
+        });
+        self.vertices.push(Vertex {
+            pos: pos1,
+            tex: (0.0, 0.0),
+        });
+        self.vertices.push(Vertex {
+            pos: pos2,
+            tex: (0.0, 0.0),
+        });
         self.current_batch().elements += 1;
     }
 
@@ -128,50 +191,51 @@ impl<'a> Batch<'a> {
         self.indices.clear();
     }
 
+    pub fn peek_material(&mut self) -> &mut Material {
+        &mut self.current_batch().material
+    }
+
     pub fn push_material(&mut self, material: &Material) {
+        let current_material = self.current_batch().material.clone();
+        self.material_stack.push(current_material);
         let current: &mut DrawBatch = self.current_batch();
-        let m = current.material.clone();
-        self.material_stack.push(m);
-        print!("material stack increased to {}", self.material_stack.len());
-
-        let current: &mut DrawBatch = self.current_batch();
-
-        // material already applied, return
-        if current.material == *material {
-            println!("Material already applied!");
-            return;
-        };
-
-        // current batch is empty, replace material
-        if current.elements == 0 {
-            println!("swapping existing mat material");
-            current.material = material.clone();
-            return;
+        if current.elements > 0 && *material != current.material {
+            self.push_batch();
         }
-
-        // create new batch
-        let value = DrawBatch {
-            offset: current.offset + current.elements,
-            elements: 0,
-            material: material.clone(),
-        };
-        self.batches.push(value);
+        self.current_batch().material = material.clone();
     }
 
     pub fn pop_material(&mut self) {
-        let mat = if let Some(previus_material) = self.material_stack.pop() {
-            previus_material
-        } else {
-            self.default_material.clone()
-        };
-        print!("material stack decreased to {}", self.material_stack.len());
+        let material = self.material_stack.pop().unwrap();
+        // let was = current.material.clone();
         let current = self.current_batch();
-        let value = DrawBatch {
-            offset: current.offset + current.elements,
-            elements: 0,
-            material: mat,
-        };
-        self.batches.push(value);
+        if current.elements > 0 && material != current.material {
+            self.push_batch();
+        }
+        self.current_batch().material = material.clone();
+        // return was?
+    }
+
+    pub fn tex(&mut self, rect: &RectF, texture: &Texture) {
+        let current = self.current_batch();
+        if current.texture == *texture || current.elements == 0 {
+            // reuse existing batch
+            current.texture = texture.clone();
+        } else {
+            // create a new batch
+            self.push_batch();
+            self.current_batch().texture = texture.clone();
+        }
+        self.push_quad(
+            (rect.x + rect.w, rect.y),
+            (rect.x + rect.w, rect.y + rect.h),
+            (rect.x, rect.y),
+            (rect.x, rect.y + rect.h),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+        );
     }
 
     pub fn new(
@@ -198,7 +262,10 @@ impl<'a> Batch<'a> {
                 offset: 0,
                 elements: 0,
                 material: self.default_material.clone(),
+                texture: Texture::default(),
+                texture_sampler: TextureSampler::default(),
             };
+            self.material_stack.push(self.default_material.clone());
             self.batches.push(value);
         }
         return self.batches.last_mut().unwrap();
@@ -209,4 +276,6 @@ pub struct DrawBatch {
     offset: i64,
     elements: i64,
     material: Material,
+    texture: Texture,
+    texture_sampler: TextureSampler,
 }

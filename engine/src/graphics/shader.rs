@@ -49,6 +49,13 @@ impl Shader {
                 gl::COMPILE_STATUS,
                 &mut success as *mut i32,
             );
+            // let mut l = 0;
+            // let mut infoLog: [i8; 300] = [0; 300];
+            // gl::GetShaderInfoLog(fragment_shader, 300, &mut l, &mut infoLog[0]);
+            // println!(
+            //     "{:?}",
+            //     String::from_raw_parts(infoLog.as_mut_ptr() as *mut u8, l as usize, 300)
+            // );
             assert!(success > 0);
         }
 
@@ -105,7 +112,8 @@ impl Shader {
                 // todo: this is pretty bad
                 let uniform_name = &name[0..(length as usize)];
                 let u8slice = &*(uniform_name as *const [i8] as *const [u8]);
-                let location = gl::GetUniformLocation(shader_program, uniform_name.as_ptr() as *const i8);
+                let location =
+                    gl::GetUniformLocation(shader_program, uniform_name.as_ptr() as *const i8);
 
                 let info = Uniform {
                     name: String::from_utf8_lossy(u8slice).to_string(),

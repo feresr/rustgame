@@ -1,10 +1,11 @@
-use super::shader::*;
+use super::{shader::*, texture::*};
 extern crate gl;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Material {
     shader: Shader,
     data: Vec<f32>,
+    texture: Vec<Texture>,
 }
 
 impl Material {
@@ -12,11 +13,37 @@ impl Material {
         return Material {
             shader,
             data: Vec::new(),
+            texture: vec![],
         };
     }
 
     pub fn set(&self) {
+        unsafe {
+            if !self.texture.is_empty() {
+                let id = self.texture.first().unwrap().id;
+                gl::BindTexture(gl::TEXTURE_2D, id);
+            }
+        }
         self.shader.set();
+    }
+
+    pub fn set_texture(&mut self, texture: &Texture) {
+        self.texture.push(texture.clone());
+        if let Some(uniform) = self.find_uniform("u_texture") {
+            self.shader.set();
+        }
+    }
+
+    pub fn set_sampler(&self, sampler: &TextureSampler) {
+        unsafe {
+            let filter = match sampler.filter {
+                TextureFilter::None => gl::NONE,
+                TextureFilter::Linear => gl::LINEAR,
+                TextureFilter::Nearest => gl::NEAREST,
+            };
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, filter as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, filter as i32);
+        }
     }
 
     // todo: uploading data to opengl should happen before rendering (DrawCall) not here

@@ -11,3 +11,4 @@ gl = "0.14.0"
 imgui = ">=0.9.0, <0.10.0"
 imgui-sdl2-support = ">=0.9.0, <0.10.0" # windowing and event handling
 imgui-opengl-renderer = "0.12.0" # rendering
+stb_image_rust = "2.27.2"

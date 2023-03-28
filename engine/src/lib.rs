@@ -32,7 +32,7 @@ pub fn start(mut game: impl Game) {
     gl_attr.set_context_version(3, 3);
 
     let window = video_subsystem
-        .window("Window", 800, 600)
+        .window("Window", 1400, 800)
         .opengl()
         .build()
         .unwrap();
@@ -74,7 +74,7 @@ pub fn start(mut game: impl Game) {
     unsafe {
         // todo: disable
         gl::Disable(gl::CULL_FACE);
-        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+        gl::ClearColor(0.1, 0.1, 0.1, 1.0);
     }
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -123,6 +123,26 @@ pub fn start(mut game: impl Game) {
             0
         };
         println!("sleeping for remaining: {}ms", sleep_for / 1000000);
+        // TODO: look into why imgui reports 30fps (and is probably right)
         ::std::thread::sleep(::std::time::Duration::new(0, sleep_for / 2));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_a() {
+        // let mut mesh = graphics::mesh::Mesh::new();
+        // let mut vertices = Vec::new();
+        // let mut indices = Vec::new();
+        // let shader = graphics::shader::Shader::new(
+        //     graphics::VERTEX_SHADER_SOURCE,
+        //     graphics::FRAGMENT_SHADER_SOURCE,
+        // );
+        // let material = graphics::material::Material::new(shader);
+        // let b = Batch::new(mesh, &material, &mut vertices, &mut indices, ui);
+
+        // b.clear();
+        assert_eq!(1, 1);
     }
 }

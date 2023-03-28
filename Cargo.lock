@@ -47,6 +47,7 @@ dependencies = [
  "imgui-opengl-renderer",
  "imgui-sdl2-support",
  "sdl2",
+ "stb_image_rust",
 ]
 
 [[package]]
@@ -230,6 +231,12 @@ name = "smallvec"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
+
+[[package]]
+name = "stb_image_rust"
+version = "2.27.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d682a002ab01d5e09f47d22cfe4a55a8451cdaef5b0f87d6c8b8c3bc4360b6aa"
 
 [[package]]
 name = "version-compare"
