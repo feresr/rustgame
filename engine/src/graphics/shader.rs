@@ -144,7 +144,7 @@ enum ShaderType {
     FRAGMENT,
 }
 #[derive(PartialEq, Clone, Debug)]
-enum UniformType {
+pub enum UniformType {
     NONE,
     FLOAT,
     FLOAT2,
@@ -156,6 +156,6 @@ enum UniformType {
 pub struct Uniform {
     pub name: String,
     pub location: i32,
-    uniform_type: UniformType,
+    pub uniform_type: UniformType,
     shader_type: ShaderType,
 }

@@ -27,9 +27,9 @@ impl Material {
         self.shader.set();
     }
 
-    pub fn set_texture(&mut self, texture: &Texture) {
+    pub fn set_texture(&mut self, name: &str, texture: &Texture) {
         self.texture.push(texture.clone());
-        if let Some(uniform) = self.find_uniform("u_texture") {
+        if let Some(uniform) = self.find_uniform(name) {
             self.shader.set();
         }
     }
@@ -43,6 +43,19 @@ impl Material {
             };
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, filter as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, filter as i32);
+
+            let wrap_x = match sampler.wrap_x {
+                TextureWrap::Border => gl::CLAMP_TO_BORDER,
+                TextureWrap::Clamp => gl::CLAMP_TO_EDGE,
+                TextureWrap::Repeat => gl::REPEAT,
+            };
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, wrap_x as i32);
+            let wrap_y = match sampler.wrap_y {
+                TextureWrap::Border => gl::CLAMP_TO_BORDER,
+                TextureWrap::Clamp => gl::CLAMP_TO_EDGE,
+                TextureWrap::Repeat => gl::REPEAT,
+            };
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, wrap_y as i32);
         }
     }
 

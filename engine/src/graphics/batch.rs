@@ -8,6 +8,7 @@ use super::common::*;
 use super::drawcall;
 use super::material::*;
 use super::mesh::*;
+use super::target::Target;
 use super::texture::*;
 
 // Sprite batcher used to draw text and textures
@@ -18,13 +19,13 @@ pub struct Batch<'a> {
     batches: Vec<DrawBatch>,
     material_stack: Vec<Material>,
     default_material: &'a Material,
-    pub ui: &'a mut Ui,
+    pub ui: &'a Ui,
 }
 
 impl<'a> Batch<'a> {
     pub fn init<'b>(&self) {}
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, target : &Target) {
         if self.batches.is_empty() {
             // nothing to draw
             println!("nothing to draw");
@@ -59,10 +60,10 @@ impl<'a> Batch<'a> {
             });
 
         for batch in self.batches.iter_mut() {
-            batch.material.set_texture(&batch.texture);
+            batch.material.set_texture("u_texture", &batch.texture);
             batch.material.set_sampler(&batch.texture_sampler);
 
-            let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material);
+            let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material, target);
 
             pass.index_start = batch.offset * 3;
             pass.index_count = batch.elements * 3;

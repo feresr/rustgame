@@ -12,19 +12,74 @@ pub struct Texture {
 impl Texture {
     pub fn default() -> Self {
         return Texture {
-            id: 99,
+            id: 99, // todo: better default value
             width: 0,
             height: 0,
         };
     }
-    pub fn new(path: &str) -> Self {
+
+    pub fn new(width: i32, height: i32, texture_format: TextureFormat) -> Self {
+        let mut texture = Texture {
+            id: 0,
+            width,
+            height,
+        };
+
+        let mut gl_internal_format = 0;
+        let mut gl_format = 0;
+        let mut gl_type = 0;
+        match texture_format {
+            TextureFormat::R => {
+                gl_internal_format = gl::RED;
+                gl_format = gl::RED;
+                gl_type = gl::UNSIGNED_BYTE;
+            }
+            TextureFormat::RG => {
+                gl_internal_format = gl::RG;
+                gl_format = gl::RG;
+                gl_type = gl::UNSIGNED_BYTE;
+            }
+            TextureFormat::RGBA => {
+                gl_internal_format = gl::RGBA;
+                gl_format = gl::RGBA;
+                gl_type = gl::UNSIGNED_BYTE;
+            }
+            TextureFormat::DepthStencil => {
+                gl_internal_format = gl::DEPTH24_STENCIL8;
+                gl_format = gl::DEPTH_STENCIL;
+                gl_type = gl::DEPTH_STENCIL;
+            }
+            TextureFormat::None => {
+                panic!("Invalid texture format {:?}", texture_format)
+            }
+        };
+        unsafe {
+            gl::GenTextures(1, &mut texture.id);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, texture.id);
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl_internal_format.try_into().unwrap(),
+                width,
+                height,
+                0,
+                gl_format,
+                gl_type,
+                std::ptr::null(),
+            );
+        }
+        return texture;
+    }
+
+    pub fn from_path(path: &str) -> Self {
         print!("Creating texture path {}", path);
         let mut id: u32 = 0;
         unsafe {
             gl::GenTextures(1, &mut id);
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, id);
-            // set the texture wrapping/filtering options (on the currently bound texture object)
+            // Set the texture wrapping/filtering options (on the currently bound texture object)
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
             gl::TexParameteri(
@@ -99,24 +154,33 @@ impl std::fmt::Display for TextureFilter {
     }
 }
 #[derive(Clone, Copy, PartialEq)]
-enum TextureWrap {
-    None,
+pub enum TextureWrap {
+    Border,
     Clamp,
     Repeat,
 }
 #[derive(Clone, Copy, PartialEq)]
 pub struct TextureSampler {
     pub filter: TextureFilter,
-    wrap_x: TextureWrap,
-    wrap_y: TextureWrap,
+    pub wrap_x: TextureWrap,
+    pub wrap_y: TextureWrap,
 }
 
 impl TextureSampler {
     pub fn default() -> Self {
         return TextureSampler {
             filter: TextureFilter::Linear,
-            wrap_x: TextureWrap::None,
-            wrap_y: TextureWrap::None,
+            wrap_x: TextureWrap::Border,
+            wrap_y: TextureWrap::Border,
         };
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum TextureFormat {
+    None,
+    R,
+    RG,
+    RGBA,
+    DepthStencil,
 }

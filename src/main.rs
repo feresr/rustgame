@@ -1,6 +1,6 @@
 extern crate engine;
 
-use engine::graphics::{batch::*, common::*, material::*, shader::*, texture::*};
+use engine::graphics::{batch::*, common::*, material::*, shader::*, target::*, texture::*};
 
 struct MyGame {
     position: (f32, f32),
@@ -12,6 +12,7 @@ struct MyGame {
     test: bool,
     texture: Option<Texture>,
     texture2: Option<Texture>,
+    target: Option<Target>,
 }
 
 const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
@@ -53,6 +54,12 @@ impl engine::Game for MyGame {
             w: 2.1,
             h: 2.1,
         };
+        let rect3 = RectF {
+            x: -0.9,
+            y: -0.9,
+            w: 1.8,
+            h: 1.8,
+        };
 
         let mut sampler = TextureSampler::default();
         sampler.filter = TextureFilter::Nearest;
@@ -65,14 +72,25 @@ impl engine::Game for MyGame {
         // maybe forbid this?  batch.peek_material().set_sampler(&sampler);
 
         let pos = batch.ui.io().mouse_pos;
-        self.material2.as_mut().unwrap().set_value3f("color", (1.0, 0.0, 0.0));
+        self.material2
+            .as_mut()
+            .unwrap()
+            .set_value3f("color", (0.0, 1.0, 0.0));
         batch.push_material(&self.material2.as_ref().unwrap());
         batch.circle((pos[0] / 200.0, pos[1] / 100.0), 0.1, 32);
         batch.pop_material();
         batch.circle((pos[0] / 100.0, pos[1] / 50.0), 0.1, 32);
 
         batch.ui.checkbox("test", &mut self.test);
-        batch.render();
+
+        self.target.as_ref().unwrap().clear();
+        batch.render(&self.target.as_ref().unwrap());
+        batch.clear();
+
+        batch.tex(&rect3, &self.target.as_ref().unwrap().attachments[0]);
+        batch.set_sampler(&sampler);
+        batch.circle((pos[0] / 1400.0, pos[1] / 800.0), 0.1, 32);
+        batch.render(&SCREEN);
     }
 
     fn init(&mut self) {
@@ -86,11 +104,13 @@ impl engine::Game for MyGame {
         let mut path = std::env::current_exe().unwrap();
         path.pop();
 
-        let t = Texture::new(String::from(path.display().to_string() + "/coin.png").as_str());
+        let t = Texture::from_path(String::from(path.display().to_string() + "/coin.png").as_str());
         self.texture = Option::Some(t);
 
-        let t = Texture::new(String::from(path.display().to_string() + "/happy.jpg").as_str());
+        let t =
+            Texture::from_path(String::from(path.display().to_string() + "/happy.jpg").as_str());
         self.texture2 = Option::Some(t);
+        self.target = Option::Some(Target::new(175, 100, &[TextureFormat::RGBA]));
     }
 
     fn update(&mut self) {
@@ -122,5 +142,6 @@ fn main() {
         test: true,
         texture: Option::None,
         texture2: Option::None,
+        target: Option::None,
     });
 }

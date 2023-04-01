@@ -5,6 +5,7 @@ pub mod material;
 pub mod mesh;
 pub mod shader;
 pub mod texture;
+pub mod target;
 
 pub const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
             layout (location = 0) in vec2 aPos;\n
