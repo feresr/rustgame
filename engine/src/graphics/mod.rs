@@ -19,9 +19,9 @@ pub const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
 pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             in vec2 TexCoord;\n
             out vec4 FragColor;\n
-            uniform sampler2D a_texture;\n
+            uniform sampler2D u_texture;\n
             uniform vec3 a_color;\n
             void main()\n
             {\n
-                FragColor = vec4(a_color, 1.0) + texture(a_texture, TexCoord);\n
+                FragColor = vec4(a_color, 1.0) + texture(u_texture, TexCoord);\n
             }";

@@ -17,9 +17,12 @@ struct MyGame {
 
 const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
             layout (location = 0) in vec2 aPos;\n
+            layout (location = 1) in vec2 aTexCoord;\n
+            out vec2 TexCoord;
             void main()\n
             {\n
                gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);\n
+               TexCoord = aTexCoord;
             }";
 const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             out vec4 FragColor;\n
@@ -29,11 +32,16 @@ const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
                 FragColor = vec4(color.rgb, 1.0f);\n
             }";
 const FRAGMENT_SHADER_SOURCE_2: &str = "#version 330 core\n
+            in vec2 TexCoord;\n
             out vec4 FragColor;\n
-            uniform vec3 color;
+            uniform vec2 mouse;\n
+            uniform sampler2D u_mytex;\n
+            uniform sampler2D u_texture;\n
             void main()\n
             {\n
-                FragColor = vec4(color.rgb, 1.0f);\n
+                vec4 a = texture(u_mytex, TexCoord);\n
+                vec4 b = texture(u_texture, TexCoord);\n
+                FragColor = mix(a, b, mouse.x);\n
             }";
 
 impl engine::Game for MyGame {
@@ -42,19 +50,6 @@ impl engine::Game for MyGame {
         path.pop(); // remove exe name from path
 
         let rect1 = RectF {
-            x: -0.9,
-            y: -0.9,
-            w: 0.6,
-            h: 0.6,
-        };
-
-        let rect2 = RectF {
-            x: 0.2,
-            y: -0.9,
-            w: 2.1,
-            h: 2.1,
-        };
-        let rect3 = RectF {
             x: -0.9,
             y: -0.9,
             w: 1.8,
@@ -67,30 +62,35 @@ impl engine::Game for MyGame {
             sampler.filter = TextureFilter::Linear;
         }
         batch.set_sampler(&sampler);
-        batch.tex(&rect1, &self.texture.as_ref().unwrap());
-        batch.tex(&rect2, &self.texture2.as_ref().unwrap());
+        // batch.set_sampler(&sampler);
+        // batch.tex(&rect1, &self.texture.as_ref().unwrap());
+        // batch.tex(&rect2, &self.texture2.as_ref().unwrap());
         // maybe forbid this?  batch.peek_material().set_sampler(&sampler);
-
         let pos = batch.ui.io().mouse_pos;
-        self.material2
-            .as_mut()
-            .unwrap()
-            .set_value3f("color", (0.0, 1.0, 0.0));
+
+        let mat2 = self.material2.as_mut().unwrap();
+        mat2.set_value2f(
+            "mouse",
+            (pos[0] / 1400.0, pos[1]),
+        );
+        mat2.set_texture("u_mytex", self.texture2.as_ref().unwrap());
+        mat2.set_sampler("u_mytex", &sampler);
+
         batch.push_material(&self.material2.as_ref().unwrap());
-        batch.circle((pos[0] / 200.0, pos[1] / 100.0), 0.1, 32);
+        batch.tex(&rect1, self.texture.as_ref().unwrap());
         batch.pop_material();
-        batch.circle((pos[0] / 100.0, pos[1] / 50.0), 0.1, 32);
 
-        batch.ui.checkbox("test", &mut self.test);
-
-        self.target.as_ref().unwrap().clear();
-        batch.render(&self.target.as_ref().unwrap());
+        let offscreen_buffer = self.target.as_ref().unwrap();
+        offscreen_buffer.clear();
+        batch.render(offscreen_buffer);
         batch.clear();
 
-        batch.tex(&rect3, &self.target.as_ref().unwrap().attachments[0]);
         batch.set_sampler(&sampler);
-        batch.circle((pos[0] / 1400.0, pos[1] / 800.0), 0.1, 32);
+        batch.tex(&rect1, &self.target.as_ref().unwrap().attachments[0]);
+        // batch.circle((pos[0] / 1400.0, pos[1] / 800.0), 0.1, 32);
         batch.render(&SCREEN);
+
+        batch.ui.checkbox("test", &mut self.test);
     }
 
     fn init(&mut self) {
@@ -101,16 +101,16 @@ impl engine::Game for MyGame {
         self.shader = Option::Some(Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE_2));
         let material = Material::new(self.shader.clone().unwrap());
         self.material2 = Option::Some(material);
+
         let mut path = std::env::current_exe().unwrap();
         path.pop();
-
         let t = Texture::from_path(String::from(path.display().to_string() + "/coin.png").as_str());
         self.texture = Option::Some(t);
 
         let t =
             Texture::from_path(String::from(path.display().to_string() + "/happy.jpg").as_str());
         self.texture2 = Option::Some(t);
-        self.target = Option::Some(Target::new(175, 100, &[TextureFormat::RGBA]));
+        self.target = Option::Some(Target::new(175 * 1, 100 * 1, &[TextureFormat::RGBA]));
     }
 
     fn update(&mut self) {

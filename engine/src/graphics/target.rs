@@ -3,7 +3,7 @@ extern crate gl;
 use super::texture::Texture;
 use super::texture::TextureFormat;
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct Target {
     pub id: u32,
     pub width: i32,

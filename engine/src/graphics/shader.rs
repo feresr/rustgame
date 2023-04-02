@@ -25,7 +25,6 @@ impl Shader {
             gl::CompileShader(vertex_shader);
             let mut success = 0;
             gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success as *mut i32);
-            assert!(success > 0);
             if success == 0 {
                 panic!("vertex shader error!")
             }
@@ -115,10 +114,26 @@ impl Shader {
                 let location =
                     gl::GetUniformLocation(shader_program, uniform_name.as_ptr() as *const i8);
 
+                let uniform_type = match type_ {
+                    gl::FLOAT => UniformType::Float,
+                    gl::FLOAT_VEC2 => UniformType::Float2,
+                    gl::FLOAT_VEC3 => UniformType::Float3,
+                    gl::FLOAT_VEC4 => UniformType::Float4,
+                    gl::FLOAT_MAT3x2 => UniformType::Matrix3x2,
+                    gl::FLOAT_MAT4 => UniformType::Matrix4x4,
+                    gl::SAMPLER_2D => UniformType::Texture2D,
+                    unsupported => panic!("Unsupported uniform type, id: {}", unsupported),
+                };
+
+                let shader_type = match type_ {
+                    gl::SAMPLER_2D => ShaderType::Fragment,
+                    _ => ShaderType::VertexFragment,
+                };
+
                 let info = Uniform {
                     name: String::from_utf8_lossy(u8slice).to_string(),
-                    uniform_type: UniformType::FLOAT,
-                    shader_type: ShaderType::FRAGMENT,
+                    uniform_type,
+                    shader_type,
                     location,
                 };
                 uniforms.push(info);
@@ -137,19 +152,24 @@ impl Shader {
         }
     }
 }
+
 #[derive(PartialEq, Clone, Debug)]
 enum ShaderType {
-    NONE,
-    VERTEX,
-    FRAGMENT,
+    None,
+    Vertex,
+    Fragment,
+    VertexFragment,
 }
+
 #[derive(PartialEq, Clone, Debug)]
 pub enum UniformType {
-    NONE,
-    FLOAT,
-    FLOAT2,
-    FLOAT3,
-    FLOAT4,
+    Float,
+    Float2,
+    Float3,
+    Float4,
+    Matrix3x2,
+    Matrix4x4,
+    Texture2D,
 }
 
 #[derive(PartialEq, Clone, Debug)]

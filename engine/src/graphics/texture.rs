@@ -2,7 +2,7 @@ use std::{fmt::Error, fmt::Formatter, fs::File, io::Read};
 
 extern crate gl;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Hash)]
 pub struct Texture {
     pub id: u32,
     width: i32,
@@ -140,6 +140,32 @@ impl Texture {
     }
 
     pub fn loadImage(&self, path: &str) {}
+
+    pub fn update_sampler(&self, sampler: &TextureSampler) {
+        let filter = match sampler.filter {
+            TextureFilter::None => gl::NONE,
+            TextureFilter::Linear => gl::LINEAR,
+            TextureFilter::Nearest => gl::NEAREST,
+        };
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.id);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, filter as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, filter as i32);
+
+            let wrap_x = match sampler.wrap_x {
+                TextureWrap::Border => gl::CLAMP_TO_BORDER,
+                TextureWrap::Clamp => gl::CLAMP_TO_EDGE,
+                TextureWrap::Repeat => gl::REPEAT,
+            };
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, wrap_x as i32);
+            let wrap_y = match sampler.wrap_y {
+                TextureWrap::Border => gl::CLAMP_TO_BORDER,
+                TextureWrap::Clamp => gl::CLAMP_TO_EDGE,
+                TextureWrap::Repeat => gl::REPEAT,
+            };
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, wrap_y as i32);
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -153,13 +179,13 @@ impl std::fmt::Display for TextureFilter {
         write!(f, "{:?}", self)
     }
 }
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TextureWrap {
     Border,
     Clamp,
     Repeat,
 }
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextureSampler {
     pub filter: TextureFilter,
     pub wrap_x: TextureWrap,

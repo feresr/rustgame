@@ -2,7 +2,10 @@ extern crate gl;
 
 use std::f32::consts::TAU;
 
+use imgui::TreeNodeFlags;
 use imgui::Ui;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 use super::common::*;
 use super::drawcall;
@@ -25,7 +28,7 @@ pub struct Batch<'a> {
 impl<'a> Batch<'a> {
     pub fn init<'b>(&self) {}
 
-    pub fn render(&mut self, target : &Target) {
+    pub fn render(&mut self, target: &Target) {
         if self.batches.is_empty() {
             // nothing to draw
             println!("nothing to draw");
@@ -37,51 +40,75 @@ impl<'a> Batch<'a> {
         self.mesh.set_data(&self.vertices);
         self.mesh.set_index_data(&self.indices);
 
-        self.ui
-            .window("Draw Batches")
-            .size([800.0, 300.0], imgui::Condition::FirstUseEver)
-            .build(|| {
-                for batch in self.batches.iter() {
-                    if batch.elements == 0 {
-                        continue;
-                    }
-                    self.ui.text(format!("elements: {}", batch.elements));
-                    self.ui.text(format!("offset: {}", batch.offset));
-                    self.ui.text(format!("texture: {}", batch.texture.id));
-                    self.ui
-                        .text(format!("sampler: {}", batch.texture_sampler.filter));
-                    self.ui.separator();
-                }
-
-                self.ui.text(format!("vertices: {:?}", self.vertices));
-                self.ui.separator();
-                self.ui.text(format!("indices: {:?}", self.indices));
-                self.ui.separator();
-            });
 
         for batch in self.batches.iter_mut() {
-            batch.material.set_texture("u_texture", &batch.texture);
-            batch.material.set_sampler(&batch.texture_sampler);
+            if batch.material.has_uniform("u_texture") {
+                println!("has uniform");
+                batch.material.set_texture("u_texture", &batch.texture);
+                batch.material.set_sampler("u_texture", &batch.sampler);
+            }
 
             let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material, target);
-
             pass.index_start = batch.offset * 3;
             pass.index_count = batch.elements * 3;
             if pass.index_count == 0 {
-                println!("pass empty {}", pass.index_count);
                 continue;
             }
             pass.perform();
         }
+
+        self.ui
+            .window("Render calls")
+            .size([400.0, 600.0], imgui::Condition::FirstUseEver)
+            .build(|| {
+                let mut s = DefaultHasher::new();
+                target.hash(&mut s);
+                let h = s.finish();
+                let header = self
+                    .ui
+                    .collapsing_header(h.to_string(), TreeNodeFlags::DEFAULT_OPEN);
+                if header {
+                    for (index, batch) in self.batches.iter().enumerate() {
+                        if batch.elements == 0 {
+                            continue;
+                        }
+                        let header = self
+                            .ui
+                            .collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
+                        if header {
+                            self.ui.text(format!("elements: {}", batch.elements));
+                            self.ui.text(format!("offset: {}", batch.offset));
+                            self.ui.text(format!("texture: {}", batch.texture.id));
+                            self.ui.text(format!("sampler: {}", batch.sampler.filter));
+                            self.ui.text(format!("material: {:?}", batch.material));
+                        }
+                    }
+
+                    self.ui.text(format!("vertices: {:?}", self.vertices));
+                    self.ui.separator();
+                    self.ui.text(format!("indices: {:?}", self.indices));
+                }
+            });
     }
 
     pub fn set_sampler(&mut self, sampler: &TextureSampler) {
         let current = self.current_batch();
-        if current.elements > 0 && *sampler != current.texture_sampler {
+        if current.elements > 0 && *sampler != current.sampler {
             self.push_batch();
         }
         let current = self.current_batch();
-        current.texture_sampler = sampler.clone();
+        current.sampler = sampler.clone();
+    }
+
+    // Sets the current texture used for drawing.
+    // Note that certain functions will override this (ex the `str` and `tex` methods)
+    pub fn set_texture(&mut self, texture: &Texture) {
+        let current = self.current_batch();
+        if current.elements > 0 && *texture != current.texture {
+            self.push_batch();
+        }
+        let current = self.current_batch();
+        current.texture = texture.clone();
     }
 
     fn push_batch(&mut self) {
@@ -264,7 +291,7 @@ impl<'a> Batch<'a> {
                 elements: 0,
                 material: self.default_material.clone(),
                 texture: Texture::default(),
-                texture_sampler: TextureSampler::default(),
+                sampler: TextureSampler::default(),
             };
             self.material_stack.push(self.default_material.clone());
             self.batches.push(value);
@@ -278,5 +305,5 @@ pub struct DrawBatch {
     elements: i64,
     material: Material,
     texture: Texture,
-    texture_sampler: TextureSampler,
+    sampler: TextureSampler,
 }
