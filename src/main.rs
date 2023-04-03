@@ -1,18 +1,21 @@
 extern crate engine;
 
+use std::cell::RefMut;
+
+use bevy_ecs::prelude::*;
 use engine::graphics::{batch::*, common::*, material::*, shader::*, target::*, texture::*};
 
-struct MyGame {
-    position: (f32, f32),
-    velocity: f32,
-    // this could be a "content manager" instead
-    material: Option<Material>,
-    material2: Option<Material>,
-    shader: Option<Shader>,
-    test: bool,
-    texture: Option<Texture>,
-    texture2: Option<Texture>,
-    target: Option<Target>,
+#[derive(Component)]
+struct Circle {}
+#[derive(Component)]
+struct Position {
+    x: f32,
+    y: f32,
+}
+#[derive(Component)]
+struct Velocity {
+    x: f32,
+    y: f32,
 }
 
 const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
@@ -44,104 +47,94 @@ const FRAGMENT_SHADER_SOURCE_2: &str = "#version 330 core\n
                 FragColor = mix(a, b, mouse.x);\n
             }";
 
-impl engine::Game for MyGame {
-    fn render<'b>(&'b mut self, batch: &mut Batch<'b>) {
-        let mut path = std::env::current_exe().unwrap();
-        path.pop(); // remove exe name from path
+fn main() {
+    engine::start(&|world, update, render| {
+        world.spawn((
+            Position { x: -2.0, y: 0.0 },
+            Velocity { x: 0.001, y: 0.0 },
+            Circle {},
+        ));
 
-        let rect1 = RectF {
-            x: -0.9,
-            y: -0.9,
-            w: 1.8,
-            h: 1.8,
-        };
+        world.spawn((
+            Position { x: 2.0, y: 0.2 },
+            Velocity {
+                x: -0.001,
+                y: 0.0000,
+            },
+            Circle {},
+        ));
+        world.spawn((
+            Position { x: -2.0, y: -0.9 },
+            Velocity { x: 0.001, y: 0.000 },
+            Circle {},
+        ));
 
-        let mut sampler = TextureSampler::default();
-        sampler.filter = TextureFilter::Nearest;
-        if self.test == true {
-            sampler.filter = TextureFilter::Linear;
-        }
-        batch.set_sampler(&sampler);
-        // batch.set_sampler(&sampler);
-        // batch.tex(&rect1, &self.texture.as_ref().unwrap());
-        // batch.tex(&rect2, &self.texture2.as_ref().unwrap());
-        // maybe forbid this?  batch.peek_material().set_sampler(&sampler);
-        let pos = batch.ui.io().mouse_pos;
-
-        let mat2 = self.material2.as_mut().unwrap();
-        mat2.set_value2f(
-            "mouse",
-            (pos[0] / 1400.0, pos[1]),
-        );
-        mat2.set_texture("u_mytex", self.texture2.as_ref().unwrap());
-        mat2.set_sampler("u_mytex", &sampler);
-
-        batch.push_material(&self.material2.as_ref().unwrap());
-        batch.tex(&rect1, self.texture.as_ref().unwrap());
-        batch.pop_material();
-
-        let offscreen_buffer = self.target.as_ref().unwrap();
-        offscreen_buffer.clear();
-        batch.render(offscreen_buffer);
-        batch.clear();
-
-        batch.set_sampler(&sampler);
-        batch.tex(&rect1, &self.target.as_ref().unwrap().attachments[0]);
-        // batch.circle((pos[0] / 1400.0, pos[1] / 800.0), 0.1, 32);
-        batch.render(&SCREEN);
-
-        batch.ui.checkbox("test", &mut self.test);
-    }
-
-    fn init(&mut self) {
-        self.shader = Option::Some(Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE));
-        let material = Material::new(self.shader.clone().unwrap());
-        self.material = Option::Some(material);
-
-        self.shader = Option::Some(Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE_2));
-        let material = Material::new(self.shader.clone().unwrap());
-        self.material2 = Option::Some(material);
+        let shader = Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE_2);
+        let material = Material::new(shader);
+        world.insert_resource(material);
 
         let mut path = std::env::current_exe().unwrap();
-        path.pop();
-        let t = Texture::from_path(String::from(path.display().to_string() + "/coin.png").as_str());
-        self.texture = Option::Some(t);
+        path.pop(); // removes executable name from path
+        let path = path.display().to_string();
+        let texture = Texture::from_path(String::from(path + "/happy.jpg").as_str());
+        world.insert_resource(texture);
 
-        let t =
-            Texture::from_path(String::from(path.display().to_string() + "/happy.jpg").as_str());
-        self.texture2 = Option::Some(t);
-        self.target = Option::Some(Target::new(175 * 1, 100 * 1, &[TextureFormat::RGBA]));
-    }
-
-    fn update(&mut self) {
-        self.position.0 = f32::sin(self.velocity * 1.0) * 0.9;
-        self.position.1 = f32::cos(self.velocity * 5.0) * 0.25;
-        self.velocity += 0.008;
-
-        let r = (1.0 + f32::sin(self.velocity * 2.0)) / 2.0;
-        let g = (1.0 + f32::sin(self.velocity)) / 2.0;
-        let b = (1.0 + f32::sin(self.velocity * 1.5)) / 2.0;
-        // self.material
-        //     .as_mut()
-        //     .unwrap()
-        //     .set_value3f("color", (r, g, b));
-        // self.material2
-        //     .as_mut()
-        //     .unwrap()
-        //     .set_value3f("color", (g, b, r));
-    }
+        update.add_system(updating);
+        render.add_system(rendering);
+    });
 }
 
-fn main() {
-    engine::start(MyGame {
-        position: (0.0, 0.0),
-        velocity: 0.0,
-        material: Option::None,
-        material2: Option::None,
-        shader: Option::None,
-        test: true,
-        texture: Option::None,
-        texture2: Option::None,
-        target: Option::None,
-    });
+// This system moves each entity with a Position and Velocity component
+// NonSend means (use main thread)
+fn rendering(
+    mut batch: NonSendMut<'_, Batch>,
+    mut query: Query<'_, '_, (&Position, &Circle)>,
+    mut material: ResMut<'_, Material>,
+    texture: Res<'_, Texture>,
+) {
+    let mut sampler = TextureSampler::default();
+    sampler.filter = TextureFilter::Nearest;
+    // if self.test == true {
+    //     sampler.filter = TextureFilter::Linear;
+    // }
+    batch.set_sampler(&sampler);
+    // batch.set_sampler(&sampler);
+    // batch.tex(&rect1, &self.texture.as_ref().unwrap());
+    // batch.tex(&rect2, &self.texture2.as_ref().unwrap());
+    // maybe forbid this?  batch.peek_material().set_sampler(&sampler);
+    // let pos = batch.ui.io().mouse_pos;
+
+    // material.set_value2f("mouse", (700.0 / 1400.0, 1.0));
+    material.set_texture("u_mytex", &texture);
+    material.set_sampler("u_mytex", &sampler);
+
+    batch.push_material(&material);
+    for (position, _) in &mut query {
+        let rect1 = RectF {
+            x: position.x,
+            y: position.y,
+            w: 1.0,
+            h: 1.0,
+        };
+        batch.tex(&rect1, &texture);
+    }
+    batch.pop_material();
+
+    // let offscreen_buffer = self.target.as_ref().unwrap();
+    // offscreen_buffer.clear();
+    // batch.render(offscreen_buffer);
+    // batch.clear();
+
+    // batch.set_sampler(&sampler);
+    // batch.tex(&rect1, &self.target.as_ref().unwrap().attachments[0]);
+    // batch.circle((pos[0] / 1400.0, pos[1] / 800.0), 0.1, 32);
+    batch.render(&SCREEN);
+    batch.clear();
+}
+
+fn updating(mut query: Query<'_, '_, (&mut Position, &Velocity)>) {
+    for (mut position, velocity) in &mut query {
+        position.x += velocity.x;
+        position.y += velocity.y;
+    }
 }

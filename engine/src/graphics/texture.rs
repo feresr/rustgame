@@ -1,8 +1,10 @@
 use std::{fmt::Error, fmt::Formatter, fs::File, io::Read};
 
+use bevy_ecs::system::Resource;
+
 extern crate gl;
 
-#[derive(Clone, Copy, PartialEq, Debug, Hash)]
+#[derive(Resource, Clone, Copy, PartialEq, Debug, Hash)]
 pub struct Texture {
     pub id: u32,
     width: i32,

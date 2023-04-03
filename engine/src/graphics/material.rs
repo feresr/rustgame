@@ -1,10 +1,12 @@
+use bevy_ecs::system::Resource;
+
 use super::{
     shader::*,
     texture::{self, *},
 };
 extern crate gl;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Resource, PartialEq, Debug, Clone)]
 pub struct Material {
     shader: Shader,
     data: Vec<f32>,
@@ -112,7 +114,7 @@ impl Material {
             }
         }
     }
-    pub fn set_value2f(&mut self, name: &str, value: (f32, f32)) {
+    pub fn set_value2f(&self, name: &str, value: (f32, f32)) {
         if let Some(uniform) = self.find_uniform(name) {
             self.shader.set();
             unsafe {

@@ -16,7 +16,7 @@ impl Mesh {
         let mut vao = 0;
         let mut buffers: [u32; 2] = [0, 0];
         unsafe {
-            gl::GenVertexArrays(1, (&mut vao) as *mut u32);
+            gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(2, (&mut buffers) as *mut u32);
             gl::BindVertexArray(vao);
             // bind ARRAY_BUFFER to VAO
@@ -43,6 +43,9 @@ impl Mesh {
             }
             // bind EBO to VAO
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffers[1]);
+            while gl::GetError() != gl::NO_ERROR {
+                panic!("Something went wrong creating Mesh")
+            }
         }
         Mesh {
             id: vao,

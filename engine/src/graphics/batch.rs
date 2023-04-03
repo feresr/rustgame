@@ -6,6 +6,7 @@ use imgui::TreeNodeFlags;
 use imgui::Ui;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use bevy_ecs::prelude::*;
 
 use super::common::*;
 use super::drawcall;
@@ -15,35 +16,33 @@ use super::target::Target;
 use super::texture::*;
 
 // Sprite batcher used to draw text and textures
-pub struct Batch<'a> {
-    mesh: &'a mut Mesh,
-    vertices: &'a mut Vec<Vertex>,
-    indices: &'a mut Vec<u32>,
+#[derive(Resource)]
+pub struct Batch {
+    mesh: Mesh,
+    vertices: Vec<Vertex>,
+    indices: Vec<u32>,
     batches: Vec<DrawBatch>,
     material_stack: Vec<Material>,
-    default_material: &'a Material,
-    pub ui: &'a Ui,
+    default_material: Material,
+    // pub ui: &'a Ui,
 }
 
-impl<'a> Batch<'a> {
-    pub fn init<'b>(&self) {}
+impl Batch {
 
     pub fn render(&mut self, target: &Target) {
         if self.batches.is_empty() {
             // nothing to draw
-            println!("nothing to draw");
             return;
         }
 
         // upload data to gpu
-        self.mesh.bind();
+        // self.mesh.bind();
         self.mesh.set_data(&self.vertices);
         self.mesh.set_index_data(&self.indices);
 
 
         for batch in self.batches.iter_mut() {
             if batch.material.has_uniform("u_texture") {
-                println!("has uniform");
                 batch.material.set_texture("u_texture", &batch.texture);
                 batch.material.set_sampler("u_texture", &batch.sampler);
             }
@@ -57,38 +56,39 @@ impl<'a> Batch<'a> {
             pass.perform();
         }
 
-        self.ui
-            .window("Render calls")
-            .size([400.0, 600.0], imgui::Condition::FirstUseEver)
-            .build(|| {
-                let mut s = DefaultHasher::new();
-                target.hash(&mut s);
-                let h = s.finish();
-                let header = self
-                    .ui
-                    .collapsing_header(h.to_string(), TreeNodeFlags::DEFAULT_OPEN);
-                if header {
-                    for (index, batch) in self.batches.iter().enumerate() {
-                        if batch.elements == 0 {
-                            continue;
-                        }
-                        let header = self
-                            .ui
-                            .collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
-                        if header {
-                            self.ui.text(format!("elements: {}", batch.elements));
-                            self.ui.text(format!("offset: {}", batch.offset));
-                            self.ui.text(format!("texture: {}", batch.texture.id));
-                            self.ui.text(format!("sampler: {}", batch.sampler.filter));
-                            self.ui.text(format!("material: {:?}", batch.material));
-                        }
-                    }
+        // TODO: Re-implement
+        // self.ui
+        //     .window("Render calls")
+        //     .size([400.0, 600.0], imgui::Condition::FirstUseEver)
+        //     .build(|| {
+        //         let mut s = DefaultHasher::new();
+        //         target.hash(&mut s);
+        //         let h = s.finish();
+        //         let header = self
+        //             .ui
+        //             .collapsing_header(h.to_string(), TreeNodeFlags::DEFAULT_OPEN);
+        //         if header {
+        //             for (index, batch) in self.batches.iter().enumerate() {
+        //                 if batch.elements == 0 {
+        //                     continue;
+        //                 }
+        //                 let header = self
+        //                     .ui
+        //                     .collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
+        //                 if header {
+        //                     self.ui.text(format!("elements: {}", batch.elements));
+        //                     self.ui.text(format!("offset: {}", batch.offset));
+        //                     self.ui.text(format!("texture: {}", batch.texture.id));
+        //                     self.ui.text(format!("sampler: {}", batch.sampler.filter));
+        //                     self.ui.text(format!("material: {:?}", batch.material));
+        //                 }
+        //             }
 
-                    self.ui.text(format!("vertices: {:?}", self.vertices));
-                    self.ui.separator();
-                    self.ui.text(format!("indices: {:?}", self.indices));
-                }
-            });
+        //             self.ui.text(format!("vertices: {:?}", self.vertices));
+        //             self.ui.separator();
+        //             self.ui.text(format!("indices: {:?}", self.indices));
+        //         }
+        //     });
     }
 
     pub fn set_sampler(&mut self, sampler: &TextureSampler) {
@@ -267,20 +267,18 @@ impl<'a> Batch<'a> {
     }
 
     pub fn new(
-        mesh: &'a mut Mesh,
-        material: &'a Material,
-        vertices: &'a mut Vec<Vertex>,
-        indices: &'a mut Vec<u32>,
-        ui: &'a mut Ui,
-    ) -> Batch<'a> {
+        mesh: Mesh,
+        material: Material,
+        // ui: &'a mut Ui,
+    ) -> Batch {
         return Batch {
             mesh,
-            vertices,
-            indices,
+            vertices: Vec::new(),
+            indices: Vec::new(),
             material_stack: Vec::new(),
             batches: Vec::new(),
             default_material: material,
-            ui,
+            // ui,
         };
     }
 
