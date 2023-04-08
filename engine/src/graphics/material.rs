@@ -114,6 +114,8 @@ impl Material {
             }
         }
     }
+
+    // todo, the material save uniform data as internal state and upload to GPU only on Dracall#perform()
     pub fn set_value2f(&self, name: &str, value: (f32, f32)) {
         if let Some(uniform) = self.find_uniform(name) {
             self.shader.set();
@@ -122,6 +124,8 @@ impl Material {
             }
         }
     }
+
+    // todo, the material save uniform data as internal state and upload to GPU only on Dracall#perform()
     pub fn set_value3f(&mut self, name: &str, value: (f32, f32, f32)) {
         if let Some(uniform) = self.find_uniform(name) {
             self.shader.set();
@@ -130,11 +134,32 @@ impl Material {
             }
         }
     }
+    // todo, the material save uniform data as internal state and upload to GPU only on Dracall#perform()
     pub fn set_value4f(&mut self, name: &str, value: (f32, f32, f32, f32)) {
         if let Some(uniform) = self.find_uniform(name) {
             self.shader.set();
             unsafe {
                 gl::Uniform4f(uniform.location, value.0, value.1, value.2, value.3);
+            }
+        }
+    }
+
+    // todo, the material save uniform data as internal state and upload to GPU only on Dracall#perform()
+    pub fn set_matrix3x2(&mut self, name: &str, value: glm::Mat3x2) {
+        if let Some(uniform) = self.find_uniform(name) {
+            self.shader.set();
+            unsafe {
+                gl::UniformMatrix3x2fv(uniform.location, 1, gl::FALSE, value.as_slice().as_ptr());
+            }
+        }
+    }
+
+    // todo, the material save uniform data as internal state and upload to GPU only on Dracall#perform()
+    pub fn set_matrix4x4(&mut self, name: &str, value: &glm::Mat4x4) {
+        if let Some(uniform) = self.find_uniform(name) {
+            self.shader.set();
+            unsafe {
+                gl::UniformMatrix4fv(uniform.location, 1, gl::FALSE, value.as_slice().as_ptr());
             }
         }
     }

@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 engine = { path="./engine" }
 bevy_ecs = "0.10.1"
+nalgebra-glm = "0.18.0"

@@ -1,5 +1,6 @@
 #![deny(elided_lifetimes_in_paths)]
 extern crate gl;
+extern crate nalgebra_glm as glm;
 extern crate sdl2;
 use bevy_ecs::prelude::*;
 
@@ -82,8 +83,8 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
     let mut render_schedule = Schedule::default();
 
     unsafe {
-        // todo: disable
         gl::Disable(gl::CULL_FACE);
+        gl::Enable(gl::DEPTH_TEST);
         gl::ClearColor(0.2, 0.2, 0.2, 1.0);
     }
 
@@ -96,7 +97,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
         let start = Instant::now();
         {
             unsafe {
-                gl::Clear(gl::COLOR_BUFFER_BIT);
+                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             }
             update_schedule.run(&mut world);
             render_schedule.run(&mut world);
@@ -108,7 +109,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
             }
         }
         let delta = start.elapsed();
-        println!("frame took: {}ms", delta.as_millis());
+        println!("frame total took: {}ms", delta.as_millis());
         let sleep_for = if delta.as_nanos() as u32 <= FPS {
             FPS - delta.as_nanos() as u32
         } else {

@@ -22,24 +22,36 @@ impl Mesh {
             // bind ARRAY_BUFFER to VAO
             {
                 gl::BindBuffer(gl::ARRAY_BUFFER, buffers[0]);
+                // aPos;
                 gl::VertexAttribPointer(
                     0,
-                    2,
+                    3,
                     gl::FLOAT,
                     gl::FALSE,
-                    (4 * core::mem::size_of::<f32>()) as i32,
-                    std::ptr::null(),
+                    (8 * core::mem::size_of::<f32>()) as i32,
+                    (2 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
                 );
                 gl::EnableVertexAttribArray(0);
+                // aColor
                 gl::VertexAttribPointer(
                     1,
+                    3,
+                    gl::FLOAT,
+                    gl::FALSE,
+                    (8 * core::mem::size_of::<f32>()) as i32,
+                    (5 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
+                );
+                gl::EnableVertexAttribArray(1);
+                // aTexCoord
+                gl::VertexAttribPointer(
+                    2,
                     2,
                     gl::FLOAT,
                     gl::FALSE,
-                    (4 * core::mem::size_of::<f32>()) as i32,
-                    (2 * std::mem::size_of::<f32>()) as *const std::os::raw::c_void,
+                    (8 * core::mem::size_of::<f32>()) as i32,
+                    (0 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
                 );
-                gl::EnableVertexAttribArray(1);
+                gl::EnableVertexAttribArray(2);
             }
             // bind EBO to VAO
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffers[1]);

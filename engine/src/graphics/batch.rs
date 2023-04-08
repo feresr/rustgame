@@ -2,11 +2,11 @@ extern crate gl;
 
 use std::f32::consts::TAU;
 
+use bevy_ecs::prelude::*;
 use imgui::TreeNodeFlags;
 use imgui::Ui;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use bevy_ecs::prelude::*;
 
 use super::common::*;
 use super::drawcall;
@@ -22,29 +22,30 @@ pub struct Batch {
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
     batches: Vec<DrawBatch>,
+    matrix_stack: Vec<glm::Mat4>,
     material_stack: Vec<Material>,
     default_material: Material,
     // pub ui: &'a Ui,
 }
 
 impl Batch {
-
-    pub fn render(&mut self, target: &Target) {
+    pub fn render(&mut self, target: &Target, projection: &glm::Mat4) {
         if self.batches.is_empty() {
             // nothing to draw
             return;
         }
 
         // upload data to gpu
-        // self.mesh.bind();
         self.mesh.set_data(&self.vertices);
         self.mesh.set_index_data(&self.indices);
-
 
         for batch in self.batches.iter_mut() {
             if batch.material.has_uniform("u_texture") {
                 batch.material.set_texture("u_texture", &batch.texture);
                 batch.material.set_sampler("u_texture", &batch.sampler);
+            }
+            if batch.material.has_uniform("u_matrix") {
+                batch.material.set_matrix4x4("u_matrix", projection);
             }
 
             let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material, target);
@@ -142,24 +143,36 @@ impl Batch {
         self.indices.push(2 + last_vertex_index);
         self.indices.push(3 + last_vertex_index);
 
+        let identity: glm::Mat4 = glm::Mat4::identity();
+        let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap_or(&identity);
+        let z = -0.0;
+
         // bottom right
+        let w = matrix * glm::vec4(pos0.0, pos0.1, z, 1.0);
         self.vertices.push(Vertex {
-            pos: pos0,
+            pos: (w[0], w[1], w[2]),
+            col : (0.0, 0.0, 0.0),
             tex: tex0,
         });
         // top rigth
+        let w = matrix * glm::vec4(pos1.0, pos1.1, z, 1.0);
         self.vertices.push(Vertex {
-            pos: pos1,
+            pos: (w[0], w[1], w[2]),
+            col : (0.0, 0.0, 0.0),
             tex: tex1,
         });
         // bottom left
+        let w = matrix * glm::vec4(pos2.0, pos2.1, z, 1.0);
         self.vertices.push(Vertex {
-            pos: pos2,
+            pos: (w[0], w[1], w[2]),
+            col : (0.0, 0.0, 0.0),
             tex: tex2,
         });
         // top left
+        let w = matrix * glm::vec4(pos3.0, pos3.1, z, 1.0);
         self.vertices.push(Vertex {
-            pos: pos3,
+            pos: (w[0], w[1], w[2]),
+            col : (0.0, 0.0, 0.0),
             tex: tex3,
         });
 
@@ -180,19 +193,21 @@ impl Batch {
     }
 
     pub fn circle(&mut self, center: (f32, f32), radius: f32, steps: u32) {
-        let mut last = (center.0 + radius, center.1);
+        let mut last = (center.0 + radius, center.1, 0.0);
+        let center = (center.0, center.1, 0.0);
         for i in 0..=steps {
             let radians = (i as f32 / steps as f32) * TAU;
             let next = (
                 center.0 + f32::cos(radians) * radius,
                 center.1 + f32::sin(radians) * radius,
+                0.0,
             );
             self.tri(last, next, center);
             last = next;
         }
     }
 
-    pub fn tri(&mut self, pos0: (f32, f32), pos1: (f32, f32), pos2: (f32, f32)) {
+    pub fn tri(&mut self, pos0: (f32, f32, f32), pos1: (f32, f32, f32), pos2: (f32, f32, f32)) {
         let last_vertex_index = self.vertices.len() as u32;
         self.indices.push(0 + last_vertex_index);
         self.indices.push(1 + last_vertex_index);
@@ -200,14 +215,17 @@ impl Batch {
 
         self.vertices.push(Vertex {
             pos: pos0,
+            col : (0.0, 0.0, 0.0),
             tex: (0.0, 0.0),
         });
         self.vertices.push(Vertex {
             pos: pos1,
+            col : (0.0, 0.0, 0.0),
             tex: (0.0, 0.0),
         });
         self.vertices.push(Vertex {
             pos: pos2,
+            col : (0.0, 0.0, 0.0),
             tex: (0.0, 0.0),
         });
         self.current_batch().elements += 1;
@@ -241,7 +259,15 @@ impl Batch {
             self.push_batch();
         }
         self.current_batch().material = material.clone();
-        // return was?
+        // todo: return was?
+    }
+
+    pub fn push_matrix(&mut self, matrix: glm::Mat4) {
+        self.matrix_stack.push(matrix);
+    }
+
+    pub fn pop_matrix(&mut self) {
+        self.matrix_stack.pop();
     }
 
     pub fn tex(&mut self, rect: &RectF, texture: &Texture) {
@@ -276,6 +302,7 @@ impl Batch {
             vertices: Vec::new(),
             indices: Vec::new(),
             material_stack: Vec::new(),
+            matrix_stack: Vec::new(),
             batches: Vec::new(),
             default_material: material,
             // ui,

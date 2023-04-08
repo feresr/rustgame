@@ -4,10 +4,14 @@ pub struct Color {
     pub b: u8,
 }
 
+// rust can mess with the struct layout for optimization, repr(C) avoid this 
+// https://github.com/rust-lang/rust/pull/102750
+#[repr(C)] 
 #[derive(Debug)]
 pub struct Vertex {
-    pub pos: (f32, f32),
     pub tex: (f32, f32),
+    pub pos: (f32, f32, f32),
+    pub col: (f32, f32, f32),
     // col: Color,
 }
 

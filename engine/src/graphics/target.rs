@@ -57,10 +57,10 @@ impl Target {
         return target;
     }
 
-    pub fn clear(&self) {
+    pub fn clear(&self, color : (f32, f32, f32)) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.id);
-            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+            gl::ClearColor(color.0, color.1, color.2, 0.0);
             gl::ClearDepth(0.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
         }

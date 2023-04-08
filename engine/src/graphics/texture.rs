@@ -181,13 +181,15 @@ impl std::fmt::Display for TextureFilter {
         write!(f, "{:?}", self)
     }
 }
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TextureWrap {
     Border,
     Clamp,
     Repeat,
 }
-#[derive(Debug, Clone, Copy, PartialEq)]
+
+#[derive(Debug, Clone, Copy, PartialEq, Resource)]
 pub struct TextureSampler {
     pub filter: TextureFilter,
     pub wrap_x: TextureWrap,
