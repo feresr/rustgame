@@ -11,10 +11,11 @@ pub struct Target {
     pub attachments: Vec<Texture>, // todo maybe this should have a getter instead of being pub
 }
 
+//todo: hardcoded width height dimensions
 pub static SCREEN: Target = Target {
     id: 0,
-    width: 0,
-    height: 0,
+    width: 1400,
+    height: 800,
     attachments: vec![],
 };
 

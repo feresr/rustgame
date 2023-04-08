@@ -1,12 +1,9 @@
 extern crate gl;
 
-use std::f32::consts::TAU;
-
 use bevy_ecs::prelude::*;
 use imgui::TreeNodeFlags;
 use imgui::Ui;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use std::f32::consts::TAU;
 
 use super::common::*;
 use super::drawcall;
@@ -25,7 +22,41 @@ pub struct Batch {
     matrix_stack: Vec<glm::Mat4>,
     material_stack: Vec<Material>,
     default_material: Material,
-    // pub ui: &'a Ui,
+}
+
+pub(crate) trait ImGuiable {
+    fn render_imgui(&self, imgGui: &Ui);
+}
+
+impl ImGuiable for Batch {
+    fn render_imgui(&self, imgui: &Ui) {
+        imgui
+            .window("Render calls")
+            .size([400.0, 600.0], imgui::Condition::FirstUseEver)
+            .build(|| {
+                let header = imgui.collapsing_header("header", TreeNodeFlags::DEFAULT_OPEN);
+                if header {
+                    for (index, batch) in self.batches.iter().enumerate() {
+                        if batch.elements == 0 {
+                            continue;
+                        }
+                        let header =
+                            imgui.collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
+                        if header {
+                            imgui.text(format!("elements: {}", batch.elements));
+                            imgui.text(format!("offset: {}", batch.offset));
+                            imgui.text(format!("texture: {}", batch.texture.id));
+                            imgui.text(format!("sampler: {}", batch.sampler.filter));
+                            imgui.text(format!("material: {:?}", batch.material));
+                        }
+                    }
+
+                    imgui.text(format!("vertices: {:?}", self.vertices));
+                    imgui.separator();
+                    imgui.text(format!("indices: {:?}", self.indices));
+                }
+            });
+    }
 }
 
 impl Batch {
@@ -47,6 +78,12 @@ impl Batch {
             if batch.material.has_uniform("u_matrix") {
                 batch.material.set_matrix4x4("u_matrix", projection);
             }
+            if batch.material.has_uniform("u_resolution") {
+                println!("setting u_res to {}x{}", target.width, target.height);
+                batch
+                    .material
+                    .set_value2i("u_resolution", (target.width, target.height));
+            }
 
             let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material, target);
             pass.index_start = batch.offset * 3;
@@ -56,40 +93,6 @@ impl Batch {
             }
             pass.perform();
         }
-
-        // TODO: Re-implement
-        // self.ui
-        //     .window("Render calls")
-        //     .size([400.0, 600.0], imgui::Condition::FirstUseEver)
-        //     .build(|| {
-        //         let mut s = DefaultHasher::new();
-        //         target.hash(&mut s);
-        //         let h = s.finish();
-        //         let header = self
-        //             .ui
-        //             .collapsing_header(h.to_string(), TreeNodeFlags::DEFAULT_OPEN);
-        //         if header {
-        //             for (index, batch) in self.batches.iter().enumerate() {
-        //                 if batch.elements == 0 {
-        //                     continue;
-        //                 }
-        //                 let header = self
-        //                     .ui
-        //                     .collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
-        //                 if header {
-        //                     self.ui.text(format!("elements: {}", batch.elements));
-        //                     self.ui.text(format!("offset: {}", batch.offset));
-        //                     self.ui.text(format!("texture: {}", batch.texture.id));
-        //                     self.ui.text(format!("sampler: {}", batch.sampler.filter));
-        //                     self.ui.text(format!("material: {:?}", batch.material));
-        //                 }
-        //             }
-
-        //             self.ui.text(format!("vertices: {:?}", self.vertices));
-        //             self.ui.separator();
-        //             self.ui.text(format!("indices: {:?}", self.indices));
-        //         }
-        //     });
     }
 
     pub fn set_sampler(&mut self, sampler: &TextureSampler) {
@@ -124,12 +127,98 @@ impl Batch {
         self.batches.push(value);
     }
 
+    // todo: naive implementation, avoid duplicating verices 
+    pub fn cube(&mut self, center: (f32, f32), size: f32) {
+        let rect = RectF {
+            x: center.0 - size / 2.0,
+            y: center.1 - size / 2.0,
+            w: size,
+            h: size,
+        };
+        self.push_quad(
+            (rect.x + rect.w, rect.y, -size / 2.0),
+            (rect.x + rect.w, rect.y + rect.h, -size / 2.0),
+            (rect.x, rect.y, -size / 2.0),
+            (rect.x, rect.y + rect.h, -size / 2.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+        );
+
+        self.push_quad(
+            (rect.x + rect.w, rect.y, size / 2.0),
+            (rect.x + rect.w, rect.y + rect.h, size / 2.0),
+            (rect.x, rect.y, size / 2.0),
+            (rect.x, rect.y + rect.h, size / 2.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+        );
+        self.push_matrix(glm::rotate(
+            &glm::identity(),
+            1.5708,
+            &glm::vec3(0.0, 1.0, 0.0),
+        ));
+        self.push_quad(
+            (rect.x + rect.w, rect.y, -size / 2.0),
+            (rect.x + rect.w, rect.y + rect.h, -size / 2.0),
+            (rect.x, rect.y, -size / 2.0),
+            (rect.x, rect.y + rect.h, -size / 2.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+        );
+
+        self.push_quad(
+            (rect.x + rect.w, rect.y, size / 2.0),
+            (rect.x + rect.w, rect.y + rect.h, size / 2.0),
+            (rect.x, rect.y, size / 2.0),
+            (rect.x, rect.y + rect.h, size / 2.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+        );
+        self.push_matrix(glm::rotate(
+            &glm::identity(),
+            1.5708,
+            &glm::vec3(1.0, 0.0, 0.0),
+        ));
+        self.push_quad(
+            (rect.x + rect.w, rect.y, -size / 2.0),
+            (rect.x + rect.w, rect.y + rect.h, -size / 2.0),
+            (rect.x, rect.y, -size / 2.0),
+            (rect.x, rect.y + rect.h, -size / 2.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+        );
+
+        self.push_quad(
+            (rect.x + rect.w, rect.y, size / 2.0),
+            (rect.x + rect.w, rect.y + rect.h, size / 2.0),
+            (rect.x, rect.y, size / 2.0),
+            (rect.x, rect.y + rect.h, size / 2.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+        );
+
+        self.pop_matrix();
+        self.pop_matrix();
+    }
+
     fn push_quad(
         &mut self,
-        pos0: (f32, f32),
-        pos1: (f32, f32),
-        pos2: (f32, f32),
-        pos3: (f32, f32),
+        pos0: (f32, f32, f32),
+        pos1: (f32, f32, f32),
+        pos2: (f32, f32, f32),
+        pos3: (f32, f32, f32),
         tex0: (f32, f32),
         tex1: (f32, f32),
         tex2: (f32, f32),
@@ -145,34 +234,48 @@ impl Batch {
 
         let identity: glm::Mat4 = glm::Mat4::identity();
         let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap_or(&identity);
-        let z = -0.0;
+
+        let mut position: glm::Vec4 = glm::Vec4::zeros();
+        position[3] = 1.0;
 
         // bottom right
-        let w = matrix * glm::vec4(pos0.0, pos0.1, z, 1.0);
+        position[0] = pos0.0;
+        position[1] = pos0.1;
+        position[2] = pos0.2;
+        let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col : (0.0, 0.0, 0.0),
+            col: (0.0, 0.0, 0.0),
             tex: tex0,
         });
         // top rigth
-        let w = matrix * glm::vec4(pos1.0, pos1.1, z, 1.0);
+        position[0] = pos1.0;
+        position[1] = pos1.1;
+        position[2] = pos1.2;
+        let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col : (0.0, 0.0, 0.0),
+            col: (0.0, 0.0, 0.0),
             tex: tex1,
         });
         // bottom left
-        let w = matrix * glm::vec4(pos2.0, pos2.1, z, 1.0);
+        position[0] = pos2.0;
+        position[1] = pos2.1;
+        position[2] = pos2.2;
+        let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col : (0.0, 0.0, 0.0),
+            col: (0.0, 0.0, 0.0),
             tex: tex2,
         });
         // top left
-        let w = matrix * glm::vec4(pos3.0, pos3.1, z, 1.0);
+        position[0] = pos3.0;
+        position[1] = pos3.1;
+        position[2] = pos3.2;
+        let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col : (0.0, 0.0, 0.0),
+            col: (0.0, 0.0, 0.0),
             tex: tex3,
         });
 
@@ -181,10 +284,10 @@ impl Batch {
 
     pub fn rect(&mut self, rect: &RectF) {
         self.push_quad(
-            (rect.x + rect.w, rect.y),
-            (rect.x + rect.w, rect.y + rect.h),
-            (rect.x, rect.y),
-            (rect.x, rect.y + rect.h),
+            (rect.x + rect.w, rect.y, 0.0),
+            (rect.x + rect.w, rect.y + rect.h, 0.0),
+            (rect.x, rect.y, 0.0),
+            (rect.x, rect.y + rect.h, 0.0),
             (0.0, 0.0),
             (0.0, 0.0),
             (0.0, 0.0),
@@ -213,19 +316,36 @@ impl Batch {
         self.indices.push(1 + last_vertex_index);
         self.indices.push(2 + last_vertex_index);
 
+        let identity: glm::Mat4 = glm::Mat4::identity();
+        let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap_or(&identity);
+        let z = 0.0;
+
+        let mut position: glm::Vec4 = glm::Vec4::zeros();
+        position[3] = 1.0;
+        position[2] = z;
+
+        position[0] = pos0.0;
+        position[1] = pos0.1;
+        let w = matrix * position;
         self.vertices.push(Vertex {
-            pos: pos0,
-            col : (0.0, 0.0, 0.0),
+            pos: (w[0], w[1], w[2]),
+            col: (0.0, 0.0, 0.0),
             tex: (0.0, 0.0),
         });
+        position[0] = pos1.0;
+        position[1] = pos1.1;
+        let w = matrix * position;
         self.vertices.push(Vertex {
-            pos: pos1,
-            col : (0.0, 0.0, 0.0),
+            pos: (w[0], w[1], w[2]),
+            col: (0.0, 0.0, 0.0),
             tex: (0.0, 0.0),
         });
+        position[0] = pos2.0;
+        position[1] = pos2.1;
+        let w = matrix * position;
         self.vertices.push(Vertex {
-            pos: pos2,
-            col : (0.0, 0.0, 0.0),
+            pos: (w[0], w[1], w[2]),
+            col: (0.0, 0.0, 0.0),
             tex: (0.0, 0.0),
         });
         self.current_batch().elements += 1;
@@ -263,7 +383,9 @@ impl Batch {
     }
 
     pub fn push_matrix(&mut self, matrix: glm::Mat4) {
-        self.matrix_stack.push(matrix);
+        let identity: glm::Mat4 = glm::Mat4::identity();
+        let current: glm::Mat4 = *self.matrix_stack.last().unwrap_or(&identity);
+        self.matrix_stack.push(current * matrix);
     }
 
     pub fn pop_matrix(&mut self) {
@@ -280,11 +402,12 @@ impl Batch {
             self.push_batch();
             self.current_batch().texture = texture.clone();
         }
+        // todo! not all texture should be z= -1 (Demo purposes delete)
         self.push_quad(
-            (rect.x + rect.w, rect.y),
-            (rect.x + rect.w, rect.y + rect.h),
-            (rect.x, rect.y),
-            (rect.x, rect.y + rect.h),
+            (rect.x + rect.w, rect.y, 0.0),
+            (rect.x + rect.w, rect.y + rect.h, 0.0),
+            (rect.x, rect.y, 0.0),
+            (rect.x, rect.y + rect.h, 0.0),
             (1.0, 0.0),
             (1.0, 1.0),
             (0.0, 0.0),

@@ -125,6 +125,15 @@ impl Material {
         }
     }
 
+    pub fn set_value2i(&self, name: &str, value: (i32, i32)) {
+        if let Some(uniform) = self.find_uniform(name) {
+            self.shader.set();
+            unsafe {
+                gl::Uniform2i(uniform.location, value.0, value.1);
+            }
+        }
+    }
+
     // todo, the material save uniform data as internal state and upload to GPU only on Dracall#perform()
     pub fn set_value3f(&mut self, name: &str, value: (f32, f32, f32)) {
         if let Some(uniform) = self.find_uniform(name) {

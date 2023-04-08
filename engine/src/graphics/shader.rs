@@ -122,6 +122,7 @@ impl Shader {
                     gl::FLOAT_MAT3x2 => UniformType::Matrix3x2,
                     gl::FLOAT_MAT4 => UniformType::Matrix4x4,
                     gl::SAMPLER_2D => UniformType::Texture2D,
+                    gl::INT_VEC2 => UniformType::Int2,
                     unsupported => panic!("Unsupported uniform type, id: {}", unsupported),
                 };
 
@@ -163,6 +164,7 @@ enum ShaderType {
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum UniformType {
+    Int2,
     Float,
     Float2,
     Float3,

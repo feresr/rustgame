@@ -20,7 +20,7 @@ impl<'a> DrawCall<'a> {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.target.id);
             if self.target.id == 0 {
                 // todo: hardcoded screen dimensions
-                gl::Viewport(0, 0, 1400, 800);
+                // gl::Viewport(0, 0, 1400, 800);
             } else {
                 gl::Viewport(0, 0, self.target.width, self.target.height);
             }

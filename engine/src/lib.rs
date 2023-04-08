@@ -5,6 +5,7 @@ extern crate sdl2;
 use bevy_ecs::prelude::*;
 
 use bevy_ecs::world::World;
+use graphics::batch::{Batch, ImGuiable};
 use imgui::Context;
 use imgui_sdl2::ImguiSdl2;
 
@@ -33,6 +34,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
 
     let window = video_subsystem
         .window("Window", 1400, 800)
+        .allow_highdpi()
         .opengl()
         .build()
         .unwrap();
@@ -86,6 +88,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
         gl::Disable(gl::CULL_FACE);
         gl::Enable(gl::DEPTH_TEST);
         gl::ClearColor(0.2, 0.2, 0.2, 1.0);
+        gl::Enable(gl::MULTISAMPLE);
     }
 
     render_schedule.add_system(swap_window);
@@ -123,10 +126,18 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
     }
 }
 
+#[derive(Component)]
+pub struct Slider {
+    pub b: f32,
+    pub a: f32,
+    pub perspective: bool,
+}
+
 fn imgui_system(
     mut imgui: NonSendMut<'_, Context>,
     mut event_pump: NonSendMut<'_, EventPump>,
     mut platform: NonSendMut<'_, ImguiSdl2>,
+    mut qslider: Query<'_, '_, &mut Slider>,
     window: NonSend<'_, sdl2::video::Window>,
     renderer: NonSend<'_, imgui_opengl_renderer::Renderer>,
     mut commands: Commands<'_, '_>,
@@ -153,7 +164,12 @@ fn imgui_system(
     let ui = imgui.frame();
 
     let mut open = true;
-    ui.show_demo_window(&mut open);
+
+    for mut slider in &mut qslider {
+        ui.slider("top", -5.0, 5.0, &mut slider.a);
+        ui.slider("bottom", -5.0, 5.0, &mut slider.b);
+        ui.checkbox("perspective", &mut slider.perspective);
+    }
 
     platform.prepare_render(&ui, &window);
     renderer.render(&mut imgui);
@@ -162,6 +178,3 @@ fn imgui_system(
 fn swap_window(window: NonSend<'_, sdl2::video::Window>) {
     window.gl_swap_window();
 }
-
-// todo matrix push pop
-// add background dotted like youtubechannel
