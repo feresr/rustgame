@@ -4,7 +4,7 @@ extern crate nalgebra_glm as glm;
 use bevy_ecs::prelude::*;
 use engine::{
     graphics::{batch::*, common::*, material::*, shader::*, target::*, texture::*},
-    Keyboard, Mouse, Slider,
+    Keyboard, Mouse, DebugOptions,
 };
 
 #[derive(Component)]
@@ -94,13 +94,16 @@ fn main() {
             up: camera_up,
         });
 
-        world.spawn(Slider {
+        world.spawn(DebugOptions {
             camera_pos: [0.0, 0.0, 12.0],
             camera_target: [0.0, 0.0, 0.0],
             cube_size: 1.0,
             perspective: false,
             fov: 0.5,
             pause: false,
+            render_background: true,
+            render_cube_1: true,
+            render_cube_2: true,
         });
 
         let shader = Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE_2);
@@ -137,7 +140,7 @@ fn main() {
 fn rendering(
     mut batch: NonSendMut<'_, Batch>,
     mut query: Query<'_, '_, (&mut Position, &Circle)>,
-    mut options: Query<'_, '_, &Slider>,
+    mut options: Query<'_, '_, &DebugOptions>,
     mut material: ResMut<'_, Material>,
     sampler: Res<'_, TextureSampler>,
     assets: Res<'_, Assets>,
@@ -148,6 +151,8 @@ fn rendering(
     for slider in &mut options {
         cube_size = slider.cube_size;
     }
+
+    let options = options.single();
 
     for (position, _) in &mut query {
         //     // todo: this material unifomr is overwritten (since the material is shared)
@@ -160,32 +165,41 @@ fn rendering(
         };
 
         // Draw background
-        batch.push_matrix(glm::Mat4::new_translation(&glm::vec3(0.0, 0.0, -4.0)));
-        batch.push_material(&material);
-        batch.rect(&rect1, (0.0, 1.0, 1.0));
-        batch.pop_material();
-        batch.pop_matrix();
+        if options.render_background {
+            batch.push_matrix(glm::Mat4::new_translation(&glm::vec3(0.0, 0.0, -4.0)));
+            batch.push_material(&material);
+            batch.rect(&rect1, (0.0, 1.0, 1.0));
+            batch.pop_material();
+            batch.pop_matrix();
+        }
 
         let mat = glm::Mat4::identity();
         let rot = glm::Mat4::from_scaled_axis(&glm::vec3(1.2, 1.0, 0.0) * position.r);
         let mat = rot * mat;
-        batch.push_matrix(mat);
-        batch.set_texture(&assets.textures[1]);
-        let c = 0.4 + (position.r * 5.0).cos() * 0.1;
-        batch.cube((0.0, 0.0), cube_size, (c, c, c));
-        // batch.circle((0.0, 0.0), 0.9, 38, (0.5, 0.1, 0.9));
-        batch.pop_matrix();
+        if options.render_cube_1 {
+            batch.push_matrix(mat);
+            batch.set_texture(&assets.textures[1]);
+            let c = 0.4 + (position.r * 5.0).cos() * 0.1;
+            batch.cube((0.0, 0.0), cube_size, (c, c, c));
+            // batch.circle((0.0, 0.0), 0.9, 38, (0.5, 0.1, 0.9));
+            batch.pop_matrix();
+        }
 
-        let mat = mat.append_translation(&glm::vec3(3.0, 2.0, 0.0));
-        batch.push_matrix(mat);
-        batch.set_texture(&assets.textures[0]);
-        batch.cube((0.0, 0.0), cube_size, (0.0, 0.0, 0.0));
-        batch.circle((0.0, 0.0), 0.9, 38, (0.5, 0.1, 0.9));
-        batch.pop_matrix();
+        if options.render_cube_2 {
+            let mat = mat.append_translation(&glm::vec3(3.0, 2.0, 0.0));
+            batch.push_matrix(mat);
+            batch.set_texture(&assets.textures[0]);
+            batch.cube((0.0, 0.0), cube_size, (0.0, 0.0, 0.0));
+            batch.circle((0.0, 0.0), 0.9, 38, (0.5, 0.1, 0.9));
+            batch.pop_matrix();
+        }
     }
 }
 
-fn updating(mut query: Query<'_, '_, (&mut Position, &Velocity)>, options: Query<'_, '_, &Slider>) {
+fn updating(
+    mut query: Query<'_, '_, (&mut Position, &Velocity)>,
+    options: Query<'_, '_, &DebugOptions>,
+) {
     let options = options.get_single().unwrap();
     if options.pause {
         return;
@@ -200,7 +214,7 @@ fn updating(mut query: Query<'_, '_, (&mut Position, &Velocity)>, options: Query
 fn render_system(
     mut batch: NonSendMut<'_, Batch>,
     camera: Query<'_, '_, &Camera>,
-    options: Query<'_, '_, &Slider>,
+    options: Query<'_, '_, &DebugOptions>,
 ) {
     let options = options.get_single().unwrap();
     let camera = camera.get_single().unwrap();
@@ -226,7 +240,7 @@ fn camera_system(
     mouse: NonSend<'_, Mouse>,
     keyboard: NonSend<'_, Keyboard>,
     mut camera: Query<'_, '_, &mut Camera>,
-    mut options: Query<'_, '_, &mut Slider>,
+    mut options: Query<'_, '_, &mut DebugOptions>,
 ) {
     if !mouse.pressing {
         let options = options.iter().next().unwrap();

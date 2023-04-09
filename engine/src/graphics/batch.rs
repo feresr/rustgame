@@ -24,9 +24,11 @@ pub struct Batch {
     default_material: Material,
 }
 
+
 pub(crate) trait ImGuiable {
     fn render_imgui(&self, imgGui: &Ui);
 }
+
 
 impl ImGuiable for Batch {
     fn render_imgui(&self, imgui: &Ui) {

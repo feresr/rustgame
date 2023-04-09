@@ -5,7 +5,8 @@ extern crate sdl2;
 use bevy_ecs::prelude::*;
 
 use bevy_ecs::world::World;
-use imgui::Context;
+use graphics::batch::{Batch, ImGuiable};
+use imgui::{Context};
 use imgui_sdl2::ImguiSdl2;
 
 // todo: should this be pub?
@@ -13,7 +14,7 @@ pub mod graphics;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::video::GLProfile;
+use sdl2::video::{GLProfile};
 use sdl2::{EventPump, Sdl, VideoSubsystem};
 use std::time::Instant;
 
@@ -101,7 +102,6 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
     render_schedule.add_system(swap_window);
     init(&mut world, &mut update_schedule, &mut render_schedule);
     render_schedule.add_system(imgui_system);
-    // update_schedule.add_system(imgui_system);
 
     loop {
         let start = Instant::now();
@@ -134,13 +134,16 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
 }
 
 #[derive(Component)]
-pub struct Slider {
+pub struct DebugOptions {
     pub cube_size: f32,
     pub camera_pos: [f32; 3],
     pub camera_target: [f32; 3],
     pub perspective: bool,
     pub fov: f32,
     pub pause: bool,
+    pub render_cube_1: bool,
+    pub render_cube_2: bool,
+    pub render_background: bool,
 }
 pub struct Mouse {
     pub positon: (i32, i32),
@@ -154,11 +157,12 @@ pub struct Keyboard {
 
 fn imgui_system(
     mut imgui: NonSendMut<'_, Context>,
+    mut batch: NonSendMut<'_, Batch>,
     mut mouse: NonSendMut<'_, Mouse>,
     mut keyboard: NonSendMut<'_, Keyboard>,
     mut event_pump: NonSendMut<'_, EventPump>,
     mut platform: NonSendMut<'_, ImguiSdl2>,
-    mut qslider: Query<'_, '_, &mut Slider>,
+    mut debug_options: Query<'_, '_, &mut DebugOptions>,
     window: NonSend<'_, sdl2::video::Window>,
     renderer: NonSend<'_, imgui_opengl_renderer::Renderer>,
     mut commands: Commands<'_, '_>,
@@ -209,7 +213,7 @@ fn imgui_system(
     platform.prepare_frame(imgui.io_mut(), &window, &event_pump.mouse_state());
     let ui = imgui.frame();
 
-    for mut slider in &mut qslider {
+    for mut slider in &mut debug_options {
         ui.input_float3("camera_pos", &mut slider.camera_pos)
             .build();
         ui.input_float3("camera_target", &mut slider.camera_target)
@@ -222,7 +226,12 @@ fn imgui_system(
             "Mouse {:?}, clicking= {}, change= {:?}",
             mouse.positon, mouse.pressing, mouse.change
         ));
+        ui.checkbox("cube 1", &mut slider.render_cube_1);
+        ui.checkbox("cube 2", &mut slider.render_cube_2);
+        ui.checkbox("background", &mut slider.render_background);
     }
+
+    batch.render_imgui(ui);
 
     platform.prepare_render(&ui, &window);
     renderer.render(&mut imgui);
