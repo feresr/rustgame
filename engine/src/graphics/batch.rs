@@ -60,6 +60,23 @@ impl ImGuiable for Batch {
 }
 
 impl Batch {
+    pub fn new(
+        mesh: Mesh,
+        material: Material,
+        // ui: &'a mut Ui,
+    ) -> Batch {
+        return Batch {
+            mesh,
+            vertices: Vec::new(),
+            indices: Vec::new(),
+            material_stack: Vec::new(),
+            matrix_stack: vec![glm::Mat4::identity()],
+            batches: Vec::new(),
+            default_material: material,
+            // ui,
+        };
+    }
+
     pub fn render(&mut self, target: &Target, projection: &glm::Mat4) {
         if self.batches.is_empty() {
             // nothing to draw
@@ -147,7 +164,7 @@ impl Batch {
             color,
             color,
             color,
-            color
+            color,
         );
 
         self.push_quad(
@@ -162,7 +179,7 @@ impl Batch {
             color,
             color,
             color,
-            color
+            color,
         );
         self.push_matrix(glm::rotate(
             &glm::identity(),
@@ -181,7 +198,7 @@ impl Batch {
             color,
             color,
             color,
-            color
+            color,
         );
 
         self.push_quad(
@@ -196,7 +213,7 @@ impl Batch {
             color,
             color,
             color,
-            color
+            color,
         );
         self.push_matrix(glm::rotate(
             &glm::identity(),
@@ -215,7 +232,7 @@ impl Batch {
             color,
             color,
             color,
-            color
+            color,
         );
 
         self.push_quad(
@@ -230,84 +247,11 @@ impl Batch {
             color,
             color,
             color,
-            color
+            color,
         );
 
         self.pop_matrix();
         self.pop_matrix();
-    }
-
-    fn push_quad(
-        &mut self,
-        pos0: (f32, f32, f32),
-        pos1: (f32, f32, f32),
-        pos2: (f32, f32, f32),
-        pos3: (f32, f32, f32),
-        tex0: (f32, f32),
-        tex1: (f32, f32),
-        tex2: (f32, f32),
-        tex3: (f32, f32),
-        color0: (f32, f32, f32),
-        color1: (f32, f32, f32),
-        color2: (f32, f32, f32),
-        color3: (f32, f32, f32),
-    ) {
-        let last_vertex_index = self.vertices.len() as u32;
-        self.indices.push(1 + last_vertex_index);
-        self.indices.push(0 + last_vertex_index);
-        self.indices.push(3 + last_vertex_index);
-        self.indices.push(0 + last_vertex_index);
-        self.indices.push(2 + last_vertex_index);
-        self.indices.push(3 + last_vertex_index);
-
-        let identity: glm::Mat4 = glm::Mat4::identity();
-        let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap_or(&identity);
-
-        let mut position: glm::Vec4 = glm::Vec4::zeros();
-        position[3] = 1.0;
-
-        // bottom right
-        position[0] = pos0.0;
-        position[1] = pos0.1;
-        position[2] = pos0.2;
-        let w = matrix * position;
-        self.vertices.push(Vertex {
-            pos: (w[0], w[1], w[2]),
-            col: color0,
-            tex: tex0,
-        });
-        // top rigth
-        position[0] = pos1.0;
-        position[1] = pos1.1;
-        position[2] = pos1.2;
-        let w = matrix * position;
-        self.vertices.push(Vertex {
-            pos: (w[0], w[1], w[2]),
-            col: color1,
-            tex: tex1,
-        });
-        // bottom left
-        position[0] = pos2.0;
-        position[1] = pos2.1;
-        position[2] = pos2.2;
-        let w = matrix * position;
-        self.vertices.push(Vertex {
-            pos: (w[0], w[1], w[2]),
-            col: color2,
-            tex: tex2,
-        });
-        // top left
-        position[0] = pos3.0;
-        position[1] = pos3.1;
-        position[2] = pos3.2;
-        let w = matrix * position;
-        self.vertices.push(Vertex {
-            pos: (w[0], w[1], w[2]),
-            col: color3,
-            tex: tex3,
-        });
-
-        self.current_batch().elements += 2;
     }
 
     pub fn rect(&mut self, rect: &RectF, color: (f32, f32, f32)) {
@@ -342,51 +286,51 @@ impl Batch {
         }
     }
 
-    pub fn tri(&mut self, pos0: (f32, f32, f32), pos1: (f32, f32, f32), pos2: (f32, f32, f32), color: (f32, f32, f32)) {
+    pub fn tex(&mut self, rect: &RectF, texture: &Texture, color: (f32, f32, f32)) {
+        let current = self.current_batch();
+        if current.texture == *texture || current.elements == 0 {
+            // reuse existing batch
+            current.texture = texture.clone();
+        } else {
+            // create a new batch
+            self.push_batch();
+            self.current_batch().texture = texture.clone();
+        }
+        // todo! not all texture should be z= -1 (Demo purposes delete)
+        self.push_quad(
+            (rect.x + rect.w, rect.y, 0.0),
+            (rect.x + rect.w, rect.y + rect.h, 0.0),
+            (rect.x, rect.y, 0.0),
+            (rect.x, rect.y + rect.h, 0.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+            color,
+            color,
+            color,
+            color,
+        );
+    }
+
+    pub fn tri(
+        &mut self,
+        pos0: (f32, f32, f32),
+        pos1: (f32, f32, f32),
+        pos2: (f32, f32, f32),
+        color: (f32, f32, f32),
+    ) {
         let last_vertex_index = self.vertices.len() as u32;
         self.indices.push(0 + last_vertex_index);
         self.indices.push(1 + last_vertex_index);
         self.indices.push(2 + last_vertex_index);
 
-        let identity: glm::Mat4 = glm::Mat4::identity();
-        let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap_or(&identity);
-        let z = 0.0;
+        let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap();
 
-        let mut position: glm::Vec4 = glm::Vec4::zeros();
-        position[3] = 1.0;
-        position[2] = z;
-
-        position[0] = pos0.0;
-        position[1] = pos0.1;
-        let w = matrix * position;
-        self.vertices.push(Vertex {
-            pos: (w[0], w[1], w[2]),
-            col: color,
-            tex: (0.0, 0.0),
-        });
-        position[0] = pos1.0;
-        position[1] = pos1.1;
-        let w = matrix * position;
-        self.vertices.push(Vertex {
-            pos: (w[0], w[1], w[2]),
-            col: color,
-            tex: (0.0, 0.0),
-        });
-        position[0] = pos2.0;
-        position[1] = pos2.1;
-        let w = matrix * position;
-        self.vertices.push(Vertex {
-            pos: (w[0], w[1], w[2]),
-            col: color,
-            tex: (0.0, 0.0),
-        });
+        self.push_vertex(&matrix, pos0, (0.0, 0.0), color);
+        self.push_vertex(&matrix, pos1, (0.0, 0.0), color);
+        self.push_vertex(&matrix, pos2, (0.0, 0.0), color);
         self.current_batch().elements += 1;
-    }
-
-    pub fn clear(&mut self) {
-        self.batches.clear();
-        self.vertices.clear();
-        self.indices.clear();
     }
 
     pub fn peek_material(&mut self) -> &mut Material {
@@ -415,8 +359,7 @@ impl Batch {
     }
 
     pub fn push_matrix(&mut self, matrix: glm::Mat4) {
-        let identity: glm::Mat4 = glm::Mat4::identity();
-        let current: glm::Mat4 = *self.matrix_stack.last().unwrap_or(&identity);
+        let current: glm::Mat4 = *self.matrix_stack.last().unwrap();
         self.matrix_stack.push(current * matrix);
     }
 
@@ -424,48 +367,64 @@ impl Batch {
         self.matrix_stack.pop();
     }
 
-    pub fn tex(&mut self, rect: &RectF, texture: &Texture, color: (f32, f32, f32)) {
-        let current = self.current_batch();
-        if current.texture == *texture || current.elements == 0 {
-            // reuse existing batch
-            current.texture = texture.clone();
-        } else {
-            // create a new batch
-            self.push_batch();
-            self.current_batch().texture = texture.clone();
-        }
-        // todo! not all texture should be z= -1 (Demo purposes delete)
-        self.push_quad(
-            (rect.x + rect.w, rect.y, 0.0),
-            (rect.x + rect.w, rect.y + rect.h, 0.0),
-            (rect.x, rect.y, 0.0),
-            (rect.x, rect.y + rect.h, 0.0),
-            (1.0, 0.0),
-            (1.0, 1.0),
-            (0.0, 0.0),
-            (0.0, 1.0),
-            color,
-            color,
-            color,
-            color,
-        );
+    pub fn clear(&mut self) {
+        self.batches.clear();
+        self.vertices.clear();
+        self.indices.clear();
+        self.material_stack.clear();
+        self.matrix_stack.clear();
+        self.matrix_stack.push(glm::Mat4::identity());
     }
 
-    pub fn new(
-        mesh: Mesh,
-        material: Material,
-        // ui: &'a mut Ui,
-    ) -> Batch {
-        return Batch {
-            mesh,
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            material_stack: Vec::new(),
-            matrix_stack: Vec::new(),
-            batches: Vec::new(),
-            default_material: material,
-            // ui,
-        };
+    fn push_vertex(
+        &mut self,
+        matrix: &glm::Mat4,
+        position: (f32, f32, f32),
+        tex: (f32, f32),
+        col: (f32, f32, f32),
+    ) {
+        let w = matrix * glm::vec4(position.0, position.1, position.2, 1.0);
+        self.vertices.push(Vertex {
+            pos: (w[0], w[1], w[2]),
+            col,
+            tex,
+        });
+    }
+
+    fn push_quad(
+        &mut self,
+        pos0: (f32, f32, f32),
+        pos1: (f32, f32, f32),
+        pos2: (f32, f32, f32),
+        pos3: (f32, f32, f32),
+        tex0: (f32, f32),
+        tex1: (f32, f32),
+        tex2: (f32, f32),
+        tex3: (f32, f32),
+        color0: (f32, f32, f32),
+        color1: (f32, f32, f32),
+        color2: (f32, f32, f32),
+        color3: (f32, f32, f32),
+    ) {
+        let last_vertex_index = self.vertices.len() as u32;
+        self.indices.push(1 + last_vertex_index);
+        self.indices.push(0 + last_vertex_index);
+        self.indices.push(3 + last_vertex_index);
+        self.indices.push(0 + last_vertex_index);
+        self.indices.push(2 + last_vertex_index);
+        self.indices.push(3 + last_vertex_index);
+
+        let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap();
+        // bottom right
+        self.push_vertex(&matrix, pos0, tex0, color0);
+        // top right
+        self.push_vertex(&matrix, pos1, tex1, color1);
+        // bottom left
+        self.push_vertex(&matrix, pos2, tex2, color2);
+        // top left
+        self.push_vertex(&matrix, pos3, tex3, color3);
+
+        self.current_batch().elements += 2;
     }
 
     fn current_batch(&mut self) -> &mut DrawBatch {

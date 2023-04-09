@@ -1,11 +1,10 @@
 extern crate engine;
 extern crate nalgebra_glm as glm;
-use std::sync::mpsc::channel;
 
 use bevy_ecs::prelude::*;
 use engine::{
     graphics::{batch::*, common::*, material::*, shader::*, target::*, texture::*},
-    Mouse, Slider,
+    Keyboard, Mouse, Slider,
 };
 
 #[derive(Component)]
@@ -24,6 +23,7 @@ struct Velocity {
 
 #[derive(Component)]
 struct Camera {
+    target: glm::Vec3,
     pos: glm::Vec3,
     dir: glm::Vec3,
     right: glm::Vec3,
@@ -80,13 +80,14 @@ fn main() {
             Circle {},
         ));
 
-        let pos = glm::vec3(0.0, 0.0, 6.0);
+        let pos = glm::vec3(0.0, 0.0, 12.0);
         let target = glm::vec3(0.0, 0.0, 0.0);
         let dir = glm::normalize(&(target - pos));
         let up = glm::vec3(0.0, 1.0, 0.0);
         let right = glm::normalize(&(glm::cross(&up, &dir)));
         let camera_up = glm::cross(&dir, &right);
         world.spawn(Camera {
+            target,
             pos,
             dir,
             right,
@@ -94,7 +95,7 @@ fn main() {
         });
 
         world.spawn(Slider {
-            camera_pos: [0.0, 0.0, 6.0],
+            camera_pos: [0.0, 0.0, 12.0],
             camera_target: [0.0, 0.0, 0.0],
             cube_size: 1.0,
             perspective: false,
@@ -125,8 +126,8 @@ fn main() {
         world.insert_non_send_resource(Target::new(200, 100, &[TextureFormat::RGBA]));
 
         update.add_system(updating);
-        update.add_system(mouse);
         update.add_system(camera_system);
+        update.add_system(render_system);
         render.add_system(rendering);
     });
 }
@@ -152,10 +153,10 @@ fn rendering(
         //     // todo: this material unifomr is overwritten (since the material is shared)
         material.set_valuef("time", position.r);
         let rect1 = RectF {
-            x: -10.0,
-            y: -10.0,
-            w: 20.0,
-            h: 20.0,
+            x: -20.0,
+            y: -20.0,
+            w: 40.0,
+            h: 40.0,
         };
 
         // Draw background
@@ -174,14 +175,18 @@ fn rendering(
         batch.cube((0.0, 0.0), cube_size, (c, c, c));
         // batch.circle((0.0, 0.0), 0.9, 38, (0.5, 0.1, 0.9));
         batch.pop_matrix();
+
+        let mat = mat.append_translation(&glm::vec3(3.0, 2.0, 0.0));
+        batch.push_matrix(mat);
+        batch.set_texture(&assets.textures[0]);
+        batch.cube((0.0, 0.0), cube_size, (0.0, 0.0, 0.0));
+        batch.circle((0.0, 0.0), 0.9, 38, (0.5, 0.1, 0.9));
+        batch.pop_matrix();
     }
 }
 
-fn updating(
-    mut query: Query<'_, '_, (&mut Position, &Velocity)>,
-    mut qslider: Query<'_, '_, &Slider>,
-) {
-    let options = qslider.iter().next().unwrap();
+fn updating(mut query: Query<'_, '_, (&mut Position, &Velocity)>, options: Query<'_, '_, &Slider>) {
+    let options = options.get_single().unwrap();
     if options.pause {
         return;
     }
@@ -192,24 +197,13 @@ fn updating(
     }
 }
 
-fn camera_system(
+fn render_system(
     mut batch: NonSendMut<'_, Batch>,
-    mut camera: Query<'_, '_, &mut Camera>,
+    camera: Query<'_, '_, &Camera>,
     options: Query<'_, '_, &Slider>,
 ) {
-    let options = options.iter().next().unwrap();
-    let mut camera = camera.iter_mut().next().unwrap();
-    camera.pos = glm::vec3(
-        options.camera_pos[0],
-        options.camera_pos[1],
-        options.camera_pos[2],
-    );
-    let target = glm::vec3(
-        options.camera_target[0],
-        options.camera_target[1],
-        options.camera_target[2],
-    );
-    camera.dir = glm::normalize(&(target - camera.pos));
+    let options = options.get_single().unwrap();
+    let camera = camera.get_single().unwrap();
 
     let ratio = (SCREEN.width as f32) / SCREEN.height as f32;
     let width = 5.0;
@@ -228,35 +222,65 @@ fn camera_system(
     batch.clear();
 }
 
-fn mouse(
+fn camera_system(
     mouse: NonSend<'_, Mouse>,
+    keyboard: NonSend<'_, Keyboard>,
     mut camera: Query<'_, '_, &mut Camera>,
     mut options: Query<'_, '_, &mut Slider>,
 ) {
     if !mouse.pressing {
+        let options = options.iter().next().unwrap();
+        // update camera to match debug panel (options)
+        let mut camera = camera.iter_mut().next().unwrap();
+        camera.pos = glm::vec3(
+            options.camera_pos[0],
+            options.camera_pos[1],
+            options.camera_pos[2],
+        );
+        camera.target = glm::vec3(
+            options.camera_target[0],
+            options.camera_target[1],
+            options.camera_target[2],
+        );
         return;
     }
-    let mut camera = camera.get_single_mut().unwrap();
-
-    let target = glm::vec3(0.0, 0.0, 0.0);
-    let distance_from_target = glm::length(&(target - camera.pos));
 
     let dx = mouse.change.0 as f32 / 10.0;
     let dy = mouse.change.1 as f32 / 10.0;
+    let mut camera = camera.get_single_mut().unwrap();
+    if keyboard.shift {
+        let right = camera.right;
+        camera.pos += right * dx * 0.1;
+        camera.target += right * dx * 0.1;
 
+        let top = camera.up;
+        camera.pos += top * dy * 0.1;
+        camera.target += top * dy * 0.1;
+
+        let mut options = options.get_single_mut().unwrap();
+        options.camera_pos = camera.pos.try_into().unwrap();
+        options.camera_target = camera.target.try_into().unwrap();
+        return;
+    }
+
+    // update camera position and also debug panel to match.
+    let distance_from_target = glm::length(&(camera.target - camera.pos));
+
+    // move the camera in its `right` and `up` vector
     let right = camera.right;
     camera.pos += right * dx;
     let up = camera.up;
     camera.pos += up * dy;
+    // The resulting position is not at the same distance from the target as before,
+    // to fix this, get a unit vector from the target to the new camera pos.
+    let normalized = glm::normalize(&(camera.pos - camera.target));
+    // the new position is target + (unit vector pointing at new position) * original distance
+    camera.pos = camera.target + normalized * distance_from_target;
 
-    let normalized = glm::normalize(&camera.pos);
-    camera.pos = normalized * distance_from_target;
-
-    // recalculate camera
-    camera.dir = glm::normalize(&(target - camera.pos));
+    // recalculate camera direction right and up.
+    camera.dir = glm::normalize(&(camera.target - camera.pos));
     let right = glm::normalize(&(glm::cross(&glm::vec3(0.0, 1.0, 0.0), &camera.dir)));
     camera.right = right;
-    // let camera_up = glm::cross(&dir, &right);
     camera.up = glm::cross(&camera.dir, &camera.right);
 
     let mut options = options.get_single_mut().unwrap();

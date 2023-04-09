@@ -76,6 +76,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
         change: (0, 0),
         pressing: false,
     };
+    let keyboard = Keyboard { shift: false };
 
     world.insert_non_send_resource(imgui);
     world.insert_non_send_resource(event_pump);
@@ -84,6 +85,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
     world.insert_non_send_resource(window);
     world.insert_non_send_resource(batch);
     world.insert_non_send_resource(mouse);
+    world.insert_non_send_resource(keyboard);
 
     // Create a new Schedule, which defines an execution strategy for Systems
     let mut update_schedule = Schedule::default();
@@ -146,9 +148,14 @@ pub struct Mouse {
     pub pressing: bool,
 }
 
+pub struct Keyboard {
+    pub shift: bool,
+}
+
 fn imgui_system(
     mut imgui: NonSendMut<'_, Context>,
     mut mouse: NonSendMut<'_, Mouse>,
+    mut keyboard: NonSendMut<'_, Keyboard>,
     mut event_pump: NonSendMut<'_, EventPump>,
     mut platform: NonSendMut<'_, ImguiSdl2>,
     mut qslider: Query<'_, '_, &mut Slider>,
@@ -170,6 +177,18 @@ fn imgui_system(
             } => {
                 commands.spawn(Exit {});
                 return;
+            }
+            Event::KeyDown {
+                keycode: Some(Keycode::LShift),
+                ..
+            } => {
+                keyboard.shift = true;
+            }
+            Event::KeyUp {
+                keycode: Some(Keycode::LShift),
+                ..
+            } => {
+                keyboard.shift = false;
             }
             Event::MouseMotion {
                 x, y, xrel, yrel, ..
