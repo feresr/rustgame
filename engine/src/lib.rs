@@ -5,7 +5,6 @@ extern crate sdl2;
 use bevy_ecs::prelude::*;
 
 use bevy_ecs::world::World;
-use graphics::batch::{Batch, ImGuiable};
 use imgui::Context;
 use imgui_sdl2::ImguiSdl2;
 
@@ -72,6 +71,11 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
     });
 
     let event_pump = sdl_context.event_pump().unwrap();
+    let mouse = Mouse {
+        positon: (0, 0),
+        change: (0, 0),
+        pressing: false,
+    };
 
     world.insert_non_send_resource(imgui);
     world.insert_non_send_resource(event_pump);
@@ -79,6 +83,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
     world.insert_non_send_resource(renderer);
     world.insert_non_send_resource(window);
     world.insert_non_send_resource(batch);
+    world.insert_non_send_resource(mouse);
 
     // Create a new Schedule, which defines an execution strategy for Systems
     let mut update_schedule = Schedule::default();
@@ -128,13 +133,22 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
 
 #[derive(Component)]
 pub struct Slider {
-    pub b: f32,
-    pub a: f32,
+    pub cube_size: f32,
+    pub camera_pos: [f32; 3],
+    pub camera_target: [f32; 3],
     pub perspective: bool,
+    pub fov: f32,
+    pub pause: bool,
+}
+pub struct Mouse {
+    pub positon: (i32, i32),
+    pub change: (i32, i32),
+    pub pressing: bool,
 }
 
 fn imgui_system(
     mut imgui: NonSendMut<'_, Context>,
+    mut mouse: NonSendMut<'_, Mouse>,
     mut event_pump: NonSendMut<'_, EventPump>,
     mut platform: NonSendMut<'_, ImguiSdl2>,
     mut qslider: Query<'_, '_, &mut Slider>,
@@ -142,6 +156,7 @@ fn imgui_system(
     renderer: NonSend<'_, imgui_opengl_renderer::Renderer>,
     mut commands: Commands<'_, '_>,
 ) {
+    mouse.change = (0, 0);
     for ref event in event_pump.poll_iter() {
         platform.handle_event(&mut imgui, event);
         if platform.ignore_event(&event) {
@@ -156,6 +171,18 @@ fn imgui_system(
                 commands.spawn(Exit {});
                 return;
             }
+            Event::MouseMotion {
+                x, y, xrel, yrel, ..
+            } => {
+                mouse.positon = (*x, *y);
+                mouse.change = (*xrel, *yrel);
+            }
+            Event::MouseButtonDown { .. } => {
+                mouse.pressing = true;
+            }
+            Event::MouseButtonUp { .. } => {
+                mouse.pressing = false;
+            }
             _ => {}
         }
     }
@@ -163,12 +190,19 @@ fn imgui_system(
     platform.prepare_frame(imgui.io_mut(), &window, &event_pump.mouse_state());
     let ui = imgui.frame();
 
-    let mut open = true;
-
     for mut slider in &mut qslider {
-        ui.slider("top", -5.0, 5.0, &mut slider.a);
-        ui.slider("bottom", -5.0, 5.0, &mut slider.b);
+        ui.input_float3("camera_pos", &mut slider.camera_pos)
+            .build();
+        ui.input_float3("camera_target", &mut slider.camera_target)
+            .build();
+        ui.slider("size", -5.0, 5.0, &mut slider.cube_size);
         ui.checkbox("perspective", &mut slider.perspective);
+        ui.checkbox("pause", &mut slider.pause);
+        ui.slider("fov", 0.0, 4.0, &mut slider.fov);
+        ui.text(format!(
+            "Mouse {:?}, clicking= {}, change= {:?}",
+            mouse.positon, mouse.pressing, mouse.change
+        ));
     }
 
     platform.prepare_render(&ui, &window);

@@ -79,7 +79,7 @@ impl Batch {
                 batch.material.set_matrix4x4("u_matrix", projection);
             }
             if batch.material.has_uniform("u_resolution") {
-                println!("setting u_res to {}x{}", target.width, target.height);
+                // println!("setting u_res to {}x{}", target.width, target.height);
                 batch
                     .material
                     .set_value2i("u_resolution", (target.width, target.height));
@@ -127,8 +127,8 @@ impl Batch {
         self.batches.push(value);
     }
 
-    // todo: naive implementation, avoid duplicating verices 
-    pub fn cube(&mut self, center: (f32, f32), size: f32) {
+    // todo: naive implementation, avoid duplicating verices
+    pub fn cube(&mut self, center: (f32, f32), size: f32, color: (f32, f32, f32)) {
         let rect = RectF {
             x: center.0 - size / 2.0,
             y: center.1 - size / 2.0,
@@ -144,6 +144,10 @@ impl Batch {
             (1.0, 1.0),
             (0.0, 0.0),
             (0.0, 1.0),
+            color,
+            color,
+            color,
+            color
         );
 
         self.push_quad(
@@ -155,6 +159,10 @@ impl Batch {
             (1.0, 1.0),
             (0.0, 0.0),
             (0.0, 1.0),
+            color,
+            color,
+            color,
+            color
         );
         self.push_matrix(glm::rotate(
             &glm::identity(),
@@ -170,6 +178,10 @@ impl Batch {
             (1.0, 1.0),
             (0.0, 0.0),
             (0.0, 1.0),
+            color,
+            color,
+            color,
+            color
         );
 
         self.push_quad(
@@ -181,6 +193,10 @@ impl Batch {
             (1.0, 1.0),
             (0.0, 0.0),
             (0.0, 1.0),
+            color,
+            color,
+            color,
+            color
         );
         self.push_matrix(glm::rotate(
             &glm::identity(),
@@ -196,6 +212,10 @@ impl Batch {
             (1.0, 1.0),
             (0.0, 0.0),
             (0.0, 1.0),
+            color,
+            color,
+            color,
+            color
         );
 
         self.push_quad(
@@ -207,6 +227,10 @@ impl Batch {
             (1.0, 1.0),
             (0.0, 0.0),
             (0.0, 1.0),
+            color,
+            color,
+            color,
+            color
         );
 
         self.pop_matrix();
@@ -223,6 +247,10 @@ impl Batch {
         tex1: (f32, f32),
         tex2: (f32, f32),
         tex3: (f32, f32),
+        color0: (f32, f32, f32),
+        color1: (f32, f32, f32),
+        color2: (f32, f32, f32),
+        color3: (f32, f32, f32),
     ) {
         let last_vertex_index = self.vertices.len() as u32;
         self.indices.push(1 + last_vertex_index);
@@ -245,7 +273,7 @@ impl Batch {
         let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col: (0.0, 0.0, 0.0),
+            col: color0,
             tex: tex0,
         });
         // top rigth
@@ -255,7 +283,7 @@ impl Batch {
         let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col: (0.0, 0.0, 0.0),
+            col: color1,
             tex: tex1,
         });
         // bottom left
@@ -265,7 +293,7 @@ impl Batch {
         let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col: (0.0, 0.0, 0.0),
+            col: color2,
             tex: tex2,
         });
         // top left
@@ -275,14 +303,14 @@ impl Batch {
         let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col: (0.0, 0.0, 0.0),
+            col: color3,
             tex: tex3,
         });
 
         self.current_batch().elements += 2;
     }
 
-    pub fn rect(&mut self, rect: &RectF) {
+    pub fn rect(&mut self, rect: &RectF, color: (f32, f32, f32)) {
         self.push_quad(
             (rect.x + rect.w, rect.y, 0.0),
             (rect.x + rect.w, rect.y + rect.h, 0.0),
@@ -292,10 +320,14 @@ impl Batch {
             (0.0, 0.0),
             (0.0, 0.0),
             (0.0, 0.0),
+            color,
+            color,
+            color,
+            color,
         );
     }
 
-    pub fn circle(&mut self, center: (f32, f32), radius: f32, steps: u32) {
+    pub fn circle(&mut self, center: (f32, f32), radius: f32, steps: u32, color: (f32, f32, f32)) {
         let mut last = (center.0 + radius, center.1, 0.0);
         let center = (center.0, center.1, 0.0);
         for i in 0..=steps {
@@ -305,12 +337,12 @@ impl Batch {
                 center.1 + f32::sin(radians) * radius,
                 0.0,
             );
-            self.tri(last, next, center);
+            self.tri(last, next, center, color);
             last = next;
         }
     }
 
-    pub fn tri(&mut self, pos0: (f32, f32, f32), pos1: (f32, f32, f32), pos2: (f32, f32, f32)) {
+    pub fn tri(&mut self, pos0: (f32, f32, f32), pos1: (f32, f32, f32), pos2: (f32, f32, f32), color: (f32, f32, f32)) {
         let last_vertex_index = self.vertices.len() as u32;
         self.indices.push(0 + last_vertex_index);
         self.indices.push(1 + last_vertex_index);
@@ -329,7 +361,7 @@ impl Batch {
         let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col: (0.0, 0.0, 0.0),
+            col: color,
             tex: (0.0, 0.0),
         });
         position[0] = pos1.0;
@@ -337,7 +369,7 @@ impl Batch {
         let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col: (0.0, 0.0, 0.0),
+            col: color,
             tex: (0.0, 0.0),
         });
         position[0] = pos2.0;
@@ -345,7 +377,7 @@ impl Batch {
         let w = matrix * position;
         self.vertices.push(Vertex {
             pos: (w[0], w[1], w[2]),
-            col: (0.0, 0.0, 0.0),
+            col: color,
             tex: (0.0, 0.0),
         });
         self.current_batch().elements += 1;
@@ -392,7 +424,7 @@ impl Batch {
         self.matrix_stack.pop();
     }
 
-    pub fn tex(&mut self, rect: &RectF, texture: &Texture) {
+    pub fn tex(&mut self, rect: &RectF, texture: &Texture, color: (f32, f32, f32)) {
         let current = self.current_batch();
         if current.texture == *texture || current.elements == 0 {
             // reuse existing batch
@@ -412,6 +444,10 @@ impl Batch {
             (1.0, 1.0),
             (0.0, 0.0),
             (0.0, 1.0),
+            color,
+            color,
+            color,
+            color,
         );
     }
 

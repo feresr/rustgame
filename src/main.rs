@@ -1,10 +1,11 @@
 extern crate engine;
-
 extern crate nalgebra_glm as glm;
+use std::sync::mpsc::channel;
+
 use bevy_ecs::prelude::*;
 use engine::{
     graphics::{batch::*, common::*, material::*, shader::*, target::*, texture::*},
-    Slider,
+    Mouse, Slider,
 };
 
 #[derive(Component)]
@@ -19,6 +20,14 @@ struct Position {
 struct Velocity {
     x: f32,
     y: f32,
+}
+
+#[derive(Component)]
+struct Camera {
+    pos: glm::Vec3,
+    dir: glm::Vec3,
+    right: glm::Vec3,
+    up: glm::Vec3,
 }
 
 const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
@@ -71,7 +80,27 @@ fn main() {
             Circle {},
         ));
 
-        world.spawn(Slider { a: 0.0, b: 0.0, perspective: false});
+        let pos = glm::vec3(0.0, 0.0, 6.0);
+        let target = glm::vec3(0.0, 0.0, 0.0);
+        let dir = glm::normalize(&(target - pos));
+        let up = glm::vec3(0.0, 1.0, 0.0);
+        let right = glm::normalize(&(glm::cross(&up, &dir)));
+        let camera_up = glm::cross(&dir, &right);
+        world.spawn(Camera {
+            pos,
+            dir,
+            right,
+            up: camera_up,
+        });
+
+        world.spawn(Slider {
+            camera_pos: [0.0, 0.0, 6.0],
+            camera_target: [0.0, 0.0, 0.0],
+            cube_size: 1.0,
+            perspective: false,
+            fov: 0.5,
+            pause: false,
+        });
 
         let shader = Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE_2);
         let mut material = Material::new(shader);
@@ -96,6 +125,8 @@ fn main() {
         world.insert_non_send_resource(Target::new(200, 100, &[TextureFormat::RGBA]));
 
         update.add_system(updating);
+        update.add_system(mouse);
+        update.add_system(camera_system);
         render.add_system(rendering);
     });
 }
@@ -105,60 +136,129 @@ fn main() {
 fn rendering(
     mut batch: NonSendMut<'_, Batch>,
     mut query: Query<'_, '_, (&mut Position, &Circle)>,
-    mut qslider: Query<'_, '_, &mut Slider>,
+    mut options: Query<'_, '_, &Slider>,
     mut material: ResMut<'_, Material>,
-    mut sampler: Res<'_, TextureSampler>,
+    sampler: Res<'_, TextureSampler>,
     assets: Res<'_, Assets>,
 ) {
     batch.set_sampler(&sampler);
-    let mut ortho_bottom = 0.0;
-    let mut ortho_top = 0.0;
-    for slider in &mut qslider {
-        ortho_top = slider.a;
-        ortho_bottom = slider.b;
+    let mut cube_size = 0.0;
+
+    for slider in &mut options {
+        cube_size = slider.cube_size;
     }
+
     for (position, _) in &mut query {
         //     // todo: this material unifomr is overwritten (since the material is shared)
         material.set_valuef("time", position.r);
         let rect1 = RectF {
-            x: -5.0,
-            y: -5.0,
-            w: 10.0,
-            h: 10.0,
+            x: -10.0,
+            y: -10.0,
+            w: 20.0,
+            h: 20.0,
         };
+
+        // Draw background
+        batch.push_matrix(glm::Mat4::new_translation(&glm::vec3(0.0, 0.0, -4.0)));
         batch.push_material(&material);
-        batch.tex(&rect1, &assets.textures[1]);
+        batch.rect(&rect1, (0.0, 1.0, 1.0));
         batch.pop_material();
+        batch.pop_matrix();
 
         let mat = glm::Mat4::identity();
         let rot = glm::Mat4::from_scaled_axis(&glm::vec3(1.2, 1.0, 0.0) * position.r);
         let mat = rot * mat;
         batch.push_matrix(mat);
-        batch.cube((0.0, 0.0), ortho_bottom);
-        // batch.circle((0.0, 0.0), 1.0, 32);
+        batch.set_texture(&assets.textures[1]);
+        let c = 0.4 + (position.r * 5.0).cos() * 0.1;
+        batch.cube((0.0, 0.0), cube_size, (c, c, c));
+        // batch.circle((0.0, 0.0), 0.9, 38, (0.5, 0.1, 0.9));
         batch.pop_matrix();
     }
-
-    let ratio = (SCREEN.width as f32) / SCREEN.height as f32;
-
-    let width = 5.0;
-    let height = (width / ratio) / 2.0;
-
-    if qslider.iter().next().unwrap().perspective {
-        let perspective = glm::perspective(ratio, 0.50, 0.02, 10.0);
-        let perspective = perspective.prepend_translation(&glm::vec3(0.0, 0.0, -5.0));
-        batch.render(&SCREEN, &perspective);
-    } else {
-        let ortho: glm::Mat4 = glm::ortho(-width / 2.0, width / 2.0, -height, height, -5.0, 5.0);
-        batch.render(&SCREEN, &ortho);
-    }
-    batch.clear();
 }
 
-fn updating(mut query: Query<'_, '_, (&mut Position, &Velocity)>) {
+fn updating(
+    mut query: Query<'_, '_, (&mut Position, &Velocity)>,
+    mut qslider: Query<'_, '_, &Slider>,
+) {
+    let options = qslider.iter().next().unwrap();
+    if options.pause {
+        return;
+    }
     for (mut position, velocity) in &mut query {
         position.r += 0.01 + velocity.x;
         position.x += velocity.x;
         position.y += velocity.y;
     }
+}
+
+fn camera_system(
+    mut batch: NonSendMut<'_, Batch>,
+    mut camera: Query<'_, '_, &mut Camera>,
+    options: Query<'_, '_, &Slider>,
+) {
+    let options = options.iter().next().unwrap();
+    let mut camera = camera.iter_mut().next().unwrap();
+    camera.pos = glm::vec3(
+        options.camera_pos[0],
+        options.camera_pos[1],
+        options.camera_pos[2],
+    );
+    let target = glm::vec3(
+        options.camera_target[0],
+        options.camera_target[1],
+        options.camera_target[2],
+    );
+    camera.dir = glm::normalize(&(target - camera.pos));
+
+    let ratio = (SCREEN.width as f32) / SCREEN.height as f32;
+    let width = 5.0;
+    let height = (width / ratio) / 2.0;
+
+    let view = glm::look_at(&camera.pos, &(camera.pos + camera.dir), &camera.up);
+    if options.perspective {
+        let perspective = glm::perspective(ratio, options.fov, 0.1, 100.0);
+        let perspective = perspective * view;
+        batch.render(&SCREEN, &perspective);
+    } else {
+        let ortho: glm::Mat4 = glm::ortho(-width / 2.0, width / 2.0, -height, height, 0.1, 100.0);
+        let ortho = ortho * view;
+        batch.render(&SCREEN, &ortho);
+    }
+    batch.clear();
+}
+
+fn mouse(
+    mouse: NonSend<'_, Mouse>,
+    mut camera: Query<'_, '_, &mut Camera>,
+    mut options: Query<'_, '_, &mut Slider>,
+) {
+    if !mouse.pressing {
+        return;
+    }
+    let mut camera = camera.get_single_mut().unwrap();
+
+    let target = glm::vec3(0.0, 0.0, 0.0);
+    let distance_from_target = glm::length(&(target - camera.pos));
+
+    let dx = mouse.change.0 as f32 / 10.0;
+    let dy = mouse.change.1 as f32 / 10.0;
+
+    let right = camera.right;
+    camera.pos += right * dx;
+    let up = camera.up;
+    camera.pos += up * dy;
+
+    let normalized = glm::normalize(&camera.pos);
+    camera.pos = normalized * distance_from_target;
+
+    // recalculate camera
+    camera.dir = glm::normalize(&(target - camera.pos));
+    let right = glm::normalize(&(glm::cross(&glm::vec3(0.0, 1.0, 0.0), &camera.dir)));
+    camera.right = right;
+    // let camera_up = glm::cross(&dir, &right);
+    camera.up = glm::cross(&camera.dir, &camera.right);
+
+    let mut options = options.get_single_mut().unwrap();
+    options.camera_pos = camera.pos.try_into().unwrap();
 }
