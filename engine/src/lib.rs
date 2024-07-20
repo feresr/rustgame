@@ -6,7 +6,7 @@ use bevy_ecs::prelude::*;
 
 use bevy_ecs::world::World;
 use graphics::batch::{Batch, ImGuiable};
-use imgui::{Context};
+use imgui::Context;
 use imgui_sdl2::ImguiSdl2;
 
 // todo: should this be pub?
@@ -14,13 +14,14 @@ pub mod graphics;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::video::{GLProfile};
+use sdl2::video::GLProfile;
 use sdl2::{EventPump, Sdl, VideoSubsystem};
 use std::time::Instant;
 
 #[derive(Component)]
 struct Exit;
 
+// In nanoseconds
 const FPS: u32 = 1_000_000_000u32 / 60;
 
 pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
@@ -82,7 +83,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
     world.insert_non_send_resource(imgui);
     world.insert_non_send_resource(event_pump);
     world.insert_non_send_resource(platform);
-    world.insert_non_send_resource(renderer);
+    world.insert_non_send_resource(renderer); // required by imgui_system
     world.insert_non_send_resource(window);
     world.insert_non_send_resource(batch);
     world.insert_non_send_resource(mouse);
@@ -91,6 +92,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
     // Create a new Schedule, which defines an execution strategy for Systems
     let mut update_schedule = Schedule::default();
     let mut render_schedule = Schedule::default();
+    let mut internal_schedule = Schedule::default();
 
     unsafe {
         gl::Disable(gl::CULL_FACE);
@@ -99,9 +101,8 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
         gl::Enable(gl::MULTISAMPLE);
     }
 
-    render_schedule.add_systems(swap_window);
     init(&mut world, &mut update_schedule, &mut render_schedule);
-    render_schedule.add_systems(imgui_system);
+    internal_schedule.add_systems((imgui_system, swap_window).chain());
 
     loop {
         let start = Instant::now();
@@ -111,6 +112,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
             }
             update_schedule.run(&mut world);
             render_schedule.run(&mut world);
+            internal_schedule.run(&mut world);
 
             // todo: this might not be the best way to query for a single item
             let exit = world.query::<(Entity, &Exit)>().iter(&world).count();
@@ -157,7 +159,7 @@ pub struct Keyboard {
 
 fn imgui_system(
     mut imgui: NonSendMut<'_, Context>,
-    mut batch: NonSendMut<'_, Batch>,
+    batch: NonSendMut<'_, Batch>,
     mut mouse: NonSendMut<'_, Mouse>,
     mut keyboard: NonSendMut<'_, Keyboard>,
     mut event_pump: NonSendMut<'_, EventPump>,
