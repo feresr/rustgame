@@ -6,7 +6,7 @@ use bevy_ecs::prelude::*;
 
 use bevy_ecs::world::World;
 use graphics::batch::{Batch, ImGuiable};
-use imgui::Context;
+use imgui::{Context};
 use imgui_sdl2::ImguiSdl2;
 
 // todo: should this be pub?
@@ -14,7 +14,7 @@ pub mod graphics;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::video::GLProfile;
+use sdl2::video::{GLProfile};
 use sdl2::{EventPump, Sdl, VideoSubsystem};
 use std::time::Instant;
 
@@ -121,7 +121,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
             }
         }
         let delta = start.elapsed();
-        println!("frame total took: {}ms", delta.as_millis());
+        // println!("frame total took: {}ms", delta.as_millis());
         let sleep_for = if delta.as_nanos() as u32 <= FPS {
             FPS - delta.as_nanos() as u32
         } else {
@@ -129,7 +129,7 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
             // panic!("Game running too slow! delta: {}ms", delta.as_millis());
             0
         };
-        println!("sleeping for remaining: {}ms", sleep_for / 1000000);
+        // println!("sleeping for remaining: {}ms", sleep_for / 1000000);
         // TODO: look into why imgui reports 30fps (and is probably right)
         ::std::thread::sleep(::std::time::Duration::new(0, sleep_for / 2));
     }
@@ -159,7 +159,7 @@ pub struct Keyboard {
 
 fn imgui_system(
     mut imgui: NonSendMut<'_, Context>,
-    batch: NonSendMut<'_, Batch>,
+    mut batch: NonSendMut<'_, Batch>,
     mut mouse: NonSendMut<'_, Mouse>,
     mut keyboard: NonSendMut<'_, Keyboard>,
     mut event_pump: NonSendMut<'_, EventPump>,
@@ -234,6 +234,7 @@ fn imgui_system(
     }
 
     batch.render_imgui(ui);
+    batch.clear();
 
     platform.prepare_render(&ui, &window);
     renderer.render(&mut imgui);
