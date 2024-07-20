@@ -24,41 +24,12 @@ pub struct Batch {
     default_material: Material,
 }
 
-
-pub(crate) trait ImGuiable {
-    fn render_imgui(&self, imgGui: &Ui);
-}
-
-
-impl ImGuiable for Batch {
-    fn render_imgui(&self, imgui: &Ui) {
-        imgui
-            .window("Render calls")
-            .size([400.0, 600.0], imgui::Condition::FirstUseEver)
-            .build(|| {
-                let header = imgui.collapsing_header("header", TreeNodeFlags::DEFAULT_OPEN);
-                if header {
-                    for (index, batch) in self.batches.iter().enumerate() {
-                        if batch.elements == 0 {
-                            continue;
-                        }
-                        let header =
-                            imgui.collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
-                        if header {
-                            imgui.text(format!("elements: {}", batch.elements));
-                            imgui.text(format!("offset: {}", batch.offset));
-                            imgui.text(format!("texture: {}", batch.texture.id));
-                            imgui.text(format!("sampler: {}", batch.sampler.filter));
-                            imgui.text(format!("material: {:?}", batch.material));
-                        }
-                    }
-
-                    imgui.text(format!("vertices: {:?}", self.vertices));
-                    imgui.separator();
-                    imgui.text(format!("indices: {:?}", self.indices));
-                }
-            });
-    }
+pub struct DrawBatch {
+    offset: i64,
+    elements: i64,
+    material: Material,
+    texture: Texture,
+    sampler: TextureSampler,
 }
 
 impl Batch {
@@ -445,10 +416,39 @@ impl Batch {
     }
 }
 
-pub struct DrawBatch {
-    offset: i64,
-    elements: i64,
-    material: Material,
-    texture: Texture,
-    sampler: TextureSampler,
+// ---- IMGUI ---- //
+
+pub(crate) trait ImGuiable {
+    fn render_imgui(&self, imgGui: &Ui);
+}
+
+impl ImGuiable for Batch {
+    fn render_imgui(&self, imgui: &Ui) {
+        imgui
+            .window("Render calls")
+            .size([400.0, 600.0], imgui::Condition::FirstUseEver)
+            .build(|| {
+                let header = imgui.collapsing_header("header", TreeNodeFlags::DEFAULT_OPEN);
+                if header {
+                    for (index, batch) in self.batches.iter().enumerate() {
+                        if batch.elements == 0 {
+                            continue;
+                        }
+                        let header =
+                            imgui.collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
+                        if header {
+                            imgui.text(format!("elements: {}", batch.elements));
+                            imgui.text(format!("offset: {}", batch.offset));
+                            imgui.text(format!("texture: {}", batch.texture.id));
+                            imgui.text(format!("sampler: {}", batch.sampler.filter));
+                            imgui.text(format!("material: {:?}", batch.material));
+                        }
+                    }
+
+                    imgui.text(format!("vertices: {:?}", self.vertices));
+                    imgui.separator();
+                    imgui.text(format!("indices: {:?}", self.indices));
+                }
+            });
+    }
 }

@@ -99,9 +99,9 @@ pub fn start(init: &dyn Fn(&mut World, &mut Schedule, &mut Schedule) -> ()) {
         gl::Enable(gl::MULTISAMPLE);
     }
 
-    render_schedule.add_system(swap_window);
+    render_schedule.add_systems(swap_window);
     init(&mut world, &mut update_schedule, &mut render_schedule);
-    render_schedule.add_system(imgui_system);
+    render_schedule.add_systems(imgui_system);
 
     loop {
         let start = Instant::now();

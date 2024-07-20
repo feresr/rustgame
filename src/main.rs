@@ -4,7 +4,7 @@ extern crate nalgebra_glm as glm;
 use bevy_ecs::prelude::*;
 use engine::{
     graphics::{batch::*, common::*, material::*, shader::*, target::*, texture::*},
-    Keyboard, Mouse, DebugOptions,
+    DebugOptions, Keyboard, Mouse,
 };
 
 #[derive(Component)]
@@ -114,7 +114,7 @@ fn main() {
         let mut path = std::env::current_exe().unwrap();
         path.pop(); // removes executable name from path
         let path = path.display().to_string();
-        let texture = Texture::from_path(String::from(path.clone() + "/brick.png").as_str());
+        let texture = Texture::from_path(String::from(path.clone() + "/coin.png").as_str());
         let texture2 = Texture::from_path(String::from(path + "/coin.png").as_str());
         let assets = Assets {
             textures: vec![texture, texture2],
@@ -128,10 +128,10 @@ fn main() {
         world.insert_resource(sampler);
         world.insert_non_send_resource(Target::new(200, 100, &[TextureFormat::RGBA]));
 
-        update.add_system(updating);
-        update.add_system(camera_system);
-        update.add_system(render_system);
-        render.add_system(rendering);
+        update.add_systems(updating);
+        update.add_systems(camera_system);
+        update.add_systems(render_system);
+        render.add_systems(rendering);
     });
 }
 

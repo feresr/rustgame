@@ -93,7 +93,8 @@ impl Texture {
         }
 
         // Load file into memory
-        let mut f = File::open(path).expect("file not found");
+        print!("Creating texture path {}", path);
+        let mut f = File::open(path).expect("file not found: ");
         let mut contents = vec![];
         f.read_to_end(&mut contents).unwrap();
 
