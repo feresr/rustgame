@@ -6,7 +6,7 @@ use super::target::*;
 
 #[derive(Debug)]
 pub struct DrawCall<'a> {
-    pub mesh: &'a Mesh,
+    pub mesh: &'a Mesh, // todo: use mesh to validate index/instance count
     pub material: &'a Material,
     pub target: &'a Target,
     pub index_start: i64,
@@ -15,15 +15,29 @@ pub struct DrawCall<'a> {
 
 impl<'a> DrawCall<'a> {
     pub fn perform(&self) {
-        self.material.set();
+        // let index_count = self.mesh.indexcount;
+        // if (self.index_start + self.index_count) > index_count {
+        //     panic!(
+        //         "Index start + count is greater than index count: {} + {} > {}",
+        //         self.index_start, self.index_count, index_count
+        //     );
+        // }
+
         unsafe {
+            self.material.set(); // 1282
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.target.id);
             if self.target.id == 0 {
                 // todo: hardcoded screen dimensions
                 // gl::Viewport(0, 0, 1400, 800);
+                // * 2 because of mac hdpi
+                gl::Viewport(0, 0, self.target.width * 2, self.target.height * 2);
             } else {
                 gl::Viewport(0, 0, self.target.width, self.target.height);
             }
+            // gl::Disable(gl::DEPTH_TEST);
+            // gl::DepthFunc(gl::NONE);
+            // gl::ClearColor(0f32, 0f32, 0f32, 0f32);
+            // gl::Clear(gl::DEPTH_BUFFER_BIT | gl::COLOR_BUFFER_BIT);
             gl::DrawElements(
                 gl::TRIANGLES,
                 self.index_count as i32,

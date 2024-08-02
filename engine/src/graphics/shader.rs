@@ -26,7 +26,7 @@ impl Shader {
             let mut success = 0;
             gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success as *mut i32);
             if success == 0 {
-                panic!("vertex shader error!")
+                panic!("Could not create vertex shader!")
             }
         }
 
@@ -105,8 +105,8 @@ impl Shader {
                     &mut type_ as *mut gl::types::GLenum,
                     &mut name[0] as *mut gl::types::GLchar,
                 );
-                println!("program uniforms:");
-                println!("{:?}", name);
+                // println!("program uniforms:");
+                // println!("{:?}", name);
 
                 // todo: this is pretty bad
                 let uniform_name = &name[0..(length as usize)];

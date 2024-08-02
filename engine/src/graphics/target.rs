@@ -10,6 +10,16 @@ pub struct Target {
     pub height: i32,
     pub attachments: Vec<Texture>, // todo maybe this should have a getter instead of being pub
 }
+impl Target {
+    pub fn empty() -> Self {
+        Target {
+            id: 0,
+            width: 0,
+            height: 0,
+            attachments: vec![],
+        }
+    }
+}
 
 //todo: hardcoded width height dimensions
 pub static SCREEN: Target = Target {
@@ -30,7 +40,7 @@ impl Target {
 
         unsafe {
             gl::GenFramebuffers(1, &mut target.id);
-            gl::BindTexture(gl::TEXTURE_2D, target.id);
+            // gl::BindTexture(gl::TEXTURE_2D, target.id);
             gl::BindFramebuffer(gl::FRAMEBUFFER, target.id);
 
             for (i, attachment) in attachments.iter().enumerate() {
@@ -58,11 +68,11 @@ impl Target {
         return target;
     }
 
-    pub fn clear(&self, color : (f32, f32, f32)) {
+    pub fn clear(&self, color: (f32, f32, f32)) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.id);
             gl::ClearColor(color.0, color.1, color.2, 0.0);
-            gl::ClearDepth(0.0);
+            // gl::ClearDepth(1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
         }
     }

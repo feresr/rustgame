@@ -1,12 +1,7 @@
-use bevy_ecs::system::Resource;
-
-use super::{
-    shader::*,
-    texture::{self, *},
-};
+use super::{shader::*, texture::*};
 extern crate gl;
 
-#[derive(Resource, PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Material {
     shader: Shader,
     data: Vec<f32>,
@@ -31,8 +26,8 @@ impl Material {
 
     pub fn set(&self) {
         let mut texture_slot = 0;
-        self.shader.set();
         unsafe {
+            self.shader.set();
             let texture_uniforms: Vec<&Uniform> = self
                 .shader
                 .uniforms
@@ -44,7 +39,9 @@ impl Material {
                 // select slot n
                 gl::ActiveTexture(gl::TEXTURE0 + texture_slot);
                 // put a texture in that slot
+                println!("BEFORE {} {}", gl::GetError(), texture.id);
                 gl::BindTexture(gl::TEXTURE_2D, texture.id);
+                println!("AFTER {}", gl::GetError());
                 texture.update_sampler(sampler);
 
                 // map uniform location to slot

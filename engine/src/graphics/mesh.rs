@@ -75,7 +75,8 @@ impl Mesh {
                 gl::ARRAY_BUFFER,
                 (vertices.len() * std::mem::size_of::<Vertex>()) as gl::types::GLsizeiptr,
                 vertices.as_ptr() as *const std::os::raw::c_void,
-                gl::STATIC_DRAW,
+                // gl::STATIC_DRAW,
+                gl::DYNAMIC_DRAW,
             );
             gl::BindVertexArray(0);
         }

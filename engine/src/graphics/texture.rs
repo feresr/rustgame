@@ -1,10 +1,8 @@
 use std::{fmt::Error, fmt::Formatter, fs::File, io::Read};
 
-use bevy_ecs::system::Resource;
-
 extern crate gl;
 
-#[derive(Resource, Clone, Copy, PartialEq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Debug, Hash)]
 pub struct Texture {
     pub id: u32,
     width: i32,
@@ -14,7 +12,7 @@ pub struct Texture {
 impl Texture {
     pub fn default() -> Self {
         return Texture {
-            id: 99, // todo: better default value
+            id: 0,
             width: 0,
             height: 0,
         };
@@ -27,29 +25,29 @@ impl Texture {
             height,
         };
 
-        let mut gl_internal_format = 0;
-        let mut gl_format = 0;
-        let mut gl_type = 0;
+        let gl_internal_format: gl::types::GLint;
+        let gl_format: u32;
+        let gl_type: u32;
         match texture_format {
             TextureFormat::R => {
-                gl_internal_format = gl::RED;
+                gl_internal_format = gl::RED as gl::types::GLint;
                 gl_format = gl::RED;
                 gl_type = gl::UNSIGNED_BYTE;
             }
             TextureFormat::RG => {
-                gl_internal_format = gl::RG;
+                gl_internal_format = gl::RG as gl::types::GLint;
                 gl_format = gl::RG;
                 gl_type = gl::UNSIGNED_BYTE;
             }
             TextureFormat::RGBA => {
-                gl_internal_format = gl::RGBA;
+                gl_internal_format = gl::RGBA as gl::types::GLint;
                 gl_format = gl::RGBA;
                 gl_type = gl::UNSIGNED_BYTE;
             }
             TextureFormat::DepthStencil => {
-                gl_internal_format = gl::DEPTH24_STENCIL8;
+                gl_internal_format = gl::DEPTH24_STENCIL8 as gl::types::GLint;
                 gl_format = gl::DEPTH_STENCIL;
-                gl_type = gl::DEPTH_STENCIL;
+                gl_type = gl::UNSIGNED_INT_24_8;
             }
             TextureFormat::None => {
                 panic!("Invalid texture format {:?}", texture_format)
@@ -57,12 +55,12 @@ impl Texture {
         };
         unsafe {
             gl::GenTextures(1, &mut texture.id);
-            gl::ActiveTexture(gl::TEXTURE0);
+            // gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, texture.id);
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                gl_internal_format.try_into().unwrap(),
+                gl_internal_format,
                 width,
                 height,
                 0,
@@ -190,7 +188,7 @@ pub enum TextureWrap {
     Repeat,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Resource)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextureSampler {
     pub filter: TextureFilter,
     pub wrap_x: TextureWrap,
@@ -198,6 +196,13 @@ pub struct TextureSampler {
 }
 
 impl TextureSampler {
+    pub fn nearest() -> Self {
+        return TextureSampler {
+            filter: TextureFilter::Nearest,
+            wrap_x: TextureWrap::Border,
+            wrap_y: TextureWrap::Border,
+        };
+    }
     pub fn default() -> Self {
         return TextureSampler {
             filter: TextureFilter::Linear,

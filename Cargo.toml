@@ -6,6 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-engine = { path="./engine" }
-bevy_ecs = "0.14.0"
+engine = { path = "./engine" }
 nalgebra-glm = "0.19.0"
+rand = "0.8.5"
+
+[dev-dependencies]
+pprof = { version = "0.13", features = ["flamegraph"] }

@@ -1,36 +1,226 @@
 extern crate engine;
 extern crate nalgebra_glm as glm;
 
-use bevy_ecs::prelude::*;
 use engine::{
+    ecs::{Component, RenderWorld, UpdateWorld, World, WorldOp},
     graphics::{batch::*, common::*, material::*, shader::*, target::*, texture::*},
-    Keyboard, Mouse,
+    Game,
 };
+use glm::{vec2, vec3, Vec2, Vec3};
+use rand::Rng;
+use std::env;
 
-#[derive(Component)]
 struct Background {
+    material: Material,
     offset: f32,
     radius: f32,
     time: f32,
+    rect: RectF,
+}
+impl Component for Background {
+    fn update(&mut self, _: &mut UpdateWorld<'_>, entity: u32) {
+        self.material.set_valuef("offset", self.offset);
+        self.material.set_valuef("radius", self.radius);
+        self.material.set_valuef("time", self.time);
+        self.time += 0.003;
+        self.offset += 0.01;
+    }
+
+    fn render(&self, _: &mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {
+        // Render the background quad
+        batch.set_sampler(&TextureSampler::default());
+        // Push this slightligh backwards in the z-axis so the balls render in front
+        batch.push_matrix(glm::Mat4::new_translation(&glm::vec3(0.0, 0.0, -0.2)));
+        batch.push_material(&self.material);
+        batch.rect(&self.rect, (1.0, 1.0, 1.0));
+        batch.pop_material();
+        batch.pop_matrix();
+    }
 }
 
-#[derive(Component)]
+struct Brick {
+    rect: RectF,
+    color: Vec3,
+}
+impl Component for Brick {
+    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
+        let collision;
+        {
+            let ball_entity = world.find_first::<Ball>().unwrap();
+            let ball_position = ball_entity
+                .get_component::<Position>()
+                .unwrap()
+                .borrow_mut();
+            let mut ball_mover = ball_entity.get_component::<Mover>().unwrap().borrow_mut();
+            let ball = ball_entity.get_component::<Ball>().unwrap().borrow_mut();
+
+            collision = rect_collision(&ball.rect, &self.rect);
+            if collision {
+                ball_mover.dy = -ball_mover.dy;
+            }
+        }
+        if collision {
+            world.remove_entity(entity);
+        }
+    }
+
+    fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {
+        let brick = self;
+        batch.rect(&self.rect, (brick.color.x, brick.color.y, brick.color.z));
+    }
+}
+
 struct Paddle {
     x: f32,
     width: f32,
     height: f32,
 }
+impl Component for Paddle {
+    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
+        let keyboard = engine::keyboard();
+        if keyboard.keycodes.contains(&engine::Keycode::Left) {
+            self.x = self.x - 1f32;
+        }
+        if keyboard.keycodes.contains(&engine::Keycode::Right) {
+            self.x = self.x + 1f32;
+        }
 
-#[derive(Component)]
-struct Ball {
+        let paddle = self;
+        let rect = RectF {
+            x: paddle.x - paddle.width / 2.0,
+            y: 20.0,
+            w: paddle.width,
+            h: paddle.height,
+        };
+        let ball_entity = world.find_first::<Ball>().unwrap();
+        let mut ball_position = ball_entity
+            .get_component::<Position>()
+            .unwrap()
+            .borrow_mut();
+        let mut ball_mover = ball_entity.get_component::<Mover>().unwrap().borrow_mut();
+        let ball = ball_entity.get_component::<Ball>().unwrap().borrow_mut();
+
+        let br = RectF {
+            x: ball_position.x,
+            y: ball_position.y,
+            w: ball.r * 2f32,
+            h: ball.r * 2f32,
+        };
+        if rect_collision(&br, &rect) {
+            ball_mover.dy = -ball_mover.dy;
+            ball_position.y = paddle.height + 20 as f32;
+        }
+    }
+
+    fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {
+        let paddle = self;
+        let rect = RectF {
+            x: paddle.x - paddle.width / 2.0,
+            y: 20.0,
+            w: paddle.width,
+            h: paddle.height,
+        };
+        batch.rect(&rect, (1.0, 0.0, 0.0));
+    }
+}
+
+struct Position {
     x: f32,
     y: f32,
-    r: f32,
+}
+struct Mover {
     dx: f32,
     dy: f32,
 }
+impl Component for Position {
+    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {}
+    fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {}
+}
+impl Component for Mover {
+    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
+        let position = world.find_component::<Position>(entity);
+        if let Some(p) = position {
+            let mut pb = p.borrow_mut();
+            pb.x = pb.x + self.dx;
+            pb.y = pb.y + self.dy;
+        }
+    }
 
-#[derive(Component)]
+    fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {}
+}
+struct Ball {
+    r: f32,
+    spawned_a_new: bool,
+    rect: RectF,
+}
+impl Ball {
+    fn spawn_new<'a>(world: &'a mut UpdateWorld) {
+        let mut ball = world.add_entity();
+        ball.assign(Ball {
+            r: 10.0,
+            spawned_a_new: false,
+            rect: RectF::with_size(0f32, 0f32),
+        });
+
+        let mut rng = rand::thread_rng();
+
+        ball.assign(Mover {
+            dx: 2.0f32 * rng.gen::<f32>(),
+            dy: 2.0f32 * rng.gen::<f32>(),
+        });
+        ball.assign(Position {
+            x: SCREEN.width as f32 / 2.0,
+            y: SCREEN.height as f32 / 2.0,
+        });
+    }
+}
+impl Component for Ball {
+    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
+        let mut collided = false;
+        {
+            let mut ball_position = world
+                .find_component::<Position>(entity)
+                .unwrap()
+                .borrow_mut();
+            let mut ball_mover = world.find_component::<Mover>(entity).unwrap().borrow_mut();
+            if (ball_position.x + self.r) > SCREEN.width as f32 || (ball_position.x - self.r) < 0.0
+            {
+                ball_mover.dx = -ball_mover.dx;
+                collided = true;
+            }
+            if (ball_position.y + self.r) > SCREEN.height as f32 {
+                ball_position.y = SCREEN.height as f32 - self.r;
+                ball_mover.dy = -ball_mover.dy;
+                collided = true;
+            }
+            if (ball_position.y - self.r) < 0.0 {
+                ball_mover.dy = -ball_mover.dy;
+                ball_position.y = self.r;
+                collided = true;
+            }
+        }
+        if collided && self.spawned_a_new {
+            Ball::spawn_new(world);
+            Ball::spawn_new(world);
+            Ball::spawn_new(world);
+            Ball::spawn_new(world);
+        }
+        let fb = world.get_resource::<FrameBuffers>();
+        fb.index = fb.index + 1;
+
+        let position = world.find_component::<Position>(entity).unwrap().borrow();
+        // batch.circle((position.x, position.y), self.r, 12, (0.0, 1.0, 1.0));
+        self.rect.x = position.x;
+        self.rect.y = position.y;
+        self.rect.w = self.r;
+        self.rect.h = self.r;
+    }
+
+    fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {
+        batch.rect(&self.rect, (1.0, 1.0, 0.0));
+    }
+}
+
 struct Camera {
     target: glm::Vec3,
     pos: glm::Vec3,
@@ -38,7 +228,6 @@ struct Camera {
     right: glm::Vec3,
     up: glm::Vec3,
 }
-
 const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
             layout (location = 0) in vec3 aPos;\n
             layout (location = 1) in vec3 aColor;\n
@@ -67,236 +256,144 @@ const FRAGMENT_SHADER_SOURCE_2: &str = "#version 330 core\n
                 if (length(sin(c + vec2(offset,offset))) < radius) {
                     FragColor = vec4(0.8);
                 } else {
-                    FragColor = vec4(min(0.5, sin(time)), min(0.5, cos(time)), min(0.5, sin(time * 2.0)), 1.0);
+                    FragColor = vec4(min(0.1, sin(time)), min(0.2, cos(time)), min(0.3, sin(time * 2.0)), 1.0);
                 }
             }";
 
-#[derive(Resource)]
-struct Assets {
-    textures: Vec<Texture>,
+struct Foo {
+    world: World,
+    ortho: glm::Mat4,
+    target: Target,
 }
 
-fn main() {
-    engine::start(&|world, update, render| {
-        let pos = glm::vec3(0.0, 0.0, 12.0);
+struct FrameBuffers {
+    index: u32,
+}
+
+impl Game for Foo {
+    fn init(&mut self) {
+        self.world.add_resource(FrameBuffers { index: 123 });
+
+        let pos = glm::vec3(0.0, 0.0, 1.0);
         let target = glm::vec3(0.0, 0.0, 0.0);
         let dir = glm::normalize(&(target - pos));
         let up = glm::vec3(0.0, 1.0, 0.0);
         let right = glm::normalize(&(glm::cross(&up, &dir)));
         let camera_up = glm::cross(&dir, &right);
-        world.spawn(Camera {
+
+        let camera = Camera {
             target,
             pos,
             dir,
             right,
             up: camera_up,
-        });
+        };
 
-        world.spawn(Paddle {
-            x: 0.0,
-            width: 200.0,
-            height: 20.0,
-        });
-        world.spawn(Ball {
-            x: SCREEN.width as f32 / 2.0,
-            y: SCREEN.height as f32 / 2.0,
-            r: 10.0,
-            dx: 2.0,
-            dy: 6.0,
-        });
+        // let ratio = (SCREEN.width as f32) / SCREEN.height as f32;
+        let width = SCREEN.width as f32;
+        let height = SCREEN.height as f32;
 
-        // Background Rect / shader
-        world.spawn((Background {
+        let view = glm::look_at(&camera.pos, &(camera.pos + camera.dir), &camera.up);
+        // Background is at z 0
+        // Camera is at z 1 - Looking at 0
+        let ortho: glm::Mat4 = glm::ortho(0.0, width, 0f32, height, 0.0f32, 2f32);
+        self.ortho = ortho * view;
+
+        // Shaders
+        let shader = Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE_2);
+        let mut bkg = self.world.add_entity();
+        let border = 20f32;
+        bkg.assign(Background {
             offset: 1.2,
             radius: 0.20,
             time: 0.0,
-        },));
+            material: Material::new(shader),
+            rect: RectF {
+                x: border,
+                y: border,
+                w: (SCREEN.width - 2 * border as i32) as f32,
+                h: (SCREEN.height - 2 * border as i32) as f32,
+            },
+        });
+        let mut ball = self.world.add_entity();
+        ball.assign(Ball {
+            // x: SCREEN.width as f32 / 2.0,
+            // y: SCREEN.height as f32 / 2.0,
+            r: 10.0,
+            rect: RectF::with_size(0f32, 0f32),
+            spawned_a_new: true, // dx: 5.0,
+                                 // dy: 8.0,
+        });
+        ball.assign(Mover { dx: 35.0, dy: 38.0 });
+        ball.assign(Position {
+            x: SCREEN.width as f32 / 2.0,
+            y: SCREEN.height as f32 / 2.0,
+        });
 
-        let shader = Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE_2);
-        world.insert_resource(Material::new(shader));
-        world.insert_resource(TextureSampler::default());
-        world.insert_non_send_resource(Target::new(200, 100, &[TextureFormat::RGBA]));
+        let mut paddle = self.world.add_entity();
+        paddle.assign(Paddle {
+            x: SCREEN.width as f32 / 2.0f32,
+            width: 200.0,
+            height: 40.0,
+        });
 
-        update.add_systems((
-            paddle_system,
-            ball_system.after(paddle_system),
-            background_animation,
-            camera_system,
-        ));
-        render.add_systems((background_render, paddle_render, ball_render, render_system).chain());
-    });
-}
-// THis is wrong, no item has both "query and paddle traits"
-fn collision_system(mut query: Query<'_, '_, (&mut Ball, &Paddle)>) {
-    println!("Checking collision -----------------");
-    for (mut ball, paddle) in &mut query {}
+        let brick_size = vec2(100f32, 20f32);
+        let gap = vec2(10f32, 10f32);
+        for x in 0..12 {
+            for y in 0..10 {
+                let mut brick = self.world.add_entity();
+                brick.assign(Brick {
+                    rect: RectF {
+                        x: (x as f32) * (brick_size.x + gap.x),
+                        y: SCREEN.height as f32 - (y as f32 * (brick_size.y + gap.y)) as f32,
+                        w: brick_size.x,
+                        h: brick_size.y,
+                    },
+                    color: vec3(x as f32 / 12f32, 1f32 - x as f32 / 12f32, y as f32 / 12f32),
+                });
+            }
+        }
+        let attachments = [TextureFormat::RGBA, TextureFormat::DepthStencil];
+        self.target = Target::new(256, 224, &attachments);
+    }
+
+    fn update(&mut self) -> bool {
+        self.world.update();
+        // println!("ENTITY #{}", self.world.entity_count);
+        return true;
+    }
+
+    fn render(&self, batch: &mut Batch) {
+        {
+            // Render into low-res target
+            self.target.clear((0f32, 0f32, 0f32));
+            self.world.render(batch);
+            batch.set_sampler(&TextureSampler::default());
+            batch.render(&self.target, &self.ortho);
+            batch.clear();
+        }
+        {
+            // Render low-res target to screen
+            let f = RectF::with_size(SCREEN.width as f32, SCREEN.height as f32);
+            batch.set_sampler(&TextureSampler::nearest());
+            batch.tex(&f, &self.target.attachments[0], (0f32, 0f32, 0f32));
+            batch.render(&SCREEN, &self.ortho);
+        }
+    }
+
+    fn dispose(&mut self) {}
 }
 
 fn rect_collision(a: &RectF, b: &RectF) -> bool {
     a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
 
-fn ball_render(mut batch: NonSendMut<'_, Batch>, mut query: Query<'_, '_, &mut Ball>) {
-    for ball in &mut query {
-        batch.circle((ball.x, ball.y), ball.r, 32, (0.0, 1.0, 1.0));
-    }
-}
-fn paddle_render(mut batch: NonSendMut<'_, Batch>, mut query: Query<'_, '_, (&mut Paddle)>) {
-    for paddle in &mut query {
-        // println!("Paddle x: {}", paddle.x);
-        let rect = RectF {
-            x: paddle.x - paddle.width / 2.0,
-            y: 20.0,
-            w: paddle.width,
-            h: paddle.height,
-        };
-        batch.rect(&rect, (1.0, 0.0, 1.0));
-    }
-}
-
-fn background_render(
-    mut batch: NonSendMut<'_, Batch>,
-    mut query: Query<'_, '_, &mut Background>,
-    mut material: ResMut<'_, Material>,
-    sampler: Res<'_, TextureSampler>,
-) {
-    // Render the background quad
-    batch.set_sampler(&sampler);
-    for mut bkg in &mut query {
-        //     // todo: this material unifomr is overwritten (since the material is shared)
-        material.set_valuef("offset", bkg.offset);
-        material.set_valuef("radius", bkg.radius);
-        material.set_valuef("time", bkg.time);
-        bkg.time += 0.003;
-        let rect1 = RectF {
-            x: 0f32,
-            y: 0f32,
-            w: SCREEN.width as f32,
-            h: SCREEN.height as f32,
-        };
-
-        batch.push_matrix(glm::Mat4::new_translation(&glm::vec3(0.0, 0.0, -0.1)));
-        batch.push_material(&material);
-        batch.rect(&rect1, (1.0, 1.0, 1.0));
-        batch.pop_material();
-        batch.pop_matrix();
-    }
-}
-
-fn paddle_system(mut query: Query<'_, '_, &mut Paddle>, mouse: NonSend<'_, Mouse>) {
-    for mut paddle in &mut query {
-        paddle.x = mouse.positon.0 as f32;
-    }
-}
-fn ball_system(mut query: Query<'_, '_, &mut Ball>, paddle: Query<'_, '_, &Paddle>) {
-    for mut ball in &mut query {
-        for paddle in &paddle {
-            let paddle_rect = RectF {
-                x: paddle.x - paddle.width / 2.0,
-                y: 20.0,
-                w: paddle.width,
-                h: paddle.height,
-            };
-            let ball_rect = RectF {
-                x: ball.x - ball.r,
-                y: ball.y - ball.r,
-                w: ball.r * 2.0,
-                h: ball.r * 2.0,
-            };
-            if rect_collision(&paddle_rect, &ball_rect) {
-                ball.dy = -ball.dy;
-                let middle = paddle.x;
-                println!("Ball x: {}, Paddle x: {}", ball.x, middle);
-                if ball.x > middle {
-                    println!("-MAS");
-                    ball.dx += 2.0;
-                } else {
-                    println!("-MINUS");
-                    ball.dx -= 2.0;
-                }
-            } else {
-            }
-        }
-
-        if (ball.x + ball.r) > SCREEN.width as f32 || (ball.x - ball.r) < 0.0 {
-            ball.dx = -ball.dx;
-        }
-        if (ball.y + ball.r) > SCREEN.height as f32 || (ball.y - ball.r) < 0.0 {
-            ball.dy = -ball.dy;
-        }
-        ball.x += ball.dx;
-        ball.y += ball.dy;
-    }
-}
-
-fn background_animation(mut query: Query<'_, '_, &mut Background>) {
-    for mut bkg in &mut query {
-        bkg.offset += 0.01;
-    }
-}
-
-// Actually calls render
-// NonSend means (use main thread)
-fn render_system(mut batch: NonSendMut<'_, Batch>, camera: Query<'_, '_, &Camera>) {
-    let camera = camera.get_single().unwrap();
-
-    // let ratio = (SCREEN.width as f32) / SCREEN.height as f32;
-    let width = SCREEN.width as f32;
-    let height = SCREEN.height as f32;
-
-    let view = glm::look_at(&camera.pos, &(camera.pos + camera.dir), &camera.up);
-    // Background is at z 0
-    // Camera is at z 1 - Looking at 0
-    let ortho: glm::Mat4 = glm::ortho(0.0, width, 0f32, height, 0.0f32, 2f32);
-    let ortho = ortho * view;
-    batch.render(&SCREEN, &ortho);
-}
-
-fn camera_system(
-    mouse: NonSend<'_, Mouse>,
-    keyboard: NonSend<'_, Keyboard>,
-    mut camera: Query<'_, '_, &mut Camera>,
-) {
-    if !mouse.pressing {
-        // let options = options.iter().next().unwrap();
-        // update camera to match debug panel (options)
-        let mut camera = camera.iter_mut().next().unwrap();
-        camera.pos = glm::vec3(0f32, 0f32, 1f32);
-        camera.target = glm::vec3(0f32, 0f32, 0f32);
-        return;
-    }
-
-    let dx = mouse.change.0 as f32 / 10.0;
-    let dy = mouse.change.1 as f32 / 10.0;
-    let mut camera = camera.get_single_mut().unwrap();
-    if keyboard.shift {
-        let right = camera.right;
-        camera.pos += right * dx * 0.1;
-        camera.target += right * dx * 0.1;
-
-        let top = camera.up;
-        camera.pos += top * dy * 0.1;
-        camera.target += top * dy * 0.1;
-        return;
-    }
-
-    // update camera position and also debug panel to match.
-    let distance_from_target = glm::length(&(camera.target - camera.pos));
-
-    // move the camera in its `right` and `up` vector
-    let right = camera.right;
-    camera.pos += right * dx;
-    let up = camera.up;
-    camera.pos += up * dy;
-    // The resulting position is not at the same distance from the target as before,
-    // to fix this, get a unit vector from the target to the new camera pos.
-    let normalized = glm::normalize(&(camera.pos - camera.target));
-    // the new position is target + (unit vector pointing at new position) * original distance
-    camera.pos = camera.target + normalized * distance_from_target;
-
-    // recalculate camera direction right and up.
-    camera.dir = glm::normalize(&(camera.target - camera.pos));
-    let right = glm::normalize(&(glm::cross(&glm::vec3(0.0, 1.0, 0.0), &camera.dir)));
-    camera.right = right;
-    camera.up = glm::cross(&camera.dir, &camera.right);
+fn main() {
+    env::set_var("RUST_BACKTRACE", "1");
+    let game = Foo {
+        world: World::new(),
+        ortho: glm::Mat4::identity(),
+        target: Target::empty(),
+    };
+    engine::run(Box::new(game));
 }

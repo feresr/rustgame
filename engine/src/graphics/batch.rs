@@ -1,6 +1,5 @@
 extern crate gl;
 
-use bevy_ecs::prelude::*;
 use imgui::TreeNodeFlags;
 use imgui::Ui;
 use std::f32::consts::TAU;
@@ -13,7 +12,6 @@ use super::target::Target;
 use super::texture::*;
 
 // Sprite batcher used to draw text and textures
-#[derive(Resource)]
 pub struct Batch {
     mesh: Mesh,
     vertices: Vec<Vertex>,
@@ -40,13 +38,12 @@ impl Batch {
     ) -> Batch {
         return Batch {
             mesh,
-            vertices: Vec::new(),
-            indices: Vec::new(),
+            vertices: Vec::with_capacity(512),
+            indices: Vec::with_capacity(1024),
             material_stack: Vec::new(),
-            matrix_stack: vec![glm::Mat4::identity()],
+            matrix_stack: vec![],
             batches: Vec::new(),
             default_material: material,
-            // ui,
         };
     }
 
@@ -55,12 +52,12 @@ impl Batch {
             // nothing to draw
             return;
         }
-
         // upload data to gpu
         self.mesh.set_data(&self.vertices);
         self.mesh.set_index_data(&self.indices);
 
         for batch in self.batches.iter_mut() {
+            // TODO: upload a u_time uniform?
             if batch.material.has_uniform("u_texture") {
                 batch.material.set_texture("u_texture", &batch.texture);
                 batch.material.set_sampler("u_texture", &batch.sampler);
@@ -69,18 +66,18 @@ impl Batch {
                 batch.material.set_matrix4x4("u_matrix", projection);
             }
             if batch.material.has_uniform("u_resolution") {
-                // println!("setting u_res to {}x{}", target.width, target.height);
                 batch
                     .material
                     .set_value2i("u_resolution", (target.width, target.height));
             }
 
             let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material, target);
-            pass.index_start = batch.offset * 3;
             pass.index_count = batch.elements * 3;
             if pass.index_count == 0 {
                 continue;
             }
+            pass.index_start = batch.offset * 3;
+
             pass.perform();
         }
     }
@@ -247,11 +244,11 @@ impl Batch {
     pub fn circle(&mut self, center: (f32, f32), radius: f32, steps: u32, color: (f32, f32, f32)) {
         let mut last = (center.0 + radius, center.1, 0.0);
         let center = (center.0, center.1, 0.0);
+        let radians = (1 as f32 / steps as f32) * TAU;
         for i in 0..=steps {
-            let radians = (i as f32 / steps as f32) * TAU;
             let next = (
-                center.0 + f32::cos(radians) * radius,
-                center.1 + f32::sin(radians) * radius,
+                center.0 + f32::cos(radians * i as f32) * radius,
+                center.1 + f32::sin(radians * i as f32) * radius,
                 0.0,
             );
             self.tri(last, next, center, color);
@@ -263,7 +260,7 @@ impl Batch {
         let current = self.current_batch();
         if current.texture == *texture || current.elements == 0 {
             // reuse existing batch
-            current.texture = texture.clone();
+            current.texture = *texture;
         } else {
             // create a new batch
             self.push_batch();
@@ -294,15 +291,15 @@ impl Batch {
         color: (f32, f32, f32),
     ) {
         let last_vertex_index = self.vertices.len() as u32;
-        self.indices.push(0 + last_vertex_index);
-        self.indices.push(1 + last_vertex_index);
-        self.indices.push(2 + last_vertex_index);
-
-        let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap();
-
-        self.push_vertex(&matrix, pos0, (0.0, 0.0), color);
-        self.push_vertex(&matrix, pos1, (0.0, 0.0), color);
-        self.push_vertex(&matrix, pos2, (0.0, 0.0), color);
+        self.indices.extend([
+            0 + last_vertex_index,
+            1 + last_vertex_index,
+            2 + last_vertex_index,
+        ]);
+        self.vertices.reserve(3);
+        self.push_vertex(pos0, (0.0, 0.0), color);
+        self.push_vertex(pos1, (0.0, 0.0), color);
+        self.push_vertex(pos2, (0.0, 0.0), color);
         self.current_batch().elements += 1;
     }
 
@@ -332,8 +329,12 @@ impl Batch {
     }
 
     pub fn push_matrix(&mut self, matrix: glm::Mat4) {
-        let current: glm::Mat4 = *self.matrix_stack.last().unwrap();
-        self.matrix_stack.push(current * matrix);
+        if self.matrix_stack.is_empty() {
+            self.matrix_stack.push(matrix);
+        } else {
+            let current: &glm::Mat4 = self.matrix_stack.last().unwrap();
+            self.matrix_stack.push(matrix * current);
+        }
     }
 
     pub fn pop_matrix(&mut self) {
@@ -346,19 +347,17 @@ impl Batch {
         self.indices.clear();
         self.material_stack.clear();
         self.matrix_stack.clear();
-        self.matrix_stack.push(glm::Mat4::identity());
     }
 
-    fn push_vertex(
-        &mut self,
-        matrix: &glm::Mat4,
-        position: (f32, f32, f32),
-        tex: (f32, f32),
-        col: (f32, f32, f32),
-    ) {
-        let w = matrix * glm::vec4(position.0, position.1, position.2, 1.0);
+    fn push_vertex(&mut self, pos: (f32, f32, f32), tex: (f32, f32), col: (f32, f32, f32)) {
+        let mut position = glm::vec4(pos.0, pos.1, pos.2, 1.0);
+        if !self.matrix_stack.is_empty() {
+            // TODO: this is slow - move to GPU?!
+            let matrix: &glm::Mat4 = self.matrix_stack.last().unwrap();
+            position = matrix * position;
+        }
         self.vertices.push(Vertex {
-            pos: (w[0], w[1], w[2]),
+            pos: (position.x, position.y, position.z),
             col,
             tex,
         });
@@ -380,22 +379,25 @@ impl Batch {
         color3: (f32, f32, f32),
     ) {
         let last_vertex_index = self.vertices.len() as u32;
-        self.indices.push(1 + last_vertex_index);
-        self.indices.push(0 + last_vertex_index);
-        self.indices.push(3 + last_vertex_index);
-        self.indices.push(0 + last_vertex_index);
-        self.indices.push(2 + last_vertex_index);
-        self.indices.push(3 + last_vertex_index);
 
-        let matrix: glm::Mat4 = *self.matrix_stack.last().unwrap();
+        self.indices.extend([
+            1 + last_vertex_index,
+            0 + last_vertex_index,
+            3 + last_vertex_index,
+            0 + last_vertex_index,
+            2 + last_vertex_index,
+            3 + last_vertex_index,
+        ]);
+
         // bottom right
-        self.push_vertex(&matrix, pos0, tex0, color0);
+        self.vertices.reserve(4);
+        self.push_vertex(pos0, tex0, color0);
         // top right
-        self.push_vertex(&matrix, pos1, tex1, color1);
+        self.push_vertex(pos1, tex1, color1);
         // bottom left
-        self.push_vertex(&matrix, pos2, tex2, color2);
+        self.push_vertex(pos2, tex2, color2);
         // top left
-        self.push_vertex(&matrix, pos3, tex3, color3);
+        self.push_vertex(pos3, tex3, color3);
 
         self.current_batch().elements += 2;
     }
@@ -424,31 +426,27 @@ pub(crate) trait ImGuiable {
 
 impl ImGuiable for Batch {
     fn render_imgui(&self, imgui: &Ui) {
-        imgui
-            .window("Render calls")
-            .size([400.0, 600.0], imgui::Condition::FirstUseEver)
-            .build(|| {
-                let header = imgui.collapsing_header("header", TreeNodeFlags::DEFAULT_OPEN);
-                if header {
-                    for (index, batch) in self.batches.iter().enumerate() {
-                        if batch.elements == 0 {
-                            continue;
-                        }
-                        let header =
-                            imgui.collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
-                        if header {
-                            imgui.text(format!("elements: {}", batch.elements));
-                            imgui.text(format!("offset: {}", batch.offset));
-                            imgui.text(format!("texture: {}", batch.texture.id));
-                            imgui.text(format!("sampler: {}", batch.sampler.filter));
-                            imgui.text(format!("material: {:?}", batch.material));
-                        }
-                    }
-
-                    imgui.text(format!("vertices: {:?}", self.vertices));
-                    imgui.separator();
-                    imgui.text(format!("indices: {:?}", self.indices));
+        let header = imgui.collapsing_header("Draw calls", TreeNodeFlags::DEFAULT_OPEN);
+        if header {
+            for (index, batch) in self.batches.iter().enumerate() {
+                if batch.elements == 0 {
+                    continue;
                 }
-            });
+                let header = imgui.collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
+                if header {
+                    imgui.text(format!("elements: {}", batch.elements));
+                    imgui.text(format!("offset: {}", batch.offset));
+                    imgui.text(format!("texture: {}", batch.texture.id));
+                    imgui.text(format!("sampler: {}", batch.sampler.filter));
+                    imgui.text(format!("material: {:?}", batch.material));
+                }
+            }
+        }
+        let header = imgui.collapsing_header("VERTEX", TreeNodeFlags::FRAMED);
+        if header {
+            imgui.text(format!("vertices: {:?}", self.vertices.len()));
+            imgui.separator();
+            imgui.text(format!("indices: {:?}", self.indices.len()));
+        }
     }
 }
