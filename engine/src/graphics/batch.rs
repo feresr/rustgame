@@ -350,17 +350,19 @@ impl Batch {
     }
 
     fn push_vertex(&mut self, pos: (f32, f32, f32), tex: (f32, f32), col: (f32, f32, f32)) {
-        let mut position = glm::vec4(pos.0, pos.1, pos.2, 1.0);
         if !self.matrix_stack.is_empty() {
+            let mut position = glm::vec4(pos.0, pos.1, pos.2, 1.0);
             // TODO: this is slow - move to GPU?!
             let matrix: &glm::Mat4 = self.matrix_stack.last().unwrap();
             position = matrix * position;
+            self.vertices.push(Vertex {
+                pos: (position.x, position.y, position.z),
+                col,
+                tex,
+            });
+        } else {
+            self.vertices.push(Vertex { pos, col, tex });
         }
-        self.vertices.push(Vertex {
-            pos: (position.x, position.y, position.z),
-            col,
-            tex,
-        });
     }
 
     fn push_quad(

@@ -425,6 +425,7 @@ name = "nand2tetris"
 version = "0.1.0"
 dependencies = [
  "engine",
+ "imgui",
  "nalgebra-glm",
  "pprof",
  "rand",

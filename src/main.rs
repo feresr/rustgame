@@ -6,7 +6,8 @@ use engine::{
     graphics::{batch::*, common::*, material::*, shader::*, target::*, texture::*},
     Game,
 };
-use glm::{vec2, vec3, Vec2, Vec3};
+use glm::{vec2, vec3, Vec3};
+use imgui::Ui;
 use rand::Rng;
 use std::env;
 
@@ -16,6 +17,7 @@ struct Background {
     radius: f32,
     time: f32,
     rect: RectF,
+    translation_matrix: glm::Mat4,
 }
 impl Component for Background {
     fn update(&mut self, _: &mut UpdateWorld<'_>, entity: u32) {
@@ -30,7 +32,7 @@ impl Component for Background {
         // Render the background quad
         batch.set_sampler(&TextureSampler::default());
         // Push this slightligh backwards in the z-axis so the balls render in front
-        batch.push_matrix(glm::Mat4::new_translation(&glm::vec3(0.0, 0.0, -0.2)));
+        batch.push_matrix(self.translation_matrix);
         batch.push_material(&self.material);
         batch.rect(&self.rect, (1.0, 1.0, 1.0));
         batch.pop_material();
@@ -43,26 +45,7 @@ struct Brick {
     color: Vec3,
 }
 impl Component for Brick {
-    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
-        let collision;
-        {
-            let ball_entity = world.find_first::<Ball>().unwrap();
-            let ball_position = ball_entity
-                .get_component::<Position>()
-                .unwrap()
-                .borrow_mut();
-            let mut ball_mover = ball_entity.get_component::<Mover>().unwrap().borrow_mut();
-            let ball = ball_entity.get_component::<Ball>().unwrap().borrow_mut();
-
-            collision = rect_collision(&ball.rect, &self.rect);
-            if collision {
-                ball_mover.dy = -ball_mover.dy;
-            }
-        }
-        if collision {
-            world.remove_entity(entity);
-        }
-    }
+    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {}
 
     fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {
         let brick = self;
@@ -70,28 +53,60 @@ impl Component for Brick {
     }
 }
 
+struct Gravity {
+    value: f32,
+}
+impl Component for Gravity {
+    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
+        let mover = world.find_component::<Mover>(entity);
+        if let Some(m) = mover {
+            m.borrow_mut().dy -= self.value
+        }
+    }
+
+    fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {}
+}
 struct Paddle {
-    x: f32,
     width: f32,
     height: f32,
+    texture: Texture,
 }
 impl Component for Paddle {
     fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
-        let keyboard = engine::keyboard();
-        if keyboard.keycodes.contains(&engine::Keycode::Left) {
-            self.x = self.x - 1f32;
-        }
-        if keyboard.keycodes.contains(&engine::Keycode::Right) {
-            self.x = self.x + 1f32;
-        }
-
-        let paddle = self;
-        let rect = RectF {
-            x: paddle.x - paddle.width / 2.0,
-            y: 20.0,
-            w: paddle.width,
-            h: paddle.height,
+        let mut rect = RectF {
+            x: 0f32,
+            y: 0f32,
+            w: 0f32,
+            h: 0f32,
         };
+        {
+            let mut position = world
+                .find_component::<Position>(entity)
+                .unwrap()
+                .borrow_mut();
+            let keyboard = engine::keyboard();
+            if keyboard.keycodes.contains(&engine::Keycode::Left) {
+                position.x -= 3f32;
+            }
+            if keyboard.keycodes.contains(&engine::Keycode::Right) {
+                position.x += 3f32;
+            }
+            let mut mover = world.find_component::<Mover>(entity).unwrap().borrow_mut();
+            if position.y <= 0f32 {
+                position.y = 0f32;
+                mover.dy = 0f32;
+            }
+            if keyboard.keycodes.contains(&engine::Keycode::Up) {
+                mover.dy = 4f32;
+            }
+
+            rect = RectF {
+                x: position.x - self.width / 2.0,
+                y: 20.0,
+                w: self.width,
+                h: self.height,
+            };
+        }
         let ball_entity = world.find_first::<Ball>().unwrap();
         let mut ball_position = ball_entity
             .get_component::<Position>()
@@ -108,19 +123,21 @@ impl Component for Paddle {
         };
         if rect_collision(&br, &rect) {
             ball_mover.dy = -ball_mover.dy;
-            ball_position.y = paddle.height + 20 as f32;
+            ball_position.y = self.height + 20 as f32;
         }
     }
 
     fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {
+        let position = world.find_component::<Position>(entity).unwrap().borrow();
+
         let paddle = self;
         let rect = RectF {
-            x: paddle.x - paddle.width / 2.0,
-            y: 20.0,
+            x: position.x - paddle.width / 2.0,
+            y: position.y,
             w: paddle.width,
             h: paddle.height,
         };
-        batch.rect(&rect, (1.0, 0.0, 0.0));
+        batch.tex(&rect, &self.texture, (0f32, 0f32, 0f32));
     }
 }
 
@@ -157,7 +174,7 @@ impl Ball {
     fn spawn_new<'a>(world: &'a mut UpdateWorld) {
         let mut ball = world.add_entity();
         ball.assign(Ball {
-            r: 10.0,
+            r: 2.0,
             spawned_a_new: false,
             rect: RectF::with_size(0f32, 0f32),
         });
@@ -165,31 +182,32 @@ impl Ball {
         let mut rng = rand::thread_rng();
 
         ball.assign(Mover {
-            dx: 2.0f32 * rng.gen::<f32>(),
-            dy: 2.0f32 * rng.gen::<f32>(),
+            dx: 2.0f32 * (-0.5 + rng.gen::<f32>()),
+            dy: 2.0f32 * (-0.5 + rng.gen::<f32>()),
         });
         ball.assign(Position {
-            x: SCREEN.width as f32 / 2.0,
-            y: SCREEN.height as f32 / 2.0,
+            x: 320 as f32 / 2.0,
+            y: 170 as f32 / 1.0,
         });
+        ball.assign(Gravity { value: 0.1f32 })
     }
 }
 impl Component for Ball {
     fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
         let mut collided = false;
+        let mut to_remove: u32 = 0;
         {
+            let mut ball_mover = world.find_component::<Mover>(entity).unwrap().borrow_mut();
             let mut ball_position = world
                 .find_component::<Position>(entity)
                 .unwrap()
                 .borrow_mut();
-            let mut ball_mover = world.find_component::<Mover>(entity).unwrap().borrow_mut();
-            if (ball_position.x + self.r) > SCREEN.width as f32 || (ball_position.x - self.r) < 0.0
-            {
+            if (ball_position.x + self.r) > 320 as f32 || (ball_position.x - self.r) < 0.0 {
                 ball_mover.dx = -ball_mover.dx;
                 collided = true;
             }
-            if (ball_position.y + self.r) > SCREEN.height as f32 {
-                ball_position.y = SCREEN.height as f32 - self.r;
+            if (ball_position.y + self.r) > 180 as f32 {
+                ball_position.y = 180 as f32 - self.r;
                 ball_mover.dy = -ball_mover.dy;
                 collided = true;
             }
@@ -198,22 +216,33 @@ impl Component for Ball {
                 ball_position.y = self.r;
                 collided = true;
             }
+            {
+                let bricks = world.find_all::<Brick>();
+                for brick_component in bricks {
+                    if rect_collision(&self.rect, &brick_component.component.borrow().rect) {
+                        ball_mover.dy = -ball_mover.dy;
+                        to_remove = brick_component.entity_id;
+                        break;
+                    }
+                }
+            }
+
+            self.rect.x = ball_position.x;
+            self.rect.y = ball_position.y;
+            self.rect.w = self.r;
+            self.rect.h = self.r;
+        }
+        if to_remove != 0 {
+            world.remove_entity(to_remove);
         }
         if collided && self.spawned_a_new {
-            Ball::spawn_new(world);
-            Ball::spawn_new(world);
-            Ball::spawn_new(world);
-            Ball::spawn_new(world);
+            for i in 0..1000 {
+                Ball::spawn_new(world);
+            }
         }
+
         let fb = world.get_resource::<FrameBuffers>();
         fb.index = fb.index + 1;
-
-        let position = world.find_component::<Position>(entity).unwrap().borrow();
-        // batch.circle((position.x, position.y), self.r, 12, (0.0, 1.0, 1.0));
-        self.rect.x = position.x;
-        self.rect.y = position.y;
-        self.rect.w = self.r;
-        self.rect.h = self.r;
     }
 
     fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {
@@ -263,6 +292,7 @@ const FRAGMENT_SHADER_SOURCE_2: &str = "#version 330 core\n
 struct Foo {
     world: World,
     ortho: glm::Mat4,
+    screen_ortho: glm::Mat4,
     target: Target,
 }
 
@@ -289,15 +319,20 @@ impl Game for Foo {
             up: camera_up,
         };
 
-        // let ratio = (SCREEN.width as f32) / SCREEN.height as f32;
-        let width = SCREEN.width as f32;
-        let height = SCREEN.height as f32;
-
         let view = glm::look_at(&camera.pos, &(camera.pos + camera.dir), &camera.up);
         // Background is at z 0
         // Camera is at z 1 - Looking at 0
-        let ortho: glm::Mat4 = glm::ortho(0.0, width, 0f32, height, 0.0f32, 2f32);
+        let ortho: glm::Mat4 = glm::ortho(0.0, 320 as f32, 0f32, 180 as f32, 0.0f32, 2f32);
         self.ortho = ortho * view;
+
+        self.screen_ortho = glm::ortho(
+            0.0,
+            (SCREEN.width) as f32,
+            0f32,
+            SCREEN.height as f32,
+            0.0f32,
+            2f32,
+        );
 
         // Shaders
         let shader = Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE_2);
@@ -311,41 +346,43 @@ impl Game for Foo {
             rect: RectF {
                 x: border,
                 y: border,
-                w: (SCREEN.width - 2 * border as i32) as f32,
-                h: (SCREEN.height - 2 * border as i32) as f32,
+                w: (320 - 2 * border as i32) as f32,
+                h: (180 - 2 * border as i32) as f32,
             },
+            translation_matrix: glm::Mat4::new_translation(&glm::vec3(0.0, 0.0, -0.2)),
         });
         let mut ball = self.world.add_entity();
         ball.assign(Ball {
-            // x: SCREEN.width as f32 / 2.0,
-            // y: SCREEN.height as f32 / 2.0,
-            r: 10.0,
+            r: 2.0,
             rect: RectF::with_size(0f32, 0f32),
-            spawned_a_new: true, // dx: 5.0,
-                                 // dy: 8.0,
+            spawned_a_new: true,
         });
-        ball.assign(Mover { dx: 35.0, dy: 38.0 });
+        ball.assign(Mover { dx: 8.0, dy: 8.0 });
         ball.assign(Position {
-            x: SCREEN.width as f32 / 2.0,
-            y: SCREEN.height as f32 / 2.0,
+            x: 320 as f32 / 2.0,
+            y: 180 as f32 / 2.0,
         });
+        ball.assign(Gravity { value: 0f32 });
 
         let mut paddle = self.world.add_entity();
         paddle.assign(Paddle {
-            x: SCREEN.width as f32 / 2.0f32,
-            width: 200.0,
-            height: 40.0,
+            width: 8.0,
+            height: 8.0,
+            texture: Texture::from_path("src/blob.png"),
         });
+        paddle.assign(Mover { dx: 0f32, dy: 0f32 });
+        paddle.assign(Position { x: 0f32, y: 0f32 });
+        paddle.assign(Gravity { value: 0.7f32 });
 
-        let brick_size = vec2(100f32, 20f32);
+        let brick_size = vec2(10f32, 4f32);
         let gap = vec2(10f32, 10f32);
         for x in 0..12 {
             for y in 0..10 {
                 let mut brick = self.world.add_entity();
                 brick.assign(Brick {
                     rect: RectF {
-                        x: (x as f32) * (brick_size.x + gap.x),
-                        y: SCREEN.height as f32 - (y as f32 * (brick_size.y + gap.y)) as f32,
+                        x: 40 as f32 + (x as f32) * (brick_size.x + gap.x),
+                        y: 150 as f32 - (y as f32 * (brick_size.y + gap.y)) as f32,
                         w: brick_size.x,
                         h: brick_size.y,
                     },
@@ -354,12 +391,11 @@ impl Game for Foo {
             }
         }
         let attachments = [TextureFormat::RGBA, TextureFormat::DepthStencil];
-        self.target = Target::new(256, 224, &attachments);
+        self.target = Target::new(320, 180, &attachments);
     }
 
     fn update(&mut self) -> bool {
         self.world.update();
-        // println!("ENTITY #{}", self.world.entity_count);
         return true;
     }
 
@@ -373,15 +409,20 @@ impl Game for Foo {
             batch.clear();
         }
         {
-            // Render low-res target to screen
+            //Render low-res target to screen
+            // TODO: do not create rect here.
             let f = RectF::with_size(SCREEN.width as f32, SCREEN.height as f32);
             batch.set_sampler(&TextureSampler::nearest());
             batch.tex(&f, &self.target.attachments[0], (0f32, 0f32, 0f32));
-            batch.render(&SCREEN, &self.ortho);
+            batch.render(&SCREEN, &self.screen_ortho);
         }
     }
 
     fn dispose(&mut self) {}
+
+    fn debug(&self, imgui: &Ui) {
+        self.world.debug(imgui);
+    }
 }
 
 fn rect_collision(a: &RectF, b: &RectF) -> bool {
@@ -393,7 +434,8 @@ fn main() {
     let game = Foo {
         world: World::new(),
         ortho: glm::Mat4::identity(),
+        screen_ortho: glm::Mat4::identity(),
         target: Target::empty(),
     };
-    engine::run(Box::new(game));
+    engine::run(game);
 }

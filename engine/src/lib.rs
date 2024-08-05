@@ -4,7 +4,7 @@ extern crate nalgebra_glm as glm;
 extern crate sdl2;
 
 use graphics::batch::{Batch, ImGuiable};
-use imgui::Context;
+use imgui::{Context, Ui};
 
 pub mod ecs;
 pub mod graphics;
@@ -15,15 +15,18 @@ use sdl2::video::GLProfile;
 use sdl2::{Sdl, VideoSubsystem};
 use std::collections::HashSet;
 use std::env;
-use std::time::Instant;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 // In nanoseconds
-const FPS: u128 = 1_000_000_000 / 60;
+const FPS: u64 = 60;
+const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
 
 pub trait Game {
     fn init(&mut self);
     fn update(&mut self) -> bool;
     fn render(&self, batch: &mut Batch);
+    fn debug(&self, imgui: &Ui);
     fn dispose(&mut self);
 }
 
@@ -38,7 +41,7 @@ pub fn keyboard() -> &'static mut Keyboard {
     }
 }
 
-pub fn run(mut game: Box<dyn Game>) {
+pub fn run(mut game: impl Game) {
     env::set_var("RUST_BACKTRACE", "1");
     // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
     let window_size = (1400, 800);
@@ -159,7 +162,11 @@ pub fn run(mut game: Box<dyn Game>) {
                     start.elapsed().as_millis()
                 ));
                 ui.text(format!("Framerate: {} milli-seconds", frame_rate));
+
+                // if cfg!(debug_assertions) {
                 batch.render_imgui(ui);
+                game.debug(ui)
+                // }
             });
         platform.prepare_render(&ui, &window);
         renderer.render(&mut imgui);
@@ -167,9 +174,15 @@ pub fn run(mut game: Box<dyn Game>) {
         // println!("elapsed {:?}", start.elapsed());
 
         window.gl_swap_window();
-        while start.elapsed().as_nanos() <= FPS {
+        let sleep_until = start + FRAME_DURATION;
+        while Instant::now() < sleep_until {
             // sleep
         }
+        // let elapsed = start.elapsed();
+        // if elapsed < FRAME_DURATION {
+        //     let sleep_until = FRAME_DURATION - elapsed
+        //     sleep();
+        // }
         // TODO: Thread sleep might not be the right thing to do (imprecise - might sleep longer)
         // let sleep_for = if delta.as_nanos() as u32 <= FPS {
         //     FPS - delta.as_nanos() as u32

@@ -1,11 +1,12 @@
-use std::any::{Any, TypeId};
+use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use imgui::Ui;
 use rand::Rng;
 
-use crate::graphics::batch::{Batch};
+use crate::graphics::batch::Batch;
 
 // Internal entity (no world reference - self ref not allowed in Rust)
 // TODO: should this be pub?
@@ -19,10 +20,10 @@ pub struct Entity<'a, T: WorldOp<T>> {
     world: &'a mut T,
 }
 
-struct ComponentWrapper<T: Component> {
-    entity_id: u32,
-    component: RefCell<T>,
-    active: bool,
+#[derive(Debug)]
+pub struct ComponentWrapper<T: Component> {
+    pub entity_id: u32,
+    pub component: RefCell<T>,
 }
 
 // World struct that manages entities and component storages
@@ -32,7 +33,6 @@ pub struct World {
     pub entity_count: u32,
     components: HashMap<TypeId, Box<dyn Updateable>>, // HashMap for component storages by TypeId
     resources: HashMap<TypeId, Box<dyn Any>>,
-
     changes: Vec<Diff>,
 }
 
@@ -52,6 +52,8 @@ trait Updateable {
     // I have no idea how / why this works
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn debug(&self, ui: &Ui);
 }
 
 // Define a ComponentStorage struct that stores components in contiguous memory
@@ -64,23 +66,19 @@ impl<T: Component + 'static> Updateable for ComponentStorage<T> {
     // Iterate over components to update them
     fn update_all(&self, world: &mut UpdateWorld<'_>) {
         for wrapper in self.data.iter() {
-            if wrapper.active {
-                wrapper
-                    .component
-                    .borrow_mut()
-                    .update(world, wrapper.entity_id);
-            }
+            wrapper
+                .component
+                .borrow_mut()
+                .update(world, wrapper.entity_id);
         }
     }
     // Iterate over components to render them
     fn render_all(&self, world: &mut RenderWorld<'_>, batch: &mut Batch) {
         for wrapper in self.data.iter() {
-            if wrapper.active {
-                wrapper
-                    .component
-                    .borrow_mut()
-                    .render(world, batch, wrapper.entity_id);
-            }
+            wrapper
+                .component
+                .borrow_mut()
+                .render(world, batch, wrapper.entity_id);
         }
     }
     fn as_any(&self) -> &dyn Any {
@@ -91,12 +89,12 @@ impl<T: Component + 'static> Updateable for ComponentStorage<T> {
     }
 
     fn remove_component(&mut self, entity_id: u32) {
-        let index = self.entity_map.get(&entity_id);
-        if let Some(index) = index {
-            let wrapper = self.data.get_mut(*index).unwrap();
-            // TODO: actually remove entities at some point!
-            // without invalidating entity_map!
-            wrapper.active = false;
+        if let Some(index) = self.entity_map.remove(&entity_id) {
+            let last_entity_id = self.data.iter().last().unwrap().entity_id;
+            self.data.swap_remove(index);
+            if (entity_id != last_entity_id) {
+                self.entity_map.insert(last_entity_id, index);
+            }
         }
     }
 
@@ -106,15 +104,22 @@ impl<T: Component + 'static> Updateable for ComponentStorage<T> {
         self.data.push(ComponentWrapper {
             entity_id,
             component: RefCell::new(*component),
-            active: true,
         });
+    }
+
+    fn debug(&self, ui: &Ui) {
+        ui.text(format!(
+            "{} # {:?}",
+            type_name::<T>(),
+            self.data.iter().count()
+        ));
     }
 }
 impl<T: Component> ComponentStorage<T> {
     // Create a new empty ComponentStorage
     fn new() -> Self {
         ComponentStorage {
-            data: Vec::new(),
+            data: Vec::with_capacity(100),
             entity_map: HashMap::new(),
         }
     }
@@ -129,7 +134,6 @@ impl<T: Component> ComponentStorage<T> {
         self.data.push(ComponentWrapper {
             entity_id,
             component: RefCell::new(component),
-            active: true,
         });
     }
 
@@ -208,8 +212,6 @@ impl<'a> WorldOp<RenderWorld<'a>> for RenderWorld<'a> {
         return None;
     }
 
-    fn register_component<T: Component + 'static>(&mut self) {}
-
     fn remove_component<T: Component + 'static>(&mut self, entity: u32) {
         panic!("Cannot modify the world during render");
     }
@@ -237,12 +239,10 @@ impl<'a> WorldOp<RenderWorld<'a>> for RenderWorld<'a> {
         return None;
     }
 
-    fn update(&mut self) {
-        // no op
-    }
-
-    fn render(&self, batch: &mut Batch) {
-        // no op
+    fn find_all<T: Component + 'static>(
+        &self,
+    ) -> Box<dyn Iterator<Item = &ComponentWrapper<T>> + '_> {
+        Box::new(std::iter::empty())
     }
 }
 impl<'a> WorldOp<UpdateWorld<'a>> for UpdateWorld<'a> {
@@ -260,8 +260,7 @@ impl<'a> WorldOp<UpdateWorld<'a>> for UpdateWorld<'a> {
     }
 
     fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<&RefCell<T>> {
-        let type_id = TypeId::of::<T>();
-        if let Some(storage) = self.components.get(&type_id) {
+        if let Some(storage) = self.components.get(&TypeId::of::<T>()) {
             if let Some(storage) = storage.as_any().downcast_ref::<ComponentStorage<T>>() {
                 return storage.find_component(entity);
             }
@@ -269,13 +268,10 @@ impl<'a> WorldOp<UpdateWorld<'a>> for UpdateWorld<'a> {
         return None;
     }
 
-    fn register_component<T: Component + 'static>(&mut self) {}
-
     fn remove_component<T: Component + 'static>(&mut self, entity: u32) {
-        let type_id = TypeId::of::<T>();
         self.diffs.push(Diff::RemoveComponent {
-            component_type: type_id,
-            entity: entity,
+            component_type: TypeId::of::<T>(),
+            entity,
         });
     }
 
@@ -307,27 +303,37 @@ impl<'a> WorldOp<UpdateWorld<'a>> for UpdateWorld<'a> {
         return None;
     }
 
-    fn update(&mut self) {
-        // no op
-    }
-
-    fn render(&self, batch: &mut Batch) {
-        // no op
+    // TODO: find a way to return a impl iterator (not dyn)
+    fn find_all<T: Component + 'static>(
+        &self,
+    ) -> Box<dyn Iterator<Item = &ComponentWrapper<T>> + '_> {
+        let type_id = TypeId::of::<T>();
+        match self.components.get(&type_id) {
+            Some(storage) => {
+                let storage = storage
+                    .as_any()
+                    .downcast_ref::<ComponentStorage<T>>()
+                    .unwrap();
+                // return storage.data.iter();
+                return Box::new(storage.data.iter());
+            }
+            None => return Box::new(std::iter::empty()),
+        }
     }
 }
 
 pub trait WorldOp<W: WorldOp<W>> {
     fn add_entity<'a>(&'a mut self) -> Entity<'_, W>;
     fn remove_entity<'a>(&'a mut self, entity: u32);
-    fn register_component<T: Component + 'static>(&mut self);
+
+    fn add_component<T: Component + 'static>(&mut self, entity: &IEntity, component: T);
     fn remove_component<T: Component + 'static>(&mut self, entity: u32);
     fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<&RefCell<T>>;
-    fn add_component<T: Component + 'static>(&mut self, entity: &IEntity, component: T);
-    fn find_first<'a, T: Component + 'static>(&'a mut self) -> Option<Entity<'_, W>>;
 
-    // TODO: These might have to be on a different trait
-    fn update(&mut self);
-    fn render(&self, batch: &mut Batch);
+    fn find_first<'a, T: Component + 'static>(&'a mut self) -> Option<Entity<'_, W>>;
+    fn find_all<T: Component + 'static>(
+        &self,
+    ) -> Box<dyn Iterator<Item = &ComponentWrapper<T>> + '_>;
 }
 
 impl World {
@@ -344,6 +350,79 @@ impl World {
     pub fn add_resource<T: Any + 'static>(&mut self, resource: T) {
         self.resources
             .insert(resource.type_id(), Box::new(resource));
+    }
+
+    // Register a new component type with an empty storage
+    fn register_component<T: Component + 'static>(&mut self) {
+        let type_id = TypeId::of::<T>();
+        self.components
+            .insert(type_id, Box::new(ComponentStorage::<T>::new()));
+    }
+
+    pub fn update(&mut self) {
+        let mut diff = UpdateWorld {
+            components: &self.components,
+            diffs: &mut self.changes,
+            resources: &mut self.resources,
+        };
+        for (_, updatable) in self.components.iter() {
+            updatable.update_all(&mut diff);
+        }
+        for diff in self.changes.drain(..) {
+            match diff {
+                Diff::RemoveComponent {
+                    component_type,
+                    entity,
+                } => {
+                    let type_id = component_type;
+                    let components_optional = self.components.get_mut(&type_id);
+                    if let Some(updateable) = components_optional {
+                        updateable.remove_component(entity);
+                    }
+                }
+                Diff::AddComponent {
+                    component_type,
+                    entity,
+                    component,
+                } => {
+                    // TODO unwrap is dangeourse here
+                    // self.add_component(&IEntity{id: entity}, component):
+                    let c = self.components.get_mut(&component_type).unwrap();
+                    c.add_component(entity, component);
+                }
+                Diff::AddEntity { id } => {
+                    self.entity_count = self.entity_count + 1;
+                }
+                Diff::RemoveEntity { id } => {
+                    // can't call this without double borrow
+                    // self.remove_component(entity);
+                    self.entity_count = self.entity_count - 1;
+                    for (_, updatable) in self.components.iter_mut() {
+                        updatable.remove_component(id);
+                    }
+                    self.entities.retain(|e| e.id != id);
+                }
+            }
+        }
+    }
+
+    pub fn render(&self, batch: &mut Batch) {
+        let mut diff = RenderWorld {
+            components: &self.components,
+            resources: &mut HashMap::new(),
+        };
+        for (_, updatable) in self.components.iter() {
+            updatable.render_all(&mut diff, batch);
+        }
+        // TODO: update world with diff data?
+        // self.changes.clear();
+    }
+
+    pub fn debug(&self, imgui: &Ui) {
+        imgui.text(format!("ENTITIES # {}", self.entity_count));
+        for (_, update) in self.components.iter() {
+            update.debug(&imgui);
+        }
     }
 }
 
@@ -365,13 +444,6 @@ impl WorldOp<World> for World {
             updatable.remove_component(entity);
         }
         self.entities.retain(|e| e.id != entity);
-    }
-
-    // Register a new component type with an empty storage
-    fn register_component<T: Component + 'static>(&mut self) {
-        let type_id = TypeId::of::<T>();
-        self.components
-            .insert(type_id, Box::new(ComponentStorage::<T>::new()));
     }
 
     fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<&RefCell<T>> {
@@ -427,61 +499,10 @@ impl WorldOp<World> for World {
         return None;
     }
 
-    fn update(&mut self) {
-        let mut diff = UpdateWorld {
-            components: &self.components,
-            diffs: &mut self.changes,
-            resources: &mut self.resources,
-        };
-        for (_, updatable) in self.components.iter() {
-            updatable.update_all(&mut diff);
-        }
-        for diff in self.changes.drain(..) {
-            match diff {
-                Diff::RemoveComponent {
-                    component_type,
-                    entity,
-                } => {
-                    let type_id = component_type;
-                    let components_optional = self.components.get_mut(&type_id);
-                    if let Some(component_vec) = components_optional {
-                        component_vec.remove_component(entity);
-                    }
-                }
-                Diff::AddComponent {
-                    component_type,
-                    entity,
-                    component,
-                } => {
-                    let c = self.components.get_mut(&component_type).unwrap();
-                    c.add_component(entity, component);
-                }
-                Diff::AddEntity { id } => {
-                    self.entity_count = self.entity_count + 1;
-                }
-                Diff::RemoveEntity { id } => {
-                    // can't call this without double borrow
-                    // self.remove_component(entity);
-                    self.entity_count -= 1;
-                    for (_, updatable) in self.components.iter_mut() {
-                        updatable.remove_component(id);
-                    }
-                    self.entities.retain(|e| e.id != id);
-                }
-            }
-        }
-    }
-
-    fn render(&self, batch: &mut Batch) {
-        let mut diff = RenderWorld {
-            components: &self.components,
-            resources: &mut HashMap::new(),
-        };
-        for (_, updatable) in self.components.iter() {
-            updatable.render_all(&mut diff, batch);
-        }
-        // TODO: update world with diff data?
-        // self.changes.clear();
+    fn find_all<T: Component + 'static>(
+        &self,
+    ) -> Box<dyn Iterator<Item = &ComponentWrapper<T>> + '_> {
+        Box::new(std::iter::empty())
     }
 }
 

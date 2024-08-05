@@ -39,9 +39,7 @@ impl Material {
                 // select slot n
                 gl::ActiveTexture(gl::TEXTURE0 + texture_slot);
                 // put a texture in that slot
-                println!("BEFORE {} {}", gl::GetError(), texture.id);
                 gl::BindTexture(gl::TEXTURE_2D, texture.id);
-                println!("AFTER {}", gl::GetError());
                 texture.update_sampler(sampler);
 
                 // map uniform location to slot
