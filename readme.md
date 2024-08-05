@@ -4,13 +4,12 @@
 
 * https://github.com/noelfb/blah
 * https://www.youtube.com/watch?v=JxIZbV_XjAs
-* https://learnopengl.com/Introduction
+* https://learnopengl.com
 
 # Dependencies
 
 - SDL (windowing + event handling)
 - OpenGL
-- Bevy (ECS only)
 
 ![Screenshot](screenshot.jpg)
 ![Screenshot](screenshot2.jpg)
