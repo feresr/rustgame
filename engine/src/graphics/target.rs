@@ -19,15 +19,15 @@ impl Target {
             attachments: vec![],
         }
     }
+    pub fn screen(w: i32, h: i32) -> Self {
+        Target {
+            id: 0,
+            width: w,
+            height: h,
+            attachments: vec![],
+        }
+    }
 }
-
-//todo: hardcoded width height dimensions
-pub static SCREEN: Target = Target {
-    id: 0,
-    width: 1400,
-    height: 800,
-    attachments: vec![],
-};
 
 impl Target {
     pub fn new(width: i32, height: i32, attachments: &[TextureFormat]) -> Self {

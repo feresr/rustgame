@@ -1,5 +1,5 @@
 use std::any::{type_name, Any, TypeId};
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -38,7 +38,7 @@ pub struct World {
 
 pub trait Component {
     fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32);
-    fn render<'a>(&self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32);
+    fn render<'a>(&mut self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32);
 }
 
 trait Updateable {
@@ -137,10 +137,12 @@ impl<T: Component> ComponentStorage<T> {
         });
     }
 
-    fn find_component(&self, entity_id: u32) -> Option<&RefCell<T>> {
-        let index = self.entity_map.get(&entity_id).unwrap();
-        let wrapper = self.data.get(*index);
-        wrapper.map(|wrapper| &wrapper.component)
+    fn find_component(&self, entity_id: u32) -> Option<RefMut<'_, T>> {
+        if let Some(index) = self.entity_map.get(&entity_id) {
+            let wrapper = self.data.get(*index);
+            return wrapper.map(|wrapper| wrapper.component.borrow_mut());
+        }
+        return None;
     }
 }
 //
@@ -202,7 +204,7 @@ impl<'a> WorldOp<RenderWorld<'a>> for RenderWorld<'a> {
         panic!("Cannot modify the world during render");
     }
 
-    fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<&RefCell<T>> {
+    fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<RefMut<'_, T>> {
         let type_id = TypeId::of::<T>();
         if let Some(storage) = self.components.get(&type_id) {
             if let Some(storage) = storage.as_any().downcast_ref::<ComponentStorage<T>>() {
@@ -259,7 +261,7 @@ impl<'a> WorldOp<UpdateWorld<'a>> for UpdateWorld<'a> {
         self.diffs.push(Diff::RemoveEntity { id: entity });
     }
 
-    fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<&RefCell<T>> {
+    fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<RefMut<'_, T>> {
         if let Some(storage) = self.components.get(&TypeId::of::<T>()) {
             if let Some(storage) = storage.as_any().downcast_ref::<ComponentStorage<T>>() {
                 return storage.find_component(entity);
@@ -328,7 +330,7 @@ pub trait WorldOp<W: WorldOp<W>> {
 
     fn add_component<T: Component + 'static>(&mut self, entity: &IEntity, component: T);
     fn remove_component<T: Component + 'static>(&mut self, entity: u32);
-    fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<&RefCell<T>>;
+    fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<RefMut<'_, T>>;
 
     fn find_first<'a, T: Component + 'static>(&'a mut self) -> Option<Entity<'_, W>>;
     fn find_all<T: Component + 'static>(
@@ -446,7 +448,7 @@ impl WorldOp<World> for World {
         self.entities.retain(|e| e.id != entity);
     }
 
-    fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<&RefCell<T>> {
+    fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<RefMut<'_, T>> {
         // TODo imrp
         let type_id = TypeId::of::<T>();
         if let Some(storage) = self.components.get(&type_id) {
@@ -517,7 +519,7 @@ impl<W: WorldOp<W>> Entity<'_, W> {
         self.world.remove_component::<T>(self.id)
     }
 
-    pub fn get_component<T: Component + 'static>(&self) -> Option<&RefCell<T>> {
+    pub fn get_component<T: Component + 'static>(&self) -> Option<RefMut<'_, T>> {
         return self.world.find_component::<T>(self.id);
     }
 }

@@ -15,7 +15,6 @@ use sdl2::video::GLProfile;
 use sdl2::{Sdl, VideoSubsystem};
 use std::collections::HashSet;
 use std::env;
-use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 // In nanoseconds
@@ -44,7 +43,7 @@ pub fn keyboard() -> &'static mut Keyboard {
 pub fn run(mut game: impl Game) {
     env::set_var("RUST_BACKTRACE", "1");
     // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
-    let window_size = (1400, 800);
+    let window_size = (320 * 4, 180 * 4);
     let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
 
@@ -56,6 +55,7 @@ pub fn run(mut game: impl Game) {
         .window("Window", window_size.0, window_size.1)
         .allow_highdpi()
         .opengl()
+        .borderless()
         .build()
         .unwrap();
 

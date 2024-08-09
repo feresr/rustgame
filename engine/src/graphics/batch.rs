@@ -2,14 +2,18 @@ extern crate gl;
 
 use imgui::TreeNodeFlags;
 use imgui::Ui;
+use sdl2::sys::GrabModeSync;
 use std::f32::consts::TAU;
 
 use super::common::*;
 use super::drawcall;
 use super::material::*;
 use super::mesh::*;
+use super::shader::Shader;
 use super::target::Target;
 use super::texture::*;
+use super::FRAGMENT_SHADER_SOURCE;
+use super::VERTEX_SHADER_SOURCE;
 
 // Sprite batcher used to draw text and textures
 pub struct Batch {
@@ -31,6 +35,12 @@ pub struct DrawBatch {
 }
 
 impl Batch {
+    pub fn default() -> Self {
+        Batch::new(
+            Mesh::new(),
+            Material::new(Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE)),
+        )
+    }
     pub fn new(
         mesh: Mesh,
         material: Material,
