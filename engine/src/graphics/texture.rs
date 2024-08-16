@@ -97,16 +97,16 @@ impl Texture {
         f.read_to_end(&mut contents).unwrap();
 
         // Load the image
-        let mut x: i32 = 0;
-        let mut y: i32 = 0;
+        let mut width: i32 = 0;
+        let mut height: i32 = 0;
         let mut comp: i32 = 0;
         let img: *mut u8;
         unsafe {
             img = stb_image_rust::stbi_load_from_memory(
                 contents.as_mut_ptr(),
                 contents.len() as i32,
-                &mut x,
-                &mut y,
+                &mut width,
+                &mut height,
                 &mut comp,
                 stb_image_rust::STBI_rgb_alpha,
             );
@@ -118,8 +118,8 @@ impl Texture {
                 gl::TEXTURE_2D,
                 0,
                 gl::RGBA as i32,
-                x,
-                y,
+                width,
+                height,
                 0,
                 gl::RGBA,
                 gl::UNSIGNED_BYTE,
@@ -134,8 +134,8 @@ impl Texture {
         }
         let tex = Texture {
             id,
-            width: x,
-            height: y,
+            width,
+            height,
         };
         return tex;
     }

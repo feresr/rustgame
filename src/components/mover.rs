@@ -1,18 +1,21 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::Borrow;
 
 use engine::{
-    ecs::{Component, RenderWorld, UpdateWorld, WorldOp},
-    graphics::{batch::Batch, common::PointF},
+    ecs::{Component, WorldOp},
+    graphics::common::PointF,
 };
 
 use crate::{Gravity, TILE_SIZE};
 
-use super::{approach, collider::Collider, position::Position};
+use super::{
+    collider::{Collider, Collision},
+    position::Position,
+};
 
 #[derive(Default)]
 pub struct Mover {
     pub speed: glm::Vec2,
-    reminder: glm::Vec2,
+    pub reminder: glm::Vec2,
 }
 impl Mover {
     pub fn new(speed_x: f32, speed_y: f32) -> Self {
@@ -21,100 +24,133 @@ impl Mover {
             reminder: glm::vec2(0.0, 0.0),
         }
     }
-}
-impl Component for Mover {
-    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {
-        // todo: clamp dx dy to tilesize
-        // self.dx = self.dx.clamp(-(TILE_SIZE as f32), TILE_SIZE as f32);
-        // self.dy = self.dy.clamp(-(TILE_SIZE as f32), TILE_SIZE as f32);
-        let gravity = world.find_component::<Gravity>(entity);
+
+    fn apply_gravity<'a>(&mut self, entity: &engine::ecs::Entity<'a, impl WorldOp>) {
+        let gravity = entity.get_component::<Gravity>();
         if let Some(g) = gravity {
             self.speed.y -= g.value
         }
-
-        let mut total: glm::Vec2 = self.reminder + self.speed;
-        let max_speed = TILE_SIZE - 2;
-        total.x = total.x.clamp(-(max_speed as f32), max_speed as f32);
-        total.y = total.y.clamp(-(max_speed as f32), max_speed as f32);
-        let offset: PointF = PointF {
-            x: total.x as i32 as f32,
-            y: total.y as i32 as f32,
-        };
-        self.reminder.x = total.x - offset.x;
-        self.reminder.y = total.y - offset.y;
-
-        let position = world.find_component::<Position>(entity);
-        if let Some(mut p) = position {
-            // Has collider?
-            if let Some(mut my_collider) = world.find_component::<Collider>(entity) {
-                my_collider.update(&p);
-
-                // Check collision X
-                let colliders = world.find_all::<Collider>();
-                // If a collision is found reduce dx dy
-                let mut offset_x = offset.x as i32;
-                for collider in colliders {
-                    if collider.entity_id == entity {
-                        continue;
-                    }
-                    let other = collider.component.borrow();
-                    while my_collider.borrow().check(
-                        &other.borrow(),
-                        PointF {
-                            x: offset_x as f32,
-                            y: 0.0,
-                        },
-                    ) {
-                        // (my_collider.on_collision)();
-                        if offset_x == 0 {
-                            break;
-                        };
-                        offset_x = approach(offset_x, 0, 1);
-                        self.speed.x = 0.0;
-                        self.reminder.x = 0.0;
-                    }
-                }
-                p.x += offset_x;
-                my_collider.update(&p);
-
-                // Check collision Y
-                let mut offset_y = offset.y as i32;
-                let colliders = world.find_all::<Collider>();
-                for collider in colliders {
-                    if collider.entity_id == entity {
-                        continue;
-                    }
-                    let other = collider.component.borrow();
-                    while my_collider.borrow().check(
-                        &other.borrow(),
-                        PointF {
-                            x: 0.0,
-                            y: offset_y as f32,
-                        },
-                    ) {
-                        // (my_collider.on_collision)();
-                        if offset_y == 0 {
-                            break;
-                        };
-                        offset_y = approach(offset_y, 0, 1);
-                        self.speed.y = 0.0;
-                        self.reminder.y = 0.0;
-                    }
-                }
-                // offset.y = offset_y as f32;
-                p.y += offset_y;
-                if p.y < 0 {
-                    p.y = 0;
-                }
-                my_collider.update(&p);
-            } else {
-                p.x = p.x + self.speed.x as i32;
-                p.y = p.y + self.speed.y as i32;
-            }
-        }
-
-        // floor
     }
 
-    fn render<'a>(&mut self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {}
+    fn move_y(&mut self, amount: i32, entity: &engine::ecs::Entity<'_, impl WorldOp>) {
+        if amount == 0 {
+            return;
+        }
+        let sign_y = if amount > 0 { 1 } else { -1 };
+        let mut amount = amount;
+        let mut collider = entity.get_component::<Collider>().unwrap();
+        for other_collider in entity.world.find_all::<Collider>() {
+            if other_collider.entity_id == entity.id {
+                continue;
+            }
+            let other = other_collider.component.borrow();
+            let mut collision = false;
+            while collider.borrow().check(
+                &other.borrow(),
+                PointF {
+                    x: 0.0,
+                    y: amount as f32,
+                },
+            ) {
+                if !collision {
+                    collision = true;
+                    let _ = &collider.collisions.push(Collision {
+                        other: other_collider.entity_id,
+                        directions: super::collider::Direction::VERTICAL,
+                        self_velociy: self.speed,
+                    });
+                    self.speed.y = 0.0;
+                    self.reminder.y = 0.0;
+                }
+                amount -= sign_y;
+            }
+        }
+        let mut position = entity.get_component::<Position>().unwrap();
+        collider.update(&position);
+        position.y += amount;
+    }
+
+    fn move_x(&mut self, amount: i32, entity: &engine::ecs::Entity<'_, impl WorldOp>) {
+        if amount == 0 {
+            return;
+        }
+        let sign_x = if amount > 0 { 1 } else { -1 };
+        let mut amount = amount;
+        let mut collider = entity.get_component::<Collider>().unwrap();
+        for other_collider in entity.world.find_all::<Collider>() {
+            if other_collider.entity_id == entity.id {
+                continue;
+            }
+            let other = other_collider.component.borrow();
+            let mut collision = false;
+            while collider.borrow().check(
+                &other.borrow(),
+                PointF {
+                    x: amount as f32,
+                    y: 0.0,
+                },
+            ) {
+                if !collision {
+                    collision = true;
+                    let _ = &collider.collisions.push(Collision {
+                        other: other_collider.entity_id,
+                        directions: super::collider::Direction::HORIZONTAL,
+                        self_velociy: self.speed,
+                    });
+                    self.speed.x = 0.0;
+                    self.reminder.x = 0.0;
+                }
+                amount -= sign_x;
+            }
+        }
+        let mut position = entity.get_component::<Position>().unwrap();
+        position.x += amount;
+        collider.update(&position);
+    }
+}
+impl Component for Mover {
+    fn update<'a>(&mut self, entity: engine::ecs::Entity<'a, impl WorldOp>) {
+        self.apply_gravity(&entity);
+
+        let move_delta: PointF;
+        {
+            let mut total: glm::Vec2 = self.reminder + self.speed;
+            let max_speed = TILE_SIZE - 2;
+            total.x = total.x.clamp(-(max_speed as f32), max_speed as f32);
+            total.y = total.y.clamp(-(max_speed as f32), max_speed as f32);
+            move_delta = PointF {
+                x: total.x as i32 as f32,
+                y: total.y as i32 as f32,
+            };
+            self.reminder.x = total.x - move_delta.x;
+            self.reminder.y = total.y - move_delta.y;
+        }
+
+        let mut position = entity
+            .get_component::<Position>()
+            .expect("Mover requires the entity to have a Position component");
+
+        let collider = entity.get_component::<Collider>();
+        if collider.is_none() {
+            position.x = position.x + move_delta.x as i32;
+            position.y = position.y + move_delta.y as i32;
+            return;
+        }
+        let mut collider = collider.unwrap();
+        collider.update(&position);
+        collider.collisions.clear();
+        drop(position);
+        drop(collider);
+        // Check collision X
+        self.move_x(move_delta.x as i32, &entity);
+        self.move_y(move_delta.y as i32, &entity);
+
+        let mut position = entity
+            .get_component::<Position>()
+            .expect("Mover requires the entity to have a Position component");
+        // Check collision Y
+        if position.y < 0 {
+            position.y = 0;
+        }
+    }
 }

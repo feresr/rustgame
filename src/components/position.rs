@@ -1,9 +1,6 @@
-use engine::{
-    ecs::{Component, RenderWorld, UpdateWorld},
-    graphics::batch::Batch,
-};
+use engine::ecs::Component;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
@@ -13,7 +10,4 @@ impl Position {
         return Position { x, y };
     }
 }
-impl Component for Position {
-    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32) {}
-    fn render<'a>(&mut self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {}
-}
+impl Component for Position {}

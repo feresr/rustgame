@@ -17,11 +17,16 @@ use std::collections::HashSet;
 use std::env;
 use std::time::{Duration, Instant};
 
-// In nanoseconds
 const FPS: u64 = 60;
 const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
 
+pub struct Config {
+    pub window_width: u32,
+    pub window_height: u32,
+}
+
 pub trait Game {
+    fn config(&self) -> Config;
     fn init(&mut self);
     fn update(&mut self) -> bool;
     fn render(&self, batch: &mut Batch);
@@ -43,7 +48,8 @@ pub fn keyboard() -> &'static mut Keyboard {
 pub fn run(mut game: impl Game) {
     env::set_var("RUST_BACKTRACE", "1");
     // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
-    let window_size = (320 * 4, 180 * 4);
+    let config = game.config();
+    let window_size = (config.window_width, config.window_height);
     let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
 

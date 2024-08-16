@@ -1,9 +1,11 @@
 pub mod background;
+pub mod ball;
 pub mod collider;
 pub mod mover;
-pub mod room;
+pub mod player;
 pub mod position;
-use std::cmp::{Ordering, PartialEq, PartialOrd};
+pub mod room;
+use std::cmp::PartialOrd;
 use std::ops::{Add, Sub};
 
 // Define a trait with min and max methods

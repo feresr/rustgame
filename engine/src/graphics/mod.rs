@@ -4,8 +4,8 @@ mod drawcall;
 pub mod material;
 pub mod mesh;
 pub mod shader;
-pub mod texture;
 pub mod target;
+pub mod texture;
 
 pub const VERTEX_SHADER_SOURCE: &str = "#version 330 core\n
             layout (location = 0) in vec3 aPos;\n
@@ -29,5 +29,5 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             uniform ivec2 u_resolution;\n
             void main()\n
             {\n
-                FragColor = vec4(a_color, 1.0) + texture(u_texture, TexCoord);\n
+                FragColor = vec4(a_color, 0.0) + texture(u_texture, TexCoord);\n
             }";

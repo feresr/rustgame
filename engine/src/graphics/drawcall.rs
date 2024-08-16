@@ -34,10 +34,11 @@ impl<'a> DrawCall<'a> {
             } else {
                 gl::Viewport(0, 0, self.target.width, self.target.height);
             }
-            // gl::Disable(gl::DEPTH_TEST);
-            // gl::DepthFunc(gl::NONE);
-            // gl::ClearColor(0f32, 0f32, 0f32, 0f32);
-            // gl::Clear(gl::DEPTH_BUFFER_BIT | gl::COLOR_BUFFER_BIT);
+
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            // gl::BlendFuncSeparate(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA, gl::ONE, gl::ZERO);
+
             gl::DrawElements(
                 gl::TRIANGLES,
                 self.index_count as i32,

@@ -1,8 +1,10 @@
 use engine::{
-    ecs::{Component, UpdateWorld, WorldOp},
-    graphics::common::{PointF, RectF},
+    ecs::Component,
+    graphics::{
+        batch::Batch,
+        common::{PointF, RectF},
+    },
 };
-use glm::Vec2;
 
 use crate::Position;
 
@@ -19,56 +21,48 @@ pub enum ColliderType {
     },
 }
 
-#[derive(Debug)]
+pub enum Direction {
+    HORIZONTAL,
+    VERTICAL,
+}
+pub struct Collision {
+    pub other: u32,
+    pub directions: Direction,
+    pub self_velociy: glm::Vec2,
+}
 pub struct Collider {
     pub collider_type: ColliderType,
-    // pub on_collision: Box<dyn Fn(&dyn WorldOp) -> usize>,
-    entity_position: PointF,
+    pub collisions: Vec<Collision>,
+    pub entity_position: PointF,
+    debug: bool,
 }
 impl Collider {
-    pub fn with_callback(collider_type: ColliderType, callback: fn()) -> Self {
-        Collider {
-            collider_type,
-            entity_position: PointF::zero(),
-            // on_collision: callback,
-        }
-    }
     pub fn new(collider_type: ColliderType) -> Self {
         Collider {
             collider_type,
             entity_position: PointF::zero(),
-            // on_collision: || {},
+            collisions: Vec::new(),
+            debug: false,
         }
     }
 }
 impl Component for Collider {
-    fn update<'a>(&mut self, world: &'a mut engine::ecs::UpdateWorld<'_>, entity: u32) {
-        if let Some(pos) = world.find_component::<Position>(entity) {
-            match &mut self.collider_type {
-                ColliderType::Rect { rect } => {
-                    // rect.x = pos.x as f32;
-                    // rect.y = pos.y as f32;
-                }
-                ColliderType::Grid {
-                    columns,
-                    rows,
-                    tile_size,
-                    cells,
-                } => {
-                    // todo?
-                }
-            }
-        }
-    }
-
     fn render<'a>(
         &mut self,
-        world: &'a mut engine::ecs::RenderWorld<'_>,
-        batch: &mut engine::graphics::batch::Batch,
-        entity: u32,
+        entity: engine::ecs::Entity<'a, impl engine::ecs::WorldOp>,
+        batch: &mut Batch,
     ) {
+        if !self.debug {
+            return;
+        }
+        if let Some(pos) = entity.get_component::<Position>() {
+            self.entity_position = PointF {
+                x: pos.x as f32,
+                y: pos.y as f32,
+            }
+        }
         if let ColliderType::Rect { rect } = &self.collider_type {
-            batch.rect(&(rect + self.entity_position), (1.0, 1.0, 0.0));
+            batch.rect(&(rect + self.entity_position), (1.0, 0.0, 0.0));
         }
     }
 }

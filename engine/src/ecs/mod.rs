@@ -15,9 +15,9 @@ pub struct IEntity {
     id: u32,
 }
 
-pub struct Entity<'a, T: WorldOp<T>> {
-    id: u32,
-    world: &'a mut T,
+pub struct Entity<'a, T: WorldOp> {
+    pub id: u32,
+    pub world: &'a mut T,
 }
 
 #[derive(Debug)]
@@ -37,8 +37,8 @@ pub struct World {
 }
 
 pub trait Component {
-    fn update<'a>(&mut self, world: &'a mut UpdateWorld<'_>, entity: u32);
-    fn render<'a>(&mut self, world: &'a mut RenderWorld<'_>, batch: &mut Batch, entity: u32);
+    fn update<'a>(&mut self, _entity: Entity<'a, impl WorldOp>) {}
+    fn render<'a>(&mut self, _entity: Entity<'a, impl WorldOp>, _batch: &mut Batch) {}
 }
 
 trait Updateable {
@@ -66,19 +66,22 @@ impl<T: Component + 'static> Updateable for ComponentStorage<T> {
     // Iterate over components to update them
     fn update_all(&self, world: &mut UpdateWorld<'_>) {
         for wrapper in self.data.iter() {
-            wrapper
-                .component
-                .borrow_mut()
-                .update(world, wrapper.entity_id);
+            wrapper.component.borrow_mut().update(Entity {
+                id: wrapper.entity_id,
+                world,
+            })
         }
     }
     // Iterate over components to render them
     fn render_all(&self, world: &mut RenderWorld<'_>, batch: &mut Batch) {
         for wrapper in self.data.iter() {
-            wrapper
-                .component
-                .borrow_mut()
-                .render(world, batch, wrapper.entity_id);
+            wrapper.component.borrow_mut().render(
+                Entity {
+                    id: wrapper.entity_id,
+                    world: world,
+                },
+                batch,
+            );
         }
     }
     fn as_any(&self) -> &dyn Any {
@@ -163,7 +166,7 @@ enum Diff {
         component: Box<dyn Any>,
     },
 }
-pub struct RenderWorld<'a> {
+struct RenderWorld<'a> {
     components: &'a HashMap<TypeId, Box<dyn Updateable>>,
     resources: &'a mut HashMap<TypeId, Box<dyn Any>>,
 }
@@ -177,7 +180,7 @@ impl RenderWorld<'_> {
             .unwrap()
     }
 }
-pub struct UpdateWorld<'a> {
+struct UpdateWorld<'a> {
     // nont mut ref to current world components
     components: &'a HashMap<TypeId, Box<dyn Updateable>>,
     resources: &'a mut HashMap<TypeId, Box<dyn Any>>,
@@ -195,7 +198,7 @@ impl UpdateWorld<'_> {
     }
 }
 
-impl<'a> WorldOp<RenderWorld<'a>> for RenderWorld<'a> {
+impl<'a> WorldOp for RenderWorld<'a> {
     fn add_entity(&mut self) -> Entity<'_, RenderWorld<'a>> {
         panic!("Cannot modify the world during render");
     }
@@ -222,7 +225,7 @@ impl<'a> WorldOp<RenderWorld<'a>> for RenderWorld<'a> {
         panic!("Cannot modify the world during render");
     }
 
-    fn find_first<T: Component + 'static>(&mut self) -> Option<Entity<'_, RenderWorld<'a>>> {
+    fn find_first<T: Component + 'static>(&mut self) -> Option<Entity<'_, impl WorldOp>> {
         let type_id = TypeId::of::<T>();
 
         if let None = self.components.get(&type_id) {
@@ -247,8 +250,8 @@ impl<'a> WorldOp<RenderWorld<'a>> for RenderWorld<'a> {
         Box::new(std::iter::empty())
     }
 }
-impl<'a> WorldOp<UpdateWorld<'a>> for UpdateWorld<'a> {
-    fn add_entity(&mut self) -> Entity<'_, UpdateWorld<'a>> {
+impl<'a> WorldOp for UpdateWorld<'a> {
+    fn add_entity(&mut self) -> Entity<'_, impl WorldOp> {
         let rng: u32 = rand::thread_rng().r#gen();
         self.diffs.push(Diff::AddEntity { id: rng });
         return Entity {
@@ -286,7 +289,7 @@ impl<'a> WorldOp<UpdateWorld<'a>> for UpdateWorld<'a> {
         });
     }
 
-    fn find_first<T: Component + 'static>(&mut self) -> Option<Entity<'_, UpdateWorld<'a>>> {
+    fn find_first<T: Component + 'static>(&mut self) -> Option<Entity<'_, impl WorldOp>> {
         let type_id = TypeId::of::<T>();
 
         if let None = self.components.get(&type_id) {
@@ -324,15 +327,15 @@ impl<'a> WorldOp<UpdateWorld<'a>> for UpdateWorld<'a> {
     }
 }
 
-pub trait WorldOp<W: WorldOp<W>> {
-    fn add_entity<'a>(&'a mut self) -> Entity<'_, W>;
+pub trait WorldOp {
+    fn add_entity<'a>(&'a mut self) -> Entity<'_, impl WorldOp>;
     fn remove_entity<'a>(&'a mut self, entity: u32);
 
     fn add_component<T: Component + 'static>(&mut self, entity: &IEntity, component: T);
     fn remove_component<T: Component + 'static>(&mut self, entity: u32);
     fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<RefMut<'_, T>>;
 
-    fn find_first<'a, T: Component + 'static>(&'a mut self) -> Option<Entity<'_, W>>;
+    fn find_first<'a, T: Component + 'static>(&'a mut self) -> Option<Entity<'_, impl WorldOp>>;
     fn find_all<T: Component + 'static>(
         &self,
     ) -> Box<dyn Iterator<Item = &ComponentWrapper<T>> + '_>;
@@ -428,9 +431,9 @@ impl World {
     }
 }
 
-impl WorldOp<World> for World {
+impl WorldOp for World {
     // Add a new entity to the world and return it
-    fn add_entity(&mut self) -> Entity<'_, World> {
+    fn add_entity(&mut self) -> Entity<'_, impl WorldOp> {
         // let id = self.entities.len() as u32;
         self.entity_count = self.entity_count + 1;
         let rng: u32 = rand::thread_rng().r#gen();
@@ -508,7 +511,7 @@ impl WorldOp<World> for World {
     }
 }
 
-impl<W: WorldOp<W>> Entity<'_, W> {
+impl<'a, W: WorldOp> Entity<'a, W> {
     // Adds a component to this entity
     pub fn assign<T: Component + 'static>(&mut self, component: T) {
         let entity = IEntity { id: self.id };
@@ -522,4 +525,11 @@ impl<W: WorldOp<W>> Entity<'_, W> {
     pub fn get_component<T: Component + 'static>(&self) -> Option<RefMut<'_, T>> {
         return self.world.find_component::<T>(self.id);
     }
+
+    // pub fn world(&'a self) -> &'a impl WorldOp {
+    //     self.world
+    // }
+    // pub fn world_mut(&'a mut self) -> &'a mut impl WorldOp {
+    //     self.world
+    // }
 }

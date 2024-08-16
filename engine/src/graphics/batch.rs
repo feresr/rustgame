@@ -2,7 +2,6 @@ extern crate gl;
 
 use imgui::TreeNodeFlags;
 use imgui::Ui;
-use sdl2::sys::GrabModeSync;
 use std::f32::consts::TAU;
 
 use super::common::*;

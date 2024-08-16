@@ -1,5 +1,5 @@
 use engine::{
-    ecs::{Component, RenderWorld, UpdateWorld},
+    ecs::Component,
     graphics::{batch::Batch, common::RectF, material::Material, texture::TextureSampler},
 };
 
@@ -12,7 +12,7 @@ pub struct Background {
     pub translation_matrix: glm::Mat4,
 }
 impl Component for Background {
-    fn update(&mut self, _: &mut UpdateWorld<'_>, entity: u32) {
+    fn update<'a>(&mut self, entity: engine::ecs::Entity<'a, impl engine::ecs::WorldOp>) {
         self.material.set_valuef("offset", self.offset);
         self.material.set_valuef("radius", self.radius);
         self.material.set_valuef("time", self.time);
@@ -20,7 +20,11 @@ impl Component for Background {
         self.offset += 0.01;
     }
 
-    fn render(&mut self, _: &mut RenderWorld<'_>, batch: &mut Batch, entity: u32) {
+    fn render<'a>(
+        &mut self,
+        _entity: engine::ecs::Entity<'a, impl engine::ecs::WorldOp>,
+        batch: &mut Batch,
+    ) {
         // Render the background quad
         batch.set_sampler(&TextureSampler::default());
         // Push this slightligh backwards in the z-axis so the balls render in front
