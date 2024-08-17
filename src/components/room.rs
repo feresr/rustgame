@@ -1,12 +1,9 @@
-use engine::{
-    ecs::Component,
-    graphics::{
-        batch::Batch,
-        common::RectF,
-        target::Target,
-        texture::{Texture, TextureFormat},
-    },
-};
+use engine::{ecs::component::Component, graphics::{
+    batch::Batch,
+    common::RectF,
+    target::Target,
+    texture::{Texture, TextureFormat},
+}};
 
 use rand::Rng;
 use std::{fs::File, io::Read};
@@ -19,6 +16,7 @@ pub enum Tile {
     EMPTY,
 }
 
+#[derive(Clone)]
 pub struct Room {
     pub tiles: [Tile; GAME_TILE_WIDTH * GAME_TILE_HEIGHT],
     pub rect: RectF,
@@ -62,7 +60,6 @@ impl Room {
         let mut tiles = [Tile::EMPTY; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
         unsafe {
             for i in 0..tiles.len() {
-                print!(" {} ", *img.add(i * 1));
                 if *img.add(i * 4 + 3) > 0 {
                     tiles[i] = Tile::SOLID
                 }
@@ -136,6 +133,7 @@ impl Component for Room {
         batch: &mut Batch,
     ) {
         if let None = self.texture {
+            // Render the Room into a texture only once. Then re-render that texture into the game buffer.
             let attachments = [TextureFormat::RGBA, TextureFormat::DepthStencil];
             let target = Target::new(
                 GAME_PIXEL_WIDTH as i32,
@@ -143,6 +141,7 @@ impl Component for Room {
                 &attachments,
             );
             target.clear((0.0f32, 0.0f32, 0.0f32));
+            // Creates a new batch (we don't want to clear the current content of the game batch - we need to actually draw these)
             let mut batch = Batch::default();
 
             let mut x = 0;

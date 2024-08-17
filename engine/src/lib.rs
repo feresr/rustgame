@@ -61,7 +61,7 @@ pub fn run(mut game: impl Game) {
         .window("Window", window_size.0, window_size.1)
         .allow_highdpi()
         .opengl()
-        .borderless()
+        // .borderless()
         .build()
         .unwrap();
 

@@ -1,4 +1,4 @@
-use engine::ecs::Component;
+use engine::ecs::component::Component;
 
 #[derive(Default, Clone)]
 pub struct Position {

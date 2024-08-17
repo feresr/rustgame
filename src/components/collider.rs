@@ -1,4 +1,4 @@
-use engine::{
+ use engine::{
     ecs::Component,
     graphics::{
         batch::Batch,
@@ -8,7 +8,7 @@ use engine::{
 
 use crate::Position;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ColliderType {
     Rect {
         rect: RectF,
@@ -21,15 +21,18 @@ pub enum ColliderType {
     },
 }
 
+#[derive(Clone)]
 pub enum Direction {
     HORIZONTAL,
     VERTICAL,
 }
+#[derive(Clone)]
 pub struct Collision {
     pub other: u32,
     pub directions: Direction,
     pub self_velociy: glm::Vec2,
 }
+#[derive(Clone)]
 pub struct Collider {
     pub collider_type: ColliderType,
     pub collisions: Vec<Collision>,

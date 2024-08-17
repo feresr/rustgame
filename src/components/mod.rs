@@ -2,7 +2,7 @@ pub mod background;
 pub mod ball;
 pub mod collider;
 pub mod mover;
-pub mod player;
+pub mod controller;
 pub mod position;
 pub mod room;
 use std::cmp::PartialOrd;

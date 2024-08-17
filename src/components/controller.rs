@@ -1,20 +1,20 @@
 use engine::{
-    ecs::{Component, Entity, WorldOp},
+    ecs::{component::Component, Entity, WorldOp},
     graphics::{batch::Batch, common::RectF, texture::Texture},
 };
 
 use super::{approach, mover::Mover, position::Position};
 
-pub struct Player {
+pub struct Controller {
     pub width: u32,
     pub height: u32,
     pub texture: Texture,
     pub rect: RectF,
 }
 
-impl Player {
+impl Controller {
     pub fn new(width: u32, height: u32, texture: Texture) -> Self {
-        Player {
+        Controller {
             width,
             height,
             texture,
@@ -22,7 +22,7 @@ impl Player {
         }
     }
 }
-impl Component for Player {
+impl Component for Controller {
     fn update<'a>(&mut self, entity: engine::ecs::Entity<'a, impl WorldOp>) {
         {
             let mut mover = entity.get_component::<Mover>().unwrap();

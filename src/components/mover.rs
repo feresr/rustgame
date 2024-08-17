@@ -12,7 +12,7 @@ use super::{
     position::Position,
 };
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Mover {
     pub speed: glm::Vec2,
     pub reminder: glm::Vec2,
@@ -144,13 +144,5 @@ impl Component for Mover {
         // Check collision X
         self.move_x(move_delta.x as i32, &entity);
         self.move_y(move_delta.y as i32, &entity);
-
-        let mut position = entity
-            .get_component::<Position>()
-            .expect("Mover requires the entity to have a Position component");
-        // Check collision Y
-        if position.y < 0 {
-            position.y = 0;
-        }
     }
 }
