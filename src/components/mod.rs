@@ -1,10 +1,10 @@
 pub mod background;
-pub mod ball;
 pub mod collider;
 pub mod mover;
 pub mod controller;
 pub mod position;
 pub mod room;
+pub mod sprite;
 use std::cmp::PartialOrd;
 use std::ops::{Add, Sub};
 

@@ -17,7 +17,7 @@ pub enum ColliderType {
         columns: usize,
         rows: usize,
         tile_size: usize,
-        cells: Vec<bool>,
+        cells: Vec<bool>, // todo: should this be a []
     },
 }
 

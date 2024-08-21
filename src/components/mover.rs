@@ -28,7 +28,7 @@ impl Mover {
     fn apply_gravity<'a>(&mut self, entity: &engine::ecs::Entity<'a, impl WorldOp>) {
         let gravity = entity.get_component::<Gravity>();
         if let Some(g) = gravity {
-            self.speed.y -= g.value
+            self.speed.y += g.value
         }
     }
 

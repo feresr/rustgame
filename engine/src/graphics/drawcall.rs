@@ -24,7 +24,7 @@ impl<'a> DrawCall<'a> {
         // }
 
         unsafe {
-            self.material.set(); // 1282
+            self.material.set();
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.target.id);
             if self.target.id == 0 {
                 // todo: hardcoded screen dimensions
@@ -34,10 +34,6 @@ impl<'a> DrawCall<'a> {
             } else {
                 gl::Viewport(0, 0, self.target.width, self.target.height);
             }
-
-            gl::Enable(gl::BLEND);
-            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            // gl::BlendFuncSeparate(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA, gl::ONE, gl::ZERO);
 
             gl::DrawElements(
                 gl::TRIANGLES,

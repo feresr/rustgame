@@ -21,6 +21,9 @@ impl Mesh {
             gl::BindVertexArray(vao);
             // bind ARRAY_BUFFER to VAO
             {
+                let stride =
+                    (8 * core::mem::size_of::<f32>() + 4 * core::mem::size_of::<u8>()) as i32;
+                print!("Stride {}", stride);
                 gl::BindBuffer(gl::ARRAY_BUFFER, buffers[0]);
                 // aPos;
                 gl::VertexAttribPointer(
@@ -28,7 +31,7 @@ impl Mesh {
                     3,
                     gl::FLOAT,
                     gl::FALSE,
-                    (8 * core::mem::size_of::<f32>()) as i32,
+                    stride,
                     (2 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
                 );
                 gl::EnableVertexAttribArray(0);
@@ -38,7 +41,7 @@ impl Mesh {
                     3,
                     gl::FLOAT,
                     gl::FALSE,
-                    (8 * core::mem::size_of::<f32>()) as i32,
+                    stride,
                     (5 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
                 );
                 gl::EnableVertexAttribArray(1);
@@ -48,10 +51,20 @@ impl Mesh {
                     2,
                     gl::FLOAT,
                     gl::FALSE,
-                    (8 * core::mem::size_of::<f32>()) as i32,
+                    stride,
                     (0 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
                 );
                 gl::EnableVertexAttribArray(2);
+                // typ (mult wash fill)
+                gl::VertexAttribPointer(
+                    3,
+                    4,
+                    gl::UNSIGNED_BYTE,
+                    gl::TRUE,
+                    stride,
+                    (8 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
+                );
+                gl::EnableVertexAttribArray(3);
             }
             // bind EBO to VAO
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffers[1]);
@@ -79,6 +92,9 @@ impl Mesh {
                 gl::DYNAMIC_DRAW,
             );
             gl::BindVertexArray(0);
+            while gl::GetError() != gl::NO_ERROR {
+                panic!("OpenGL error Mesh#set_data")
+            }
         }
         self.count = vertices.len();
     }
@@ -93,6 +109,9 @@ impl Mesh {
                 indices.as_ptr() as *const std::os::raw::c_void,
                 gl::STATIC_DRAW,
             );
+            while gl::GetError() != gl::NO_ERROR {
+                panic!("OpenGL error Mesh#set_index_data")
+            }
         }
     }
 
@@ -102,6 +121,9 @@ impl Mesh {
         }
         unsafe {
             gl::BindVertexArray(self.id);
+            while gl::GetError() != gl::NO_ERROR {
+                panic!("OpenGL error Mesh#bind")
+            }
         }
     }
 }

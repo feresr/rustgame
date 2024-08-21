@@ -1,6 +1,9 @@
 use engine::{
     ecs::{World, WorldOp},
-    graphics::{common::RectF, texture::Texture},
+    graphics::{
+        common::RectF,
+        texture::{SubTexture, Texture},
+    },
 };
 
 use crate::{
@@ -9,6 +12,7 @@ use crate::{
         controller::Controller,
         mover::Mover,
         position::Position,
+        sprite::Sprite,
     },
     Gravity, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH,
 };
@@ -16,9 +20,19 @@ use crate::{
 pub struct Player;
 impl Player {
     pub fn add_to_world(world: &mut impl WorldOp) {
+        let texture = Texture::from_path("src/blob.png");
         let mut player = world.add_entity();
-        player.assign(Controller::new(8, 8, Texture::from_path("src/blob.png")));
+        player.assign(Controller::new(8, 8));
         player.assign(Mover::default());
+        player.assign(Sprite::from_sub_texture(SubTexture::new(
+            &texture,
+            RectF {
+                x: 8f32,
+                y: 0f32,
+                w: 8f32,
+                h: 8f32,
+            },
+        )));
         player.assign(Collider::new(ColliderType::Rect {
             rect: RectF {
                 x: 1.0,
@@ -31,7 +45,7 @@ impl Player {
             (GAME_PIXEL_WIDTH / 2) as i32,
             (GAME_PIXEL_HEIGHT / 2) as i32,
         ));
-        player.assign(Gravity { value: 0.7f32 });
+        player.assign(Gravity { value: 0.4f32 });
     }
 
     pub fn move_from(world_a: &mut World, world_b: &mut World) {
@@ -50,6 +64,11 @@ impl Player {
             world_a
                 .extract_component::<Mover>(player_id)
                 .expect("No Mover"),
+        );
+        new_player.assign(
+            world_a
+                .extract_component::<Sprite>(player_id)
+                .expect("No Sprite"),
         );
         new_player.assign(
             world_a

@@ -1,12 +1,29 @@
 use std::{fmt::Error, fmt::Formatter, fs::File, io::Read};
 
+use super::common::RectF;
+
 extern crate gl;
 
 #[derive(Clone, Copy, PartialEq, Debug, Hash)]
 pub struct Texture {
     pub id: u32,
-    width: i32,
-    height: i32,
+    pub width: i32,
+    pub height: i32,
+    pub format: TextureFormat, // todo: add [TextureFormat]?
+}
+
+#[derive(Clone, Debug)]
+pub struct SubTexture {
+    pub texture: Texture,
+    pub source: RectF,
+}
+impl SubTexture {
+    pub fn new(texture: &Texture, source: RectF) -> Self {
+        Self {
+            texture: texture.clone(),
+            source,
+        }
+    }
 }
 
 impl Texture {
@@ -15,6 +32,7 @@ impl Texture {
             id: 0,
             width: 0,
             height: 0,
+            format: TextureFormat::RGBA,
         };
     }
 
@@ -23,6 +41,7 @@ impl Texture {
             id: 0,
             width,
             height,
+            format: texture_format,
         };
 
         let gl_internal_format: gl::types::GLint;
@@ -49,9 +68,6 @@ impl Texture {
                 gl_format = gl::DEPTH_STENCIL;
                 gl_type = gl::UNSIGNED_INT_24_8;
             }
-            TextureFormat::None => {
-                panic!("Invalid texture format {:?}", texture_format)
-            }
         };
         unsafe {
             gl::GenTextures(1, &mut texture.id);
@@ -73,7 +89,7 @@ impl Texture {
     }
 
     pub fn from_path(path: &str) -> Self {
-        print!("Creating texture path {}", path);
+        println!("Creating texture path {}", path);
         let mut id: u32 = 0;
         unsafe {
             gl::GenTextures(1, &mut id);
@@ -91,7 +107,7 @@ impl Texture {
         }
 
         // Load file into memory
-        print!("Creating texture path {}", path);
+        println!("Creating texture path {}", path);
         let mut f = File::open(path).expect("file not found: ");
         let mut contents = vec![];
         f.read_to_end(&mut contents).unwrap();
@@ -136,6 +152,7 @@ impl Texture {
             id,
             width,
             height,
+            format: TextureFormat::RGBA,
         };
         return tex;
     }
@@ -212,9 +229,8 @@ impl TextureSampler {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq)]
 pub enum TextureFormat {
-    None,
     R,
     RG,
     RGBA,

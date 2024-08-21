@@ -95,11 +95,19 @@ pub fn run(mut game: impl Game) {
     let mut batch = graphics::batch::Batch::new(mesh, material);
     let mut events = sdl_context.event_pump().unwrap();
 
+    // OpenGL config
     unsafe {
         gl::Disable(gl::CULL_FACE);
-        gl::Enable(gl::DEPTH_TEST);
         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
         gl::Enable(gl::MULTISAMPLE);
+
+        gl::Enable(gl::DEPTH_TEST);
+        // For equal z-index, do overwrite (default: g::LESS)
+        gl::DepthFunc(gl::LEQUAL);
+
+        gl::Enable(gl::BLEND);
+        gl::BlendEquation(gl::FUNC_ADD);
+        gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
     }
 
     game.init();
@@ -143,6 +151,7 @@ pub fn run(mut game: impl Game) {
         game.update();
         // Render
         unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
         batch.clear();

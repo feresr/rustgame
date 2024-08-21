@@ -6,12 +6,13 @@ use engine::{
 use crate::{
     components::{
         collider::{Collider, ColliderType},
-        mover::Mover,
         controller::Controller,
+        mover::Mover,
         position::Position,
         room::{Room, Tile},
     },
-    Gravity, GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE,
+    content::{self, Content},
+    Gravity, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE,
 };
 
 /**
@@ -48,11 +49,19 @@ impl Scene for GameScene {
     fn init(&mut self) {
         let mut room_entity = self.world.add_entity();
         let room = Room::from_path(&self.room_path.to_owned());
+
+        let mut collisions = vec![false; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
+        for tile in room.tiles.iter() {
+            let x = (tile.x as f32 / TILE_SIZE as f32) as u32;
+            let y = (tile.y as f32 / TILE_SIZE as f32) as u32;
+            collisions[(x + y * GAME_TILE_WIDTH as u32) as usize] = true;
+        }
+        // make this a factory to create the room
         room_entity.assign(Collider::new(ColliderType::Grid {
             columns: GAME_TILE_WIDTH,
             rows: GAME_TILE_HEIGHT,
             tile_size: TILE_SIZE,
-            cells: room.tiles.map(|f| f == Tile::SOLID).to_vec(),
+            cells: collisions,
         }));
         room_entity.assign(room);
     }

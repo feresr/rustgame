@@ -144,6 +144,9 @@ impl Batch {
             color,
             color,
             color,
+            0,
+            0,
+            255,
         );
 
         self.push_quad(
@@ -159,6 +162,9 @@ impl Batch {
             color,
             color,
             color,
+            0,
+            0,
+            255,
         );
         self.push_matrix(glm::rotate(
             &glm::identity(),
@@ -178,6 +184,9 @@ impl Batch {
             color,
             color,
             color,
+            0,
+            0,
+            255,
         );
 
         self.push_quad(
@@ -193,6 +202,9 @@ impl Batch {
             color,
             color,
             color,
+            0,
+            0,
+            255,
         );
         self.push_matrix(glm::rotate(
             &glm::identity(),
@@ -212,6 +224,9 @@ impl Batch {
             color,
             color,
             color,
+            0,
+            0,
+            255,
         );
 
         self.push_quad(
@@ -227,6 +242,9 @@ impl Batch {
             color,
             color,
             color,
+            0,
+            0,
+            255,
         );
 
         self.pop_matrix();
@@ -247,6 +265,9 @@ impl Batch {
             color,
             color,
             color,
+            0,
+            0,
+            255,
         );
     }
 
@@ -265,6 +286,40 @@ impl Batch {
         }
     }
 
+    pub fn sprite(&mut self, rect: &RectF, subtexture: &SubTexture, color: (f32, f32, f32)) {
+        let current = self.current_batch();
+        if current.texture == subtexture.texture || current.elements == 0 {
+            // reuse existing batch
+            current.texture = subtexture.texture;
+        } else {
+            // create a new batch
+            self.push_batch();
+            self.current_batch().texture = subtexture.texture.clone();
+        }
+        // current.texture = subtexture.texture.clone();
+        let x = subtexture.source.x / subtexture.texture.width as f32;
+        let y = subtexture.source.y / subtexture.texture.height as f32;
+        let w = (subtexture.source.w) / subtexture.texture.width as f32;
+        let h = (subtexture.source.h) / subtexture.texture.height as f32;
+        self.push_quad(
+            (rect.x + rect.w, rect.y, 0.0),
+            (rect.x + rect.w, rect.y + rect.h, 0.0),
+            (rect.x, rect.y, 0.0),
+            (rect.x, rect.y + rect.h, 0.0),
+            (x + w, y),
+            (x + w, y + h),
+            (x, y),
+            (x, y + h),
+            color,
+            color,
+            color,
+            color,
+            255,
+            0,
+            0,
+        );
+    }
+
     pub fn tex(&mut self, rect: &RectF, texture: &Texture, color: (f32, f32, f32)) {
         let current = self.current_batch();
         if current.texture == *texture || current.elements == 0 {
@@ -275,7 +330,6 @@ impl Batch {
             self.push_batch();
             self.current_batch().texture = texture.clone();
         }
-        // todo! not all texture should be z= -1 (Demo purposes delete)
         self.push_quad(
             (rect.x + rect.w, rect.y, 0.0),
             (rect.x + rect.w, rect.y + rect.h, 0.0),
@@ -289,6 +343,9 @@ impl Batch {
             color,
             color,
             color,
+            255,
+            0,
+            0,
         );
     }
 
@@ -306,9 +363,9 @@ impl Batch {
             2 + last_vertex_index,
         ]);
         self.vertices.reserve(3);
-        self.push_vertex(pos0, (0.0, 0.0), color);
-        self.push_vertex(pos1, (0.0, 0.0), color);
-        self.push_vertex(pos2, (0.0, 0.0), color);
+        self.push_vertex(pos0, (0.0, 0.0), color, 0, 0, 255);
+        self.push_vertex(pos1, (0.0, 0.0), color, 0, 0, 255);
+        self.push_vertex(pos2, (0.0, 0.0), color, 0, 0, 255);
         self.current_batch().elements += 1;
     }
 
@@ -358,7 +415,15 @@ impl Batch {
         self.matrix_stack.clear();
     }
 
-    fn push_vertex(&mut self, pos: (f32, f32, f32), tex: (f32, f32), col: (f32, f32, f32)) {
+    fn push_vertex(
+        &mut self,
+        pos: (f32, f32, f32),
+        tex: (f32, f32),
+        col: (f32, f32, f32),
+        mult: u8,
+        wash: u8,
+        fill: u8,
+    ) {
         if !self.matrix_stack.is_empty() {
             let mut position = glm::vec4(pos.0, pos.1, pos.2, 1.0);
             // TODO: this is slow - move to GPU?!
@@ -368,9 +433,15 @@ impl Batch {
                 pos: (position.x, position.y, position.z),
                 col,
                 tex,
+                typ: (mult, wash, fill, 0),
             });
         } else {
-            self.vertices.push(Vertex { pos, col, tex });
+            self.vertices.push(Vertex {
+                pos,
+                col,
+                tex,
+                typ: (mult, wash, fill, 0),
+            });
         }
     }
 
@@ -388,6 +459,9 @@ impl Batch {
         color1: (f32, f32, f32),
         color2: (f32, f32, f32),
         color3: (f32, f32, f32),
+        mult: u8,
+        wash: u8,
+        fill: u8,
     ) {
         let last_vertex_index = self.vertices.len() as u32;
 
@@ -402,13 +476,13 @@ impl Batch {
 
         // bottom right
         self.vertices.reserve(4);
-        self.push_vertex(pos0, tex0, color0);
+        self.push_vertex(pos0, tex0, color0, mult, wash, fill);
         // top right
-        self.push_vertex(pos1, tex1, color1);
+        self.push_vertex(pos1, tex1, color1, mult, wash, fill);
         // bottom left
-        self.push_vertex(pos2, tex2, color2);
+        self.push_vertex(pos2, tex2, color2, mult, wash, fill);
         // top left
-        self.push_vertex(pos3, tex3, color3);
+        self.push_vertex(pos3, tex3, color3, mult, wash, fill);
 
         self.current_batch().elements += 2;
     }

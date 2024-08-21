@@ -14,6 +14,7 @@ pub struct Vertex {
     pub tex: (f32, f32),
     pub pos: (f32, f32, f32),
     pub col: (f32, f32, f32),
+    pub typ: (u8, u8, u8, u8), // mult wash fill (pad)
 }
 
 #[derive(Clone, Copy, Debug)]

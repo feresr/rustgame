@@ -27,6 +27,13 @@ impl Target {
             attachments: vec![],
         }
     }
+    pub fn color(&self) -> &Texture {
+        return self
+            .attachments
+            .iter()
+            .find(|f| f.format != TextureFormat::DepthStencil)
+            .expect("Target has no color texture attachment");
+    }
 }
 
 impl Target {
@@ -68,12 +75,13 @@ impl Target {
         return target;
     }
 
-    pub fn clear(&self, color: (f32, f32, f32)) {
+    pub fn clear(&self, color: (f32, f32, f32, f32)) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.id);
-            gl::ClearColor(color.0, color.1, color.2, 0.0);
-            // gl::ClearDepth(1.0);
+            gl::ClearColor(color.0, color.1, color.2, color.3);
+            gl::ClearDepth(1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+            // gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
         }
     }
 }
