@@ -90,21 +90,6 @@ impl Texture {
 
     pub fn from_path(path: &str) -> Self {
         println!("Creating texture path {}", path);
-        let mut id: u32 = 0;
-        unsafe {
-            gl::GenTextures(1, &mut id);
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, id);
-            // Set the texture wrapping/filtering options (on the currently bound texture object)
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
-            gl::TexParameteri(
-                gl::TEXTURE_2D,
-                gl::TEXTURE_MIN_FILTER,
-                gl::LINEAR_MIPMAP_LINEAR as i32,
-            );
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
-        }
 
         // Load file into memory
         println!("Creating texture path {}", path);
@@ -129,6 +114,21 @@ impl Texture {
         }
 
         // Do something with it
+        let mut id: u32 = 0;
+        unsafe {
+            gl::GenTextures(1, &mut id);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, id);
+            // Set the texture wrapping/filtering options (on the currently bound texture object)
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_MIN_FILTER,
+                gl::LINEAR_MIPMAP_LINEAR as i32,
+            );
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+        }
         unsafe {
             gl::TexImage2D(
                 gl::TEXTURE_2D,

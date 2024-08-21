@@ -23,10 +23,10 @@ impl Component for Sprite {
             .expect("Sprite component requires a Position component");
 
         let r = RectF {
-            x:  position.x as f32,
+            x: position.x as f32,
             y: position.y as f32,
-            w : self.subtexture.source.w as f32,
-            h : self.subtexture.source.h as f32,
+            w: self.subtexture.source.w as f32,
+            h: self.subtexture.source.h as f32,
         };
         batch.sprite(&r, &self.subtexture, (0f32, 1f32, 1f32));
     }

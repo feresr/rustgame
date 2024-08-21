@@ -43,18 +43,10 @@ struct Gravity {
 }
 impl Component for Gravity {}
 
-struct Camera {
-    target: glm::Vec3,
-    pos: glm::Vec3,
-    dir: glm::Vec3,
-    right: glm::Vec3,
-    up: glm::Vec3,
-}
-
 struct Map {
     height: usize,
     width: usize,
-    room_names: Vec<Option<String>>,
+    room_names: Vec<Option<u32>>,
 }
 impl Map {
     fn new(width: usize, height: usize) -> Self {
@@ -64,12 +56,12 @@ impl Map {
             room_names: vec![None; width * height],
         }
     }
-    fn set(&mut self, x: usize, y: usize, path: String) {
+    fn set(&mut self, x: usize, y: usize, path: u32) {
         assert!(x < self.width);
         assert!(y < self.height);
         self.room_names[x + y * self.width] = Some(path);
     }
-    fn get(&self, x: usize, y: usize) -> Option<String> {
+    fn get(&self, x: usize, y: usize) -> Option<u32> {
         assert!(x < self.width);
         assert!(y < self.height);
         if let Some(s) = &self.room_names[x + y * self.width] {
@@ -91,16 +83,32 @@ struct Foo {
 impl Foo {
     fn new() -> Self {
         let mut map = Map::new(2, 2);
-        map.set(0, 0, "src/map.png".to_owned());
-        map.set(1, 0, "src/map2.png".to_owned());
-        map.set(0, 1, "src/map3.png".to_owned());
-        map.set(1, 1, "src/map4.png".to_owned());
+        map.set(0, 0, 0);
+        map.set(1, 0, 1);
+        map.set(0, 1, 2);
+        map.set(1, 1, 3);
 
         let first_room = (0, 0);
         let first = map.get(first_room.0, first_room.1).unwrap();
+        let ortho = glm::ortho(
+            0.0,
+            GAME_PIXEL_WIDTH as f32,
+            0f32,
+            GAME_PIXEL_HEIGHT as f32,
+            0.0f32,
+            2f32,
+        );
+        let screen_ortho = glm::ortho(
+            0.0,
+            SCREEN_WIDTH as f32,
+            SCREEN_HEIGHT as f32,
+            0f32,
+            0.0f32,
+            2f32,
+        );
         Self {
-            ortho: glm::Mat4::identity(),
-            screen_ortho: glm::Mat4::identity(),
+            ortho,
+            screen_ortho,
             screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
             gbuffer: Target::empty(),
             scene: GameScene::with_map(first),
@@ -112,43 +120,6 @@ impl Foo {
 
 impl Game for Foo {
     fn init(&mut self) {
-        let pos = glm::vec3(0.0, 0.0, 1.0);
-        let target = glm::vec3(0.0, 0.0, 0.0);
-        let dir = glm::normalize(&(target - pos));
-        let up = glm::vec3(0.0, 1.0, 0.0);
-        let right = glm::normalize(&(glm::cross(&up, &dir)));
-        let camera_up = glm::cross(&dir, &right);
-
-        let camera = Camera {
-            target,
-            pos,
-            dir,
-            right,
-            up: camera_up,
-        };
-
-        let view = glm::look_at(&camera.pos, &(camera.pos + camera.dir), &camera.up);
-        // Background is at z 0
-        // Camera is at z 1 - Looking at 0
-        let ortho: glm::Mat4 = glm::ortho(
-            0.0,
-            GAME_PIXEL_WIDTH as f32,
-            GAME_PIXEL_HEIGHT as f32,
-            0f32,
-            0.0f32,
-            2f32,
-        );
-        self.ortho = ortho * view;
-
-        self.screen_ortho = glm::ortho(
-            0.0,
-            SCREEN_WIDTH as f32,
-            0f32,
-            SCREEN_HEIGHT as f32,
-            0.0f32,
-            2f32,
-        );
-
         let attachments = [TextureFormat::RGBA, TextureFormat::DepthStencil];
         self.gbuffer = Target::new(
             GAME_PIXEL_WIDTH as i32,
@@ -166,7 +137,11 @@ impl Game for Foo {
         let xdiff;
         let ydiff;
         {
-            let player = self.scene.world.find_first::<Controller>().expect("No player found in world");
+            let player = self
+                .scene
+                .world
+                .find_first::<Controller>()
+                .expect("No player found in world");
             let player_position = player.get_component::<Position>().unwrap();
             xdiff = sign(player_position.x as f32 / (GAME_PIXEL_WIDTH as f32));
             ydiff = sign(player_position.y as f32 / (GAME_PIXEL_HEIGHT as f32));
@@ -175,7 +150,7 @@ impl Game for Foo {
             // We are in a different room.
             self.current_room = (
                 (self.current_room.0 as i32 + xdiff) as usize,
-                (self.current_room.1 as i32 + ydiff) as usize,
+                (self.current_room.1 as i32 - ydiff) as usize,
             );
             let new_level = self
                 .map
@@ -219,9 +194,7 @@ impl Game for Foo {
             // Render into low-res target (gbuffer)
             self.gbuffer.clear((0f32, 0f32, 0.0f32, 1.0f32));
             batch.set_sampler(&TextureSampler::nearest());
-            batch.circle((0f32, 0f32), 32f32, 9, (0f32, 1f32, 1f32));
             self.scene.render(batch);
-            batch.circle((29f32, 40f32), 32f32, 9, (1f32, 1f32, 0f32));
             batch.render(&self.gbuffer, &self.ortho);
             batch.clear();
         }

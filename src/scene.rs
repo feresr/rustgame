@@ -33,13 +33,13 @@ pub trait Scene {
 }
 
 pub struct GameScene {
-    pub room_path: String,
+    pub room_index: u32,
     pub world: World,
 }
 impl GameScene {
-    pub fn with_map(path: String) -> Self {
+    pub fn with_map(index: u32) -> Self {
         GameScene {
-            room_path: path,
+            room_index: index,
             world: World::new(),
         }
     }
@@ -48,7 +48,7 @@ impl GameScene {
 impl Scene for GameScene {
     fn init(&mut self) {
         let mut room_entity = self.world.add_entity();
-        let room = Room::from_path(&self.room_path.to_owned());
+        let room = Room::from_index(self.room_index);
 
         let mut collisions = vec![false; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
         for tile in room.tiles.iter() {

@@ -28,7 +28,7 @@ impl Component for Controller {
             }
 
             if keyboard.keycodes.contains(&engine::Keycode::Up) {
-                mover.speed.y = 4f32;
+                mover.speed.y = -4f32;
             }
 
             // friction

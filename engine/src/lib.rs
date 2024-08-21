@@ -170,7 +170,8 @@ pub fn run(mut game: impl Game) {
         let ui = imgui.frame();
         platform.prepare_render(&ui, &window);
         ui.window("Render calls")
-            .size([400.0, 600.0], imgui::Condition::FirstUseEver)
+            .size([400.0, 600.0], imgui::Condition::Appearing)
+            .collapsed(true, imgui::Condition::Always)
             .build(|| {
                 ui.text(format!(
                     "Frame took: {} milli-seconds",

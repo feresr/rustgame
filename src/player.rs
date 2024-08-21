@@ -14,7 +14,7 @@ use crate::{
         position::Position,
         sprite::Sprite,
     },
-    Gravity, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH,
+    Gravity,
 };
 
 pub struct Player;
@@ -36,15 +36,12 @@ impl Player {
         player.assign(Collider::new(ColliderType::Rect {
             rect: RectF {
                 x: 1.0,
-                y: 0.0,
+                y: 1.0,
                 w: 6.0,
-                h: 6.0,
+                h: 7.0,
             },
         }));
-        player.assign(Position::new(
-            (GAME_PIXEL_WIDTH / 2) as i32,
-            (GAME_PIXEL_HEIGHT / 2) as i32,
-        ));
+        player.assign(Position::new(72 as i32, 16 as i32));
         player.assign(Gravity { value: 0.4f32 });
     }
 

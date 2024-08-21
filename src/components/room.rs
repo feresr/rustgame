@@ -1,3 +1,4 @@
+use crate::{content::content, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE};
 use engine::{
     ecs::component::Component,
     graphics::{
@@ -7,15 +8,7 @@ use engine::{
         texture::{SubTexture, Texture, TextureFormat},
     },
 };
-
 use ldtk_rust::Project;
-use rand::Rng;
-use std::{fs::File, io::Read};
-
-use crate::{
-    content::content, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, GAME_TILE_HEIGHT, GAME_TILE_WIDTH,
-    TILE_SIZE,
-};
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Tile {
@@ -30,17 +23,16 @@ pub struct Room {
     pub rect: RectF,
     texture: Option<Texture>,
     ortho: glm::Mat4,
-    translation_matrix: glm::Mat4,
 }
 impl Room {
-    pub fn from_path(path: &str) -> Self {
+    pub fn from_index(index: u32) -> Self {
         // Load file into memory
-        println!("Creating Room from path path {}", path);
+        println!("Creating Room from path path {}", index);
 
         // let mut tiles = [Tile::EMPTY; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
 
         let ldtk = Project::new("src/map.ldtk");
-        let level = ldtk.levels.first().expect("No level present in ldtk");
+        let level = ldtk.levels.get(index as usize).expect("No level present in ldtk");
         let layer = level.layer_instances.as_ref().unwrap().first().unwrap();
 
         assert!(
@@ -72,12 +64,11 @@ impl Room {
             tiles,
             rect,
             texture: None,
-            translation_matrix: glm::Mat4::new_translation(&glm::vec3(0.0f32, 0.0f32, -0.2f32)),
             ortho: glm::ortho(
                 0.0,
                 GAME_PIXEL_WIDTH as f32,
-                GAME_PIXEL_HEIGHT as f32,
                 0 as f32,
+                GAME_PIXEL_HEIGHT as f32,
                 -1.0,
                 1.0,
             ),
@@ -134,8 +125,6 @@ impl Component for Room {
             batch.render(&target, &self.ortho);
             self.texture = Some(*target.color());
         }
-        // batch.push_matrix(self.translation_matrix);
         batch.tex(&self.rect, &self.texture.unwrap(), (1.0, 1.0, 1.0));
-        // batch.pop_matrix();
     }
 }
