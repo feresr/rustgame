@@ -3,20 +3,10 @@ use std::{
     cell::{RefCell, RefMut},
     collections::HashMap,
 };
-
+use super::Updateable;
 use imgui::Ui;
 
-use crate::graphics::batch::Batch;
-
-use super::{
-    worlds::{RenderWorld, UpdateWorld},
-    Entity, Updateable, WorldOp,
-};
-
-pub trait Component {
-    fn update<'a>(&mut self, _entity: Entity<'a, impl WorldOp>) {}
-    fn render<'a>(&mut self, _entity: Entity<'a, impl WorldOp>, _batch: &mut Batch) {}
-}
+pub trait Component {}
 
 #[derive(Debug)]
 pub struct ComponentWrapper<T: Component> {
@@ -27,6 +17,7 @@ pub struct ComponentWrapper<T: Component> {
 pub struct ComponentStorage<T: Component> {
     pub data: Vec<ComponentWrapper<T>>, // Store components contiguously
     pub entity_map: HashMap<u32, usize>, // Map entity ID to component index
+    pub type_id: TypeId,
 }
 
 impl<T: Component + 'static> ComponentStorage<T> {
@@ -44,27 +35,6 @@ impl<T: Component + 'static> ComponentStorage<T> {
 }
 
 impl<T: Component + 'static> Updateable for ComponentStorage<T> {
-    // Iterate over components to update them
-    fn update_all(&self, world: &mut UpdateWorld<'_>) {
-        for wrapper in self.data.iter() {
-            wrapper.component.borrow_mut().update(Entity {
-                id: wrapper.entity_id,
-                world,
-            })
-        }
-    }
-    // Iterate over components to render them
-    fn render_all(&self, world: &mut RenderWorld<'_>, batch: &mut Batch) {
-        for wrapper in self.data.iter() {
-            wrapper.component.borrow_mut().render(
-                Entity {
-                    id: wrapper.entity_id,
-                    world: world,
-                },
-                batch,
-            );
-        }
-    }
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -101,10 +71,11 @@ impl<T: Component + 'static> Updateable for ComponentStorage<T> {
 }
 impl<T: Component> ComponentStorage<T> {
     // Create a new empty ComponentStorage
-    pub fn new() -> Self {
+    pub fn new(type_id: TypeId) -> Self {
         ComponentStorage {
-            data: Vec::with_capacity(100),
+            data: Vec::with_capacity(32),
             entity_map: HashMap::new(),
+            type_id,
         }
     }
     // fn remove(&mut self, entity_id: u32) {
@@ -128,23 +99,4 @@ impl<T: Component> ComponentStorage<T> {
         }
         return None;
     }
-}
-
-// Define a ComponentStorage struct that stores components in contiguous memory
-pub enum Diff {
-    AddEntity {
-        id: u32,
-    },
-    RemoveEntity {
-        id: u32,
-    },
-    RemoveComponent {
-        component_type: TypeId,
-        entity: u32,
-    },
-    AddComponent {
-        component_type: TypeId,
-        entity: u32,
-        component: Box<dyn Any>,
-    },
 }

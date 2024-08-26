@@ -1,18 +1,13 @@
-use engine::{
-    ecs::{World, WorldOp},
-    graphics::{batch::Batch, common::RectF, texture::Texture},
-};
+use engine::{ecs::WorldOp, graphics::batch::Batch};
+use ldtk_rust::Project;
 
 use crate::{
     components::{
         collider::{Collider, ColliderType},
-        controller::Controller,
-        mover::Mover,
         position::Position,
-        room::{Room, Tile},
+        room::Room,
     },
-    content::{self, Content},
-    Gravity, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE,
+    GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE,
 };
 
 /**
@@ -27,29 +22,35 @@ use crate::{
  */
 
 pub trait Scene {
-    fn init(&mut self) {}
-    fn update(&mut self) {}
-    fn render(&self, batch: &mut Batch);
+    fn init(&mut self, world: &mut impl WorldOp) {}
+    fn destroy(&mut self, world: &mut impl WorldOp) {}
 }
 
 pub struct GameScene {
     pub room_index: u32,
-    pub world: World,
+    entities: Vec<u32>,
 }
 impl GameScene {
     pub fn with_map(index: u32) -> Self {
         GameScene {
             room_index: index,
-            world: World::new(),
+            entities: Vec::new(),
         }
     }
 }
 
 impl Scene for GameScene {
-    fn init(&mut self) {
-        let mut room_entity = self.world.add_entity();
-        let room = Room::from_index(self.room_index);
+    fn init(&mut self, world: &mut impl WorldOp) {
+        let mut room_entity = world.add_entity();
 
+        let ldtk = Project::new("src/map.ldtk");
+        let level = ldtk
+            .levels
+            .get(self.room_index as usize)
+            .expect("No level present in ldtk");
+        let room = Room::from_level(level);
+
+        room_entity.assign(Position::new(level.world_x as i32, level.world_y as i32));
         let mut collisions = vec![false; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
         for tile in room.tiles.iter() {
             let x = (tile.x as f32 / TILE_SIZE as f32) as u32;
@@ -64,13 +65,12 @@ impl Scene for GameScene {
             cells: collisions,
         }));
         room_entity.assign(room);
+        self.entities.push(room_entity.id);
     }
 
-    fn update(&mut self) {
-        self.world.update();
-    }
-
-    fn render(&self, batch: &mut Batch) {
-        self.world.render(batch);
+    fn destroy(&mut self, world: &mut impl WorldOp) {
+        for entity in self.entities.drain(..) {
+            world.remove_entity(entity);
+        }
     }
 }

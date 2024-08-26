@@ -23,6 +23,9 @@ pub struct PointF {
     pub y: f32,
 }
 impl PointF {
+    pub fn new(x: f32, y: f32) -> Self {
+        PointF { x, y }
+    }
     pub fn zero() -> Self {
         PointF { x: 0.0, y: 0.0 }
     }
@@ -33,6 +36,26 @@ pub struct RectF {
     pub y: f32,
     pub w: f32,
     pub h: f32,
+}
+impl ops::Sub<PointF> for PointF {
+    type Output = PointF;
+
+    fn sub(self, rhs: PointF) -> Self::Output {
+        PointF {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+impl ops::Add<PointF> for &PointF {
+    type Output = PointF;
+
+    fn add(self, rhs: PointF) -> Self::Output {
+        PointF {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
 }
 
 impl ops::Add<PointF> for &RectF {
@@ -87,13 +110,12 @@ impl RectF {
         rows: usize,
         tile_size: f32,
         cells: &[bool],
-        offset: PointF,
     ) -> bool {
         // Calculate the grid cell boundaries that the rect overlaps
-        let start_x = ((self.x + offset.x) / tile_size) as usize;
-        let end_x = ((self.x + offset.x + self.w) / tile_size).ceil() as usize;
-        let start_y = ((self.y + offset.y) / tile_size) as usize;
-        let end_y = ((self.y + offset.y + self.h) / tile_size).ceil() as usize;
+        let start_x = ((self.x) / tile_size) as usize;
+        let end_x = ((self.x + self.w) / tile_size).ceil() as usize;
+        let start_y = ((self.y) / tile_size) as usize;
+        let end_y = ((self.y + self.h) / tile_size).ceil() as usize;
 
         // Iterate over each grid cell in the overlapping region
         for y in start_y..end_y.min(rows) {
