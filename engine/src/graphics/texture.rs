@@ -89,10 +89,7 @@ impl Texture {
     }
 
     pub fn from_path(path: &str) -> Self {
-        println!("Creating texture path {}", path);
-
         // Load file into memory
-        println!("Creating texture path {}", path);
         let mut f = File::open(path).expect("file not found: ");
         let mut contents = vec![];
         f.read_to_end(&mut contents).unwrap();

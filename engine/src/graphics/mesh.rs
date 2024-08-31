@@ -23,7 +23,6 @@ impl Mesh {
             {
                 let stride =
                     (8 * core::mem::size_of::<f32>() + 4 * core::mem::size_of::<u8>()) as i32;
-                print!("Stride {}", stride);
                 gl::BindBuffer(gl::ARRAY_BUFFER, buffers[0]);
                 // aPos;
                 gl::VertexAttribPointer(

@@ -1,3 +1,4 @@
+mod aseprite;
 mod components;
 mod content;
 mod scene;
@@ -16,8 +17,8 @@ use imgui::Ui;
 use scene::Scene;
 use std::env;
 use system::{
-    movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
-    room_system::RoomSystem,
+    animation_system::AnimationSystem, movement_system::MovementSystem,
+    player_system::PlayerSystem, render_system::RenderSystem, room_system::RoomSystem,
 };
 
 const SCREEN_WIDTH: usize = GAME_PIXEL_WIDTH * 4;
@@ -38,6 +39,7 @@ struct Foo {
     render_system: RenderSystem,
     player_system: PlayerSystem,
     room_system: RoomSystem,
+    animation_system: AnimationSystem,
     screen_target: Target,
     screen_ortho: glm::Mat4,
     screen_rect: RectF,
@@ -60,6 +62,7 @@ impl Foo {
             render_system: RenderSystem,
             player_system: PlayerSystem,
             room_system: RoomSystem::new(),
+            animation_system: AnimationSystem,
             screen_target: Target::screen(SCREEN_WIDTH as i32, SCREEN_HEIGHT as i32),
             screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
         }
@@ -90,6 +93,7 @@ impl Game for Foo {
             // Render into low-res target (gbuffer)
             self.gbuffer.clear((0f32, 0f32, 0.0f32, 1.0f32));
             batch.set_sampler(&TextureSampler::nearest());
+            self.animation_system.tick(&self.world);
             self.render_system.render(&self.world, batch);
             batch.render(&self.gbuffer, &self.room_system.camera);
             batch.clear();

@@ -1,83 +1,110 @@
 use engine::{
     ecs::{World, WorldOp},
     graphics::{
-        common::RectF,
+        common::{PointF, RectF},
         texture::{SubTexture, Texture},
     },
 };
 
-use crate::components::{
-    approach,
-    collider::{Collider, ColliderType, Direction},
-    controller::Controller,
-    gravity::Gravity,
-    mover::Mover,
-    position::Position,
-    sprite::Sprite,
+use crate::{
+    components::{
+        approach,
+        collider::{Collider, ColliderType, Direction},
+        controller::Player,
+        gravity::Gravity,
+        mover::Mover,
+        position::Position,
+        sprite::Sprite,
+    },
+    content::content,
 };
+
+use super::movement_system::MovementSystem;
 
 pub struct PlayerSystem;
 impl PlayerSystem {
     pub fn init(&self, world: &mut World) {
-        let texture = Texture::from_path("src/blob.png");
         let mut player = world.add_entity();
-        player.assign(Controller::new(8, 8));
+        player.assign(Player::new(8, 8));
         player.assign(Mover::default());
-        player.assign(Sprite::from_sub_texture(SubTexture::new(
-            &texture,
-            RectF {
-                x: 8f32,
-                y: 0f32,
-                w: 8f32,
-                h: 8f32,
-            },
-        )));
+        player.assign(Sprite::new(&content().sprites["player"]));
         player.assign(Collider::new(ColliderType::Rect {
             rect: RectF {
-                x: 1.0,
-                y: 1.0,
+                x: -3.0,
+                y: -8.0,
                 w: 6.0,
-                h: 7.0,
+                h: 8.0,
             },
         }));
-        player.assign(Position::new(72 as i32, 16 as i32));
-        player.assign(Gravity { value: 0.4f32 });
+        player.assign(Position::new(72 as i32, 52 as i32));
+        player.assign(Gravity { value: 0.2f32 });
     }
 
     pub fn update(&self, world: &mut World) {
-        let player = world.find_first::<Controller>().expect("Player not found");
+        let player_entity = world.find_first::<Player>().expect("Player not found");
 
-        let mut mover = player.get_component::<Mover>().unwrap();
-        let collider = player
+        let id = player_entity.id;
+        let mut mover = player_entity.get_component::<Mover>().unwrap();
+        let mut sprite = player_entity.get_component::<Sprite>().unwrap();
+        let position = player_entity.get_component::<Position>().unwrap();
+        let collider = player_entity
             .get_component::<Collider>()
             .expect("No Collider on Player");
-        let mut player = player.get_component::<Controller>().unwrap();
+        let mut player = player_entity.get_component::<Player>().unwrap();
         let keyboard = engine::keyboard();
 
-        if keyboard.keycodes.contains(&engine::Keycode::Left) {
-            mover.speed.x -= 0.8f32;
-        }
-        if keyboard.keycodes.contains(&engine::Keycode::Right) {
-            mover.speed.x += 0.8f32;
-        }
         player.in_air = true;
-        for collision in &collider.collisions {
-            if collision.directions == Direction::VERTICAL {
-                if collision.self_velociy.y > 0f32 {
-                    player.in_air = false;
-                }
+        // Check if player is in air by checking if there is a collider one unit below
+        player.in_air = !collider.check_all(
+            id,
+            &position,
+            PointF { x: 0.0, y: 1f32 },
+            &player_entity.world,
+        );
+        if player.in_air {
+            sprite.play("jump");
+        } else {
+            sprite.play("idle");
+        }
+        // TODO: this was better? a vertical collision is not always garantied (gravitiy is less than 1)
+        // for collision in &collider.collisions {
+        //     if collision.directions == Direction::VERTICAL {
+        //         if collision.self_velocity.y >= 0f32 {
+        //             player.in_air = false;
+        //         }
+        //     }
+        // }
+
+        player.update();
+        if !player.is_attacking() {
+            if keyboard.keycodes.contains(&engine::Keycode::Left) {
+                mover.speed.x -= 0.6f32;
+                sprite.flip_x = true;
+                sprite.play("run");
             }
+            if keyboard.keycodes.contains(&engine::Keycode::Right) {
+                mover.speed.x += 0.6f32;
+                sprite.flip_x = false;
+                sprite.play("run");
+            }
+        }
+        if keyboard.keycodes.contains(&engine::Keycode::Space) {
+            player.attack();
+        }
+        if player.is_attacking() {
+            sprite.play("attack");
         }
 
         if keyboard.keycodes.contains(&engine::Keycode::Up) && !player.in_air {
+            sprite.play("jump");
             mover.speed.y = -10f32;
         }
 
         // friction
-        let x_friction = if player.in_air { 0.2 } else { 0.40 };
-        mover.speed.x = approach::<f32>(mover.speed.x, 0.0, x_friction);
-        mover.speed.y = approach::<f32>(mover.speed.y, 0.0, 0.2);
+        let x_friction = if player.in_air { 0.1 } else { 0.2};
+        mover.speed.x = approach::<f32>(mover.speed.x, 0f32, x_friction);
+        // mover.speed.y = approach::<f32>(mover.speed.y, 0f32, 0.2);
 
-        mover.speed.x = mover.speed.x.clamp(-2.5f32, 2.5f32);
+        mover.speed.x = mover.speed.x.clamp(-2.0f32, 2.0f32);
     }
 }

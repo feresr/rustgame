@@ -5,4 +5,9 @@ pub struct Mover {
     pub speed: glm::Vec2,
     pub reminder: glm::Vec2,
 }
+
+impl Mover {
+
+}
+
 impl Component for Mover {}

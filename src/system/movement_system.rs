@@ -7,7 +7,10 @@ use engine::{
 
 use crate::{
     components::{
-        collider::{Collider, Collision}, gravity::Gravity, mover::Mover, position::Position
+        collider::{Collider, Collision},
+        gravity::Gravity,
+        mover::Mover,
+        position::Position,
     },
     TILE_SIZE,
 };
@@ -23,24 +26,25 @@ impl MovementSystem {
             if let Some(g) = gravity {
                 if mover.speed.y < 0.0 {
                     // falling down
-                    mover.speed.y += g.value * 0.9f32;
+                    mover.speed.y += g.value * 1.0f32;
                 } else {
-                    mover.speed.y += g.value * 1.5f32
+                    mover.speed.y += g.value * 1.4f32
                 }
             }
 
-            let move_delta: PointF;
             {
                 let mut total: glm::Vec2 = mover.reminder + mover.speed;
                 let max_speed = TILE_SIZE - 2;
                 total.x = total.x.clamp(-(max_speed as f32), max_speed as f32);
                 total.y = total.y.clamp(-(max_speed as f32), max_speed as f32);
-                move_delta = PointF {
-                    x: total.x as i32 as f32,
-                    y: total.y as i32 as f32,
-                };
-                mover.reminder.x = total.x - move_delta.x;
-                mover.reminder.y = total.y - move_delta.y;
+
+                mover.speed.x = total.x as i32 as f32;
+                mover.speed.y = total.y as i32 as f32;
+                dbg!(mover.speed.y);
+                let x = total.x as i32 as f32;
+                let y = total.y as i32 as f32;
+                mover.reminder.x = total.x - x;
+                mover.reminder.y = total.y - y;
             }
 
             let mut position = world
@@ -50,14 +54,14 @@ impl MovementSystem {
             let collider = world.find_component::<Collider>(entity_id);
             if collider.is_none() {
                 // Entity has no collider, move it and return early
-                position.x = position.x + move_delta.x as i32;
-                position.y = position.y + move_delta.y as i32;
+                position.x = position.x + mover.speed.x as i32;
+                position.y = position.y + mover.speed.y as i32;
                 return;
             }
             let mut collider = collider.unwrap();
             collider.collisions.clear();
             MovementSystem::move_x(
-                move_delta.x as i32,
+                mover.speed.x as i32,
                 entity_id,
                 &mut collider,
                 &mut position,
@@ -65,7 +69,7 @@ impl MovementSystem {
                 world,
             );
             MovementSystem::move_y(
-                move_delta.y as i32,
+                mover.speed.y as i32,
                 entity_id,
                 &mut collider,
                 &mut position,
@@ -83,7 +87,6 @@ impl MovementSystem {
         mover: &mut RefMut<Mover>,
         world: &World,
     ) {
-        println!("move_x");
         if amount == 0 {
             return;
         }
@@ -91,10 +94,6 @@ impl MovementSystem {
         let sign_x = if amount > 0 { 1 } else { -1 };
         let mut amount = amount;
         for wrapper in world.find_all::<Collider>() {
-            println!(
-                "wrapper.entity_id {} - entity {}",
-                wrapper.entity_id, entity
-            );
             if wrapper.entity_id == entity {
                 continue;
             }
@@ -115,7 +114,7 @@ impl MovementSystem {
                     let _ = collider.collisions.push(Collision {
                         other: wrapper.entity_id,
                         directions: crate::components::collider::Direction::HORIZONTAL,
-                        self_velociy: mover.speed,
+                        self_velocity: mover.speed,
                     });
                     mover.speed.x = 0.0;
                     mover.reminder.x = 0.0;
@@ -123,11 +122,10 @@ impl MovementSystem {
                 amount -= sign_x;
             }
         }
-        println!("amount X {}", amount);
         position.x += amount;
     }
 
-    fn move_y(
+    pub fn move_y(
         amount: i32,
         entity: u32,
         collider: &mut RefMut<Collider>,
@@ -162,7 +160,7 @@ impl MovementSystem {
                     let _ = collider.collisions.push(Collision {
                         other: wrapper.entity_id,
                         directions: crate::components::collider::Direction::VERTICAL,
-                        self_velociy: mover.speed,
+                        self_velocity: mover.speed,
                     });
                     mover.speed.y = 0.0;
                     mover.reminder.y = 0.0;
@@ -170,7 +168,6 @@ impl MovementSystem {
                 amount -= sign_y;
             }
         }
-        println!("amount Y {}", amount);
         position.y += amount;
     }
 }

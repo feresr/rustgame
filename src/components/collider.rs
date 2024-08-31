@@ -1,5 +1,5 @@
 use engine::{
-    ecs::Component,
+    ecs::{Component, World, WorldOp},
     graphics::{
         batch::Batch,
         common::{PointF, RectF},
@@ -30,26 +30,42 @@ pub enum Direction {
 pub struct Collision {
     pub other: u32,
     pub directions: Direction,
-    pub self_velociy: glm::Vec2,
+    pub self_velocity: glm::Vec2,
 }
 #[derive(Clone)]
 pub struct Collider {
     pub collider_type: ColliderType,
     pub collisions: Vec<Collision>,
-    debug: bool,
 }
 impl Collider {
     pub fn new(collider_type: ColliderType) -> Self {
         Collider {
             collider_type,
             collisions: Vec::new(),
-            debug: false,
         }
     }
 }
 impl Component for Collider {}
 impl Collider {
-
+    pub fn check_all(
+        &self,
+        self_id: u32,
+        self_position: &Position,
+        offset: PointF,
+        world: &World,
+    ) -> bool {
+        for wrapper in world.find_all::<Collider>() {
+            if wrapper.entity_id == self_id {
+                continue;
+            }
+            let other_position = world.find_component::<Position>(wrapper.entity_id).unwrap();
+            let other_collider = wrapper.component.borrow();
+            if self.check(&other_collider, self_position, &other_position, offset) {
+                return true;
+            }
+        }
+        false
+    }
     pub fn check(
         &self,
         other: &Collider,
@@ -94,7 +110,6 @@ impl Collider {
                 match &other.collider_type {
                     ColliderType::Rect { rect } => {
                         // Grid to rect collision
-                        println!("checking grid rect ");
                         let distance = PointF::new(self_position.x as f32, self_position.y as f32)
                             - PointF::new(other_position.x as f32, other_position.y as f32);
                         ((rect + distance) + offset).intersects_grid(

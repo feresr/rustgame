@@ -3,22 +3,25 @@ extern crate gl;
 extern crate nalgebra_glm as glm;
 extern crate sdl2;
 
+use audio::{AudioTrack, AudioPlayer};
 use graphics::batch::{Batch, ImGuiable};
 use imgui::{Context, Ui};
 
+mod audio;
 pub mod ecs;
 pub mod graphics;
 
+use sdl2::audio::{AudioCallback, AudioSpec, AudioSpecDesired};
 use sdl2::event::Event;
 pub use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
-use sdl2::{Sdl, VideoSubsystem};
+use sdl2::{AudioSubsystem, Sdl, VideoSubsystem};
 use std::collections::HashSet;
 use std::env;
 use std::time::{Duration, Instant};
 
-const FPS: u64 = 60;
-const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
+pub const FPS: u64 = 60;
+pub const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
 
 pub struct Config {
     pub window_width: u32,
@@ -52,6 +55,9 @@ pub fn run(mut game: impl Game) {
     let window_size = (config.window_width, config.window_height);
     let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
+    let audio_subsystem: AudioSubsystem = sdl_context.audio().unwrap();
+
+    let mut audio_player = AudioPlayer::new(audio_subsystem);
 
     let gl_attr = video_subsystem.gl_attr();
     gl_attr.set_context_profile(GLProfile::Core);
@@ -97,6 +103,7 @@ pub fn run(mut game: impl Game) {
 
     // OpenGL config
     unsafe {
+        // TODO: culling?
         gl::Disable(gl::CULL_FACE);
         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
         gl::Enable(gl::MULTISAMPLE);
@@ -186,31 +193,12 @@ pub fn run(mut game: impl Game) {
             });
         platform.prepare_render(&ui, &window);
         renderer.render(&mut imgui);
-
         // println!("elapsed {:?}", start.elapsed());
-
         window.gl_swap_window();
         let sleep_until = start + FRAME_DURATION;
         while Instant::now() < sleep_until {
             // sleep
         }
-        // let elapsed = start.elapsed();
-        // if elapsed < FRAME_DURATION {
-        //     let sleep_until = FRAME_DURATION - elapsed
-        //     sleep();
-        // }
-        // TODO: Thread sleep might not be the right thing to do (imprecise - might sleep longer)
-        // let sleep_for = if delta.as_nanos() as u32 <= FPS {
-        //     FPS - delta.as_nanos() as u32
-        // } else {
-        //     // todo!: panic only in debug? maybe add a tolerance..
-        //     // panic!("Game running too slow! delta: {}ms", delta.as_millis());
-        //     0
-        // };
-        // // println!("sleeping for remaining: {}ms", sleep_for / 1000000);
-        // // TODO: look into why imgui reports 30fps (and is probably right)
-
-        // ::std::thread::sleep(::std::time::Duration::new(0, sleep_for));
     }
     game.dispose();
 }

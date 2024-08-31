@@ -1,7 +1,7 @@
 use engine::ecs::{World, WorldOp};
 
 use crate::{
-    components::{controller::Controller, position::Position},
+    components::{controller::Player, position::Position},
     scene::{GameScene, Scene},
     GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH,
 };
@@ -44,14 +44,10 @@ impl RoomSystem {
         let room_x;
         let room_y;
         {
-            let player = world.find_first::<Controller>().expect("Player not found");
+            let player = world.find_first::<Player>().expect("Player not found");
             let position = player.get_component::<Position>().unwrap();
-            let controller = player.get_component::<Controller>().unwrap();
-
-            room_x = ((position.x + (controller.width as i32) / 2i32) as f32
-                / GAME_PIXEL_WIDTH as f32) as usize;
-            room_y = ((position.y + (controller.height as i32) / 2i32) as f32
-                / GAME_PIXEL_HEIGHT as f32) as usize;
+            room_x = (position.x as f32 / GAME_PIXEL_WIDTH as f32) as usize;
+            room_y = (position.y as f32 / GAME_PIXEL_HEIGHT as f32) as usize;
         }
 
         if (room_x, room_y) != self.current_room {

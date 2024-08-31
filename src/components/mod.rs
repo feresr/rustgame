@@ -10,7 +10,7 @@ use std::cmp::PartialOrd;
 use std::ops::{Add, Sub};
 
 // Define a trait with min and max methods
-trait MinMax {
+pub trait MinMax {
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
 }
@@ -82,4 +82,11 @@ where
     } else {
         (current - step).max(value)
     }
+}
+
+pub fn create_transform(origin: &glm::Vec3, scale: &glm::Vec3) -> glm::Mat4 {
+    let translate_to_origin = glm::translation(&-origin);
+    let scaling_matrix = glm::scaling(scale);
+    let translate_back = glm::translation(origin);
+    translate_back * scaling_matrix * translate_to_origin
 }
