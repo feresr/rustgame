@@ -33,8 +33,6 @@ pub struct World {
 }
 
 trait Updateable {
-    // Move this to where add_component is?
-    fn add_component(&mut self, entity_id: u32, component: Box<dyn Any>);
     fn remove_component(&mut self, entity_id: u32);
 
     // I have no idea how / why this works

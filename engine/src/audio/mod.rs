@@ -16,10 +16,8 @@ impl AudioPlayer {
         let spec = AudioSpecDesired {
             freq: Some(44100),
             channels: Some(2),
-            // The size of the audio buffer in samples
             samples: None,
         };
-        // audio_subsystem.pla
         let music_device = audio_subsystem
             .open_playback(None, &spec, |spec| Mixer {
                 spec,
@@ -30,6 +28,7 @@ impl AudioPlayer {
             .unwrap();
         music_device.resume();
 
+        // TODO: Mix sounds. Right now only playing one sound at a time is supported
         let sound_device = audio_subsystem
             .open_playback(None, &spec, |spec| Mixer {
                 spec,
@@ -46,12 +45,12 @@ impl AudioPlayer {
         }
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop_music(&mut self) {
         self.music.lock().track = None;
         self.music.pause();
     }
 
-    pub fn pause(&mut self) {
+    pub fn pause_music(&mut self) {
         self.music.pause();
     }
 

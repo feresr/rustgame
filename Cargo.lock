@@ -451,8 +451,6 @@ dependencies = [
  "nalgebra-glm",
  "pprof",
  "rand",
- "stb_image_rust",
- "vorbis_rs",
 ]
 
 [[package]]

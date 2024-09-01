@@ -59,15 +59,6 @@ impl<T: Component + 'static> Updateable for ComponentStorage<T> {
         }
     }
 
-    fn add_component(&mut self, entity_id: u32, component: Box<dyn Any>) {
-        self.entity_map.insert(entity_id, self.data.len());
-        let component = component.downcast::<T>().unwrap();
-        self.data.push(ComponentWrapper {
-            entity_id,
-            component: RefCell::new(*component),
-        });
-    }
-
     fn debug(&self, ui: &Ui) {
         ui.text(format!(
             "{} # {:?}",
@@ -85,10 +76,6 @@ impl<T: Component> ComponentStorage<T> {
             type_id,
         }
     }
-    // fn remove(&mut self, entity_id: u32) {
-    //     let index = self.entity_map.get(&entity_id).unwrap();
-    //     self.data.remove(*index);
-    // }
 
     // Add a component to the storage and associate it with an entity
     pub fn add_component(&mut self, entity_id: u32, component: T) {
