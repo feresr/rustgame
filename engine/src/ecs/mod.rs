@@ -25,21 +25,20 @@ pub struct Entity<'a> {
 
 // World struct that manages entities and component storages
 pub struct World {
-    // todo: make entities private again, maybe even remove?????
-    entities: Vec<IEntity>, // Vec to store entities
     pub entity_count: u32,
-    components: HashMap<TypeId, Box<dyn Updateable>>, // HashMap for component storages by TypeId
+    // todo: make entities private again, maybe even remove?????
+    entities: Vec<IEntity>,
+    components: HashMap<TypeId, Box<dyn Updateable>>,
     resources: HashMap<TypeId, Resource>,
 }
 
 trait Updateable {
-    fn remove_component(&mut self, entity_id: u32);
-
     // I have no idea how / why this works
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
     fn debug(&self, ui: &Ui);
+    fn remove_component(&mut self, entity_id: u32);
 }
 
 pub trait WorldOp {

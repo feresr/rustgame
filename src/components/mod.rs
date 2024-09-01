@@ -1,6 +1,6 @@
 pub mod background;
 pub mod collider;
-pub mod controller;
+pub mod player;
 pub mod gravity;
 pub mod mover;
 pub mod position;

@@ -129,13 +129,7 @@ pub fn run(mut game: impl Game) {
         let start = Instant::now();
         let keyboard = keyboard();
 
-        let keys: HashSet<Keycode> = events
-            .keyboard_state()
-            .pressed_scancodes()
-            .filter_map(Keycode::from_scancode)
-            .collect();
-        keyboard.keycodes = keys;
-
+        keyboard.pressed.clear();
         for ref event in events.poll_iter() {
             platform.handle_event(&mut imgui, event);
             if platform.ignore_event(&event) {
@@ -152,11 +146,24 @@ pub fn run(mut game: impl Game) {
                 Event::KeyDown {
                     keycode: Some(kc), ..
                 } => {
-                    keyboard.keycodes.insert(kc.to_owned());
+                    if !keyboard.held.contains(&kc) {
+                        keyboard.pressed.insert(kc.to_owned());
+                    }
+                }
+                Event::KeyUp {
+                    keycode: Some(kc), ..
+                } => {
+                    keyboard.pressed.remove(&kc);
                 }
                 _ => {}
             }
         }
+        let keys: HashSet<Keycode> = events
+            .keyboard_state()
+            .pressed_scancodes()
+            .filter_map(Keycode::from_scancode)
+            .collect();
+        keyboard.held = keys;
 
         platform.prepare_frame(imgui.io_mut(), &window, &events.mouse_state());
 
@@ -227,12 +234,14 @@ pub struct Mouse {
 }
 
 pub struct Keyboard {
-    pub keycodes: HashSet<Keycode>,
+    pub held: HashSet<Keycode>,
+    pub pressed: HashSet<Keycode>,
 }
 impl Keyboard {
     fn new() -> Self {
         Keyboard {
-            keycodes: HashSet::new(),
+            held: HashSet::new(),
+            pressed: HashSet::new(),
         }
     }
 }

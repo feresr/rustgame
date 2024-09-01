@@ -1,7 +1,7 @@
 use engine::ecs::{World, WorldOp};
 
 use crate::{
-    components::{controller::Player, position::Position},
+    components::{player::Player, position::Position},
     scene::{GameScene, Scene},
     GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH,
 };

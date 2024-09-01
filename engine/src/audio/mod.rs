@@ -137,7 +137,6 @@ impl AudioCallback for Mixer {
         // together, then the next point in time, and so on.
         // Most audio hardware and APIs expect interleaved data. When you play this buffer,
         // the audio system knows how to separate and route each sample to the appropriate channel.
-        println!("data: {:?}", data.len());
         for (index, out) in data.iter_mut().enumerate() {
             let sample = if index % 2 == 0 {
                 &track.left

@@ -7,7 +7,7 @@ use crate::{
     components::{
         approach,
         collider::{Collider, ColliderType},
-        controller::Player,
+        player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED},
         gravity::Gravity,
         mover::Mover,
         position::Position,
@@ -20,7 +20,7 @@ pub struct PlayerSystem;
 impl PlayerSystem {
     pub fn init(&self, world: &mut World) {
         let mut player = world.add_entity();
-        player.assign(Player::new(8, 8));
+        player.assign(Player::default());
         player.assign(Mover::default());
         player.assign(Sprite::new(&content().sprites["player"]));
         player.assign(Collider::new(ColliderType::Rect {
@@ -32,7 +32,7 @@ impl PlayerSystem {
             },
         }));
         player.assign(Position::new(72 as i32, 52 as i32));
-        player.assign(Gravity { value: 0.2f32 });
+        player.assign(Gravity { value: 0.3f32 });
     }
 
     pub fn update(&self, world: &mut World) {
@@ -58,11 +58,28 @@ impl PlayerSystem {
             PointF { x: 0.0, y: 1f32 },
             &player_entity.world,
         );
-        if keyboard.keycodes.contains(&engine::Keycode::Up) && !player.in_air {
-            engine::audio().play_sound(&content().tracks["jump"]);
-            sprite.play("jump");
-            mover.speed.y = -10f32;
+
+        if player.in_air == true && player.was_in_air == false {
+            player.coyote_buffer = COYOTE_BUFFER_TIME;
         }
+        player.was_in_air = player.in_air;
+
+        if keyboard.pressed.contains(&engine::Keycode::Up) || player.jump_buffer > 0 {
+            if !player.in_air || player.coyote_buffer > 0 {
+                engine::audio().play_sound(&content().tracks["jump"]);
+                sprite.play("jump");
+                mover.speed.y = -JUMP_SPEED;
+                player.jump_buffer = 0;
+                player.coyote_buffer = 0;
+                player.was_in_air = true;
+                println!("set coyote buffer: {}", player.coyote_buffer);
+            } else {
+                if player.jump_buffer == 0 {
+                    player.jump_buffer = JUMP_BUFFER_TIME;
+                }
+            }
+        }
+
         if player.in_air {
             sprite.play("jump");
         } else {
@@ -71,18 +88,18 @@ impl PlayerSystem {
 
         player.update();
         if !player.is_attacking() {
-            if keyboard.keycodes.contains(&engine::Keycode::Left) {
-                mover.speed.x -= 0.6f32;
+            if keyboard.held.contains(&engine::Keycode::Left) {
+                mover.speed.x -= WALK_SPEED;
                 sprite.flip_x = true;
                 sprite.play("run");
             }
-            if keyboard.keycodes.contains(&engine::Keycode::Right) {
-                mover.speed.x += 0.6f32;
+            if keyboard.held.contains(&engine::Keycode::Right) {
+                mover.speed.x += WALK_SPEED;
                 sprite.flip_x = false;
                 sprite.play("run");
             }
         }
-        if keyboard.keycodes.contains(&engine::Keycode::Space) {
+        if keyboard.held.contains(&engine::Keycode::Space) {
             player.attack();
         }
         if player.is_attacking() {
