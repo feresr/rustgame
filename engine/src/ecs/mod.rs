@@ -63,8 +63,8 @@ impl World {
         World {
             entities: Vec::new(),
             entity_count: 0,
-            components: HashMap::new(),
-            resources: HashMap::new(),
+            components: HashMap::with_capacity(64),
+            resources: HashMap::with_capacity(8),
         }
     }
 
@@ -81,8 +81,10 @@ impl World {
     // Register a new component type with an empty storage
     fn register_component<T: Component + 'static>(&mut self) {
         let type_id = TypeId::of::<T>();
-        self.components
-            .insert(type_id, Box::new(ComponentStorage::<T>::new(type_id)));
+        self.components.insert(
+            type_id,
+            Box::new(ComponentStorage::<T>::new(type_id, T::CAPACITY)),
+        );
     }
 
     pub fn extract_component<T: Component + 'static>(&mut self, entity_id: u32) -> Option<T> {
@@ -139,7 +141,6 @@ impl WorldOp for World {
     // Add a component to the specified entity's component storage
     fn add_component<T: Component + 'static>(&mut self, entity: &IEntity, component: T) {
         let type_id = TypeId::of::<T>();
-
         if let None = self.components.get(&type_id) {
             self.register_component::<T>();
         }

@@ -8,6 +8,7 @@ extern crate engine;
 extern crate nalgebra_glm as glm;
 
 use components::position::Position;
+use content::content;
 use engine::{
     ecs::World,
     graphics::{batch::*, common::*, target::*, texture::*},
@@ -79,6 +80,7 @@ impl Game for Foo {
         );
         self.player_system.init(&mut self.world);
         self.room_system.scene.init(&mut self.world);
+        engine::audio().play_music(&content().tracks["music-1"]);
     }
 
     fn update(&mut self) -> bool {

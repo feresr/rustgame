@@ -1,8 +1,11 @@
-use std::{collections::HashMap, fs, io::Read};
+use std::{collections::HashMap, fs};
 
-use engine::graphics::{
-    common::RectF,
-    texture::{SubTexture, Texture},
+use engine::{
+    audio::AudioTrack,
+    graphics::{
+        common::RectF,
+        texture::{SubTexture, Texture},
+    },
 };
 
 use crate::{
@@ -15,6 +18,7 @@ pub struct Content {
     pub textures: HashMap<String, Texture>,
     // animation sets
     pub sprites: HashMap<String, HashMap<String, Animation>>,
+    pub tracks: HashMap<&'static str, AudioTrack>,
 }
 
 impl Content {
@@ -78,10 +82,17 @@ impl Content {
             }
         }
 
+        // TODO: Load all audio in folder
+        let mut tracks = HashMap::new();
+        let audio = AudioTrack::new("src/assets/song.ogg").unwrap();
+        tracks.insert("music-1", audio);
+        let audio = AudioTrack::new("src/assets/jump.ogg").unwrap();
+        tracks.insert("jump", audio);
         Content {
             atlas: Texture::from_path("src/atlas.png"),
             textures,
             sprites,
+            tracks,
         }
     }
 

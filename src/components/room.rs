@@ -8,7 +8,7 @@ use engine::{
         texture::{SubTexture, Texture, TextureFormat},
     },
 };
-use ldtk_rust::{Level, Project};
+use ldtk_rust::Level;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Tile {
@@ -114,4 +114,6 @@ impl Room {
         self.texture = Some(*target.color());
     }
 }
-impl Component for Room {}
+impl Component for Room {
+    const CAPACITY: usize = 8;
+}

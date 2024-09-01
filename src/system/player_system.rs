@@ -1,15 +1,12 @@
 use engine::{
     ecs::{World, WorldOp},
-    graphics::{
-        common::{PointF, RectF},
-        texture::{SubTexture, Texture},
-    },
+    graphics::common::{PointF, RectF},
 };
 
 use crate::{
     components::{
         approach,
-        collider::{Collider, ColliderType, Direction},
+        collider::{Collider, ColliderType},
         controller::Player,
         gravity::Gravity,
         mover::Mover,
@@ -18,8 +15,6 @@ use crate::{
     },
     content::content,
 };
-
-use super::movement_system::MovementSystem;
 
 pub struct PlayerSystem;
 impl PlayerSystem {
@@ -53,6 +48,8 @@ impl PlayerSystem {
         let mut player = player_entity.get_component::<Player>().unwrap();
         let keyboard = engine::keyboard();
 
+        // TODO: coyote time
+        // TODO: jump buffer time
         player.in_air = true;
         // Check if player is in air by checking if there is a collider one unit below
         player.in_air = !collider.check_all(
@@ -61,19 +58,16 @@ impl PlayerSystem {
             PointF { x: 0.0, y: 1f32 },
             &player_entity.world,
         );
+        if keyboard.keycodes.contains(&engine::Keycode::Up) && !player.in_air {
+            engine::audio().play_sound(&content().tracks["jump"]);
+            sprite.play("jump");
+            mover.speed.y = -10f32;
+        }
         if player.in_air {
             sprite.play("jump");
         } else {
             sprite.play("idle");
         }
-        // TODO: this was better? a vertical collision is not always garantied (gravitiy is less than 1)
-        // for collision in &collider.collisions {
-        //     if collision.directions == Direction::VERTICAL {
-        //         if collision.self_velocity.y >= 0f32 {
-        //             player.in_air = false;
-        //         }
-        //     }
-        // }
 
         player.update();
         if !player.is_attacking() {
@@ -95,13 +89,8 @@ impl PlayerSystem {
             sprite.play("attack");
         }
 
-        if keyboard.keycodes.contains(&engine::Keycode::Up) && !player.in_air {
-            sprite.play("jump");
-            mover.speed.y = -10f32;
-        }
-
         // friction
-        let x_friction = if player.in_air { 0.1 } else { 0.2};
+        let x_friction = if player.in_air { 0.1 } else { 0.2 };
         mover.speed.x = approach::<f32>(mover.speed.x, 0f32, x_friction);
         // mover.speed.y = approach::<f32>(mover.speed.y, 0f32, 0.2);
 

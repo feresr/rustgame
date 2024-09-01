@@ -40,11 +40,8 @@ impl MovementSystem {
 
                 mover.speed.x = total.x as i32 as f32;
                 mover.speed.y = total.y as i32 as f32;
-                dbg!(mover.speed.y);
-                let x = total.x as i32 as f32;
-                let y = total.y as i32 as f32;
-                mover.reminder.x = total.x - x;
-                mover.reminder.y = total.y - y;
+                mover.reminder.x = total.x - mover.speed.x;
+                mover.reminder.y = total.y - mover.speed.y;
             }
 
             let mut position = world

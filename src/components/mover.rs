@@ -6,8 +6,8 @@ pub struct Mover {
     pub reminder: glm::Vec2,
 }
 
-impl Mover {
+impl Mover {}
 
+impl Component for Mover {
+    const CAPACITY: usize = 64;
 }
-
-impl Component for Mover {}

@@ -1,53 +1,91 @@
-use std::{cmp::min, fs::File, io::BufReader};
+use std::{cmp::min, fs::File};
 
+use crate::sdl2::audio::AudioFormatNum;
 use sdl2::{
-    audio::{AudioCallback, AudioDevice, AudioSpecDesired},
+    audio::{AudioCallback, AudioDevice, AudioSpec, AudioSpecDesired},
     AudioSubsystem,
 };
-use vorbis_rs::{VorbisDecoder, VorbisEncoderBuilder};
+use vorbis_rs::VorbisDecoder;
 
 pub struct AudioPlayer {
-    device: AudioDevice<Mixer>,
+    music: AudioDevice<Mixer>,
+    sound: AudioDevice<Mixer>,
 }
 impl AudioPlayer {
     pub fn new(audio_subsystem: AudioSubsystem) -> Self {
-        let audio = AudioTrack::new("src/assets/song.ogg").unwrap();
         let spec = AudioSpecDesired {
-            freq: Some(audio.sampling_frequency as i32),
+            freq: Some(44100),
             channels: Some(2),
             // The size of the audio buffer in samples
             samples: None,
         };
-        let device = audio_subsystem
+        // audio_subsystem.pla
+        let music_device = audio_subsystem
             .open_playback(None, &spec, |spec| Mixer {
-                track: Some(audio),
+                spec,
+                track: None,
                 position: 0,
+                should_loop: true,
             })
             .unwrap();
-        device.resume();
-        Self { device }
-    }
+        music_device.resume();
 
-    pub fn update(&mut self) {
-        let mut mixer = self.device.lock();
-        if let Some(track) = &mixer.track {
-            if mixer.position >= track.length() {
-                mixer.position = 0;
-                // self.device.pause()
-            }
+        let sound_device = audio_subsystem
+            .open_playback(None, &spec, |spec| Mixer {
+                spec,
+                track: None,
+                position: 0,
+                should_loop: false,
+            })
+            .unwrap();
+        sound_device.resume();
+
+        Self {
+            music: music_device,
+            sound: sound_device,
         }
     }
 
-    pub fn play(&mut self, track: AudioTrack) {
-        let mut mixer = self.device.lock();
+    pub fn stop(&mut self) {
+        self.music.lock().track = None;
+        self.music.pause();
+    }
+
+    pub fn pause(&mut self) {
+        self.music.pause();
+    }
+
+    pub fn play_sound(&mut self, track: &'static AudioTrack) {
+        let mut mixer = self.sound.lock();
         mixer.track = Some(track);
         mixer.position = 0;
+        mixer.spec.freq = track.sampling_frequency as i32;
+        drop(mixer);
+        self.sound.resume();
+    }
+
+    pub fn play_music(&mut self, track: &'static AudioTrack) {
+        let mut mixer = self.music.lock();
+        mixer.track = Some(track);
+        mixer.position = 0;
+        mixer.spec.freq = track.sampling_frequency as i32;
+        drop(mixer);
+        match self.music.status() {
+            sdl2::audio::AudioStatus::Stopped | sdl2::audio::AudioStatus::Paused => {
+                self.music.resume();
+            }
+            sdl2::audio::AudioStatus::Playing => {
+                // already playing, no op
+            }
+        }
     }
 }
 
 pub struct Mixer {
-    track: Option<AudioTrack>,
+    spec: AudioSpec,
+    track: Option<&'static AudioTrack>,
     position: usize,
+    should_loop: bool,
 }
 
 pub struct AudioTrack {
@@ -64,10 +102,15 @@ impl AudioTrack {
         let mut right = Vec::new();
         let freq = decoder.sampling_frequency().get();
         let channels = decoder.channels().get();
-        assert!(channels == 2);
+        // assert!(channels == 2, "channels: {}", channels);
         while let Some(decoded_block) = decoder.decode_audio_block().map_err(|e| e.to_string())? {
-            left.extend_from_slice(decoded_block.samples()[0]);
-            right.extend_from_slice(decoded_block.samples()[1]);
+            if channels == 2 {
+                left.extend_from_slice(decoded_block.samples()[0]);
+                right.extend_from_slice(decoded_block.samples()[1]);
+            } else {
+                left.extend_from_slice(decoded_block.samples()[0]);
+                right.extend_from_slice(decoded_block.samples()[0]);
+            }
         }
         Ok(Self {
             left,
@@ -85,6 +128,9 @@ impl AudioCallback for Mixer {
 
     fn callback(&mut self, data: &mut [Self::Channel]) {
         if self.track.is_none() {
+            for out in data.iter_mut() {
+                *out = Self::Channel::SILENCE;
+            }
             return;
         }
         let track = self.track.as_mut().unwrap();
@@ -103,10 +149,14 @@ impl AudioCallback for Mixer {
             *out = sample;
 
             // Increment position after updating the last sample
+            // TODO: channels might have different lengths?
             if index % 2 != 0 {
                 self.position += 1;
                 if self.position >= track.length() {
                     self.position = 0;
+                    if !self.should_loop {
+                        self.track = None;
+                    }
                     break;
                 }
             }

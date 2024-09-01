@@ -1,12 +1,19 @@
+use super::Updateable;
+use imgui::Ui;
 use std::{
     any::{type_name, Any, TypeId},
     cell::{RefCell, RefMut},
     collections::HashMap,
 };
-use super::Updateable;
-use imgui::Ui;
 
-pub trait Component {}
+pub trait Component {
+    // Default capacity for the component storage.
+    // This is used to allocate the initial size of the component storage
+    // and is used to reserve space for the components.
+    // This is used to optimize the allocation of the component storage.
+    // Commonly occuring Components (Position, Velocity, etc.) should increase this number.
+    const CAPACITY: usize = 16;
+}
 
 #[derive(Debug)]
 pub struct ComponentWrapper<T: Component> {
@@ -71,10 +78,10 @@ impl<T: Component + 'static> Updateable for ComponentStorage<T> {
 }
 impl<T: Component> ComponentStorage<T> {
     // Create a new empty ComponentStorage
-    pub fn new(type_id: TypeId) -> Self {
+    pub fn new(type_id: TypeId, capacity: usize) -> Self {
         ComponentStorage {
-            data: Vec::with_capacity(32),
-            entity_map: HashMap::new(),
+            data: Vec::with_capacity(capacity),
+            entity_map: HashMap::with_capacity(capacity),
             type_id,
         }
     }

@@ -10,4 +10,6 @@ impl Position {
         return Position { x, y };
     }
 }
-impl Component for Position {}
+impl Component for Position {
+    const CAPACITY: usize = 64;
+}

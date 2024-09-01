@@ -3,15 +3,14 @@ extern crate gl;
 extern crate nalgebra_glm as glm;
 extern crate sdl2;
 
-use audio::{AudioTrack, AudioPlayer};
+use audio::AudioPlayer;
 use graphics::batch::{Batch, ImGuiable};
 use imgui::{Context, Ui};
 
-mod audio;
+pub mod audio;
 pub mod ecs;
 pub mod graphics;
 
-use sdl2::audio::{AudioCallback, AudioSpec, AudioSpecDesired};
 use sdl2::event::Event;
 pub use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
@@ -48,6 +47,12 @@ pub fn keyboard() -> &'static mut Keyboard {
     }
 }
 
+pub static mut AUDIO: Option<AudioPlayer> = None;
+
+pub fn audio() -> &'static mut AudioPlayer {
+    unsafe { AUDIO.as_mut().unwrap() }
+}
+
 pub fn run(mut game: impl Game) {
     env::set_var("RUST_BACKTRACE", "1");
     // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
@@ -57,7 +62,8 @@ pub fn run(mut game: impl Game) {
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
     let audio_subsystem: AudioSubsystem = sdl_context.audio().unwrap();
 
-    let mut audio_player = AudioPlayer::new(audio_subsystem);
+    let audio_player = AudioPlayer::new(audio_subsystem);
+    unsafe { AUDIO = Some(audio_player) };
 
     let gl_attr = video_subsystem.gl_attr();
     gl_attr.set_context_profile(GLProfile::Core);
