@@ -21,7 +21,6 @@ impl MovementSystem {
         for mover in world.find_all::<Mover>() {
             let entity_id = mover.entity_id;
             let mut mover = mover.component.borrow_mut();
-
             let gravity = world.find_component::<Gravity>(entity_id);
             if let Some(g) = gravity {
                 if mover.speed.y < 0.0 {
@@ -53,7 +52,7 @@ impl MovementSystem {
                 // Entity has no collider, move it and return early
                 position.x = position.x + mover.speed.x as i32;
                 position.y = position.y + mover.speed.y as i32;
-                return;
+                continue;
             }
             let mut collider = collider.unwrap();
             collider.collisions.clear();

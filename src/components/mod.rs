@@ -5,6 +5,7 @@ pub mod gravity;
 pub mod mover;
 pub mod position;
 pub mod room;
+pub mod rope;
 pub mod sprite;
 use std::cmp::PartialOrd;
 use std::ops::{Add, Sub};

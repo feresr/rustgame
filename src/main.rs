@@ -111,7 +111,7 @@ impl Game for Foo {
     fn dispose(&mut self) {}
 
     fn debug(&self, imgui: &Ui) {
-        // self.world.debug(imgui);
+        self.world.debug(imgui);
     }
 
     fn config(&self) -> engine::Config {

@@ -5,15 +5,9 @@ use engine::{
 
 use crate::{
     components::{
-        approach,
-        collider::{Collider, ColliderType},
-        player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED},
-        gravity::Gravity,
-        mover::Mover,
-        position::Position,
-        sprite::Sprite,
+        approach, collider::{Collider, ColliderType}, gravity::Gravity, mover::Mover, player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED}, position::Position, sprite::Sprite
     },
-    content::content,
+    content::content, GAME_PIXEL_HEIGHT,
 };
 
 pub struct PlayerSystem;
@@ -31,7 +25,7 @@ impl PlayerSystem {
                 h: 8.0,
             },
         }));
-        player.assign(Position::new(72 as i32, 52 as i32));
+        player.assign(Position::new(72 as i32, GAME_PIXEL_HEIGHT as i32 + 24 as i32));
         player.assign(Gravity { value: 0.3f32 });
     }
 

@@ -93,6 +93,12 @@ impl World {
         }
         return None;
     }
+
+    pub fn debug(&self, ui: &Ui) {
+        for (_, storage) in self.components.iter() {
+            storage.debug(ui);
+        }
+    }
 }
 
 impl WorldOp for World {

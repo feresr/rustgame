@@ -1,5 +1,6 @@
 use engine::ecs::Component;
 
+#[derive(Debug)]
 pub struct Gravity {
     pub value: f32,
 }

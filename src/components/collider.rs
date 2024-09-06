@@ -10,6 +10,9 @@ use crate::Position;
 
 #[derive(Debug, Clone)]
 pub enum ColliderType {
+    Circle {
+        radius: f32,
+    },
     Rect {
         rect: RectF,
     },
@@ -74,6 +77,23 @@ impl Collider {
         offset: PointF,
     ) -> bool {
         return match &self.collider_type {
+            ColliderType::Circle { radius: radius_a } => match &other.collider_type {
+                ColliderType::Circle { radius: radius_b } => {
+                    return true;
+                }
+                ColliderType::Rect { rect: rect_b } => {
+                    return true;
+                }
+                ColliderType::Grid {
+                    columns,
+                    rows,
+                    tile_size,
+                    cells,
+                } => {
+                    // TODO: Implement grid to circle collision
+                    return true;
+                }
+            },
             ColliderType::Rect { rect: rect_a } => match &other.collider_type {
                 ColliderType::Rect { rect: rect_b } => {
                     // Rect to rect collision
@@ -100,6 +120,9 @@ impl Collider {
                         cells,
                     )
                 }
+                ColliderType::Circle { radius: radius_b } => {
+                    return true;
+                }
             },
             ColliderType::Grid {
                 columns,
@@ -107,28 +130,8 @@ impl Collider {
                 tile_size,
                 cells,
             } => {
-                match &other.collider_type {
-                    ColliderType::Rect { rect } => {
-                        // Grid to rect collision
-                        let distance = PointF::new(self_position.x as f32, self_position.y as f32)
-                            - PointF::new(other_position.x as f32, other_position.y as f32);
-                        ((rect + distance) + offset).intersects_grid(
-                            *columns,
-                            *rows,
-                            *tile_size as f32,
-                            cells,
-                        )
-                    }
-                    ColliderType::Grid {
-                        columns,
-                        rows,
-                        tile_size,
-                        cells,
-                    } => {
-                        // Grid to Grid collision (not supported)
-                        false
-                    }
-                }
+                //
+                return false;
             }
         };
     }
