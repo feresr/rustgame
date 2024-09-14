@@ -5,9 +5,17 @@ use engine::{
 
 use crate::{
     components::{
-        approach, collider::{Collider, ColliderType}, gravity::Gravity, mover::Mover, player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED}, position::Position, sprite::Sprite
+        approach,
+        collider::{Collider, ColliderType},
+        gravity::Gravity,
+        light::Light,
+        mover::Mover,
+        player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED},
+        position::Position,
+        sprite::Sprite,
     },
-    content::content, GAME_PIXEL_HEIGHT,
+    content::content,
+    GAME_PIXEL_HEIGHT,
 };
 
 pub struct PlayerSystem;
@@ -17,6 +25,7 @@ impl PlayerSystem {
         player.assign(Player::default());
         player.assign(Mover::default());
         player.assign(Sprite::new(&content().sprites["player"]));
+        player.assign(Light::new());
         player.assign(Collider::new(ColliderType::Rect {
             rect: RectF {
                 x: -3.0,
@@ -25,7 +34,10 @@ impl PlayerSystem {
                 h: 8.0,
             },
         }));
-        player.assign(Position::new(72 as i32, GAME_PIXEL_HEIGHT as i32 + 24 as i32));
+        player.assign(Position::new(
+            72 as i32,
+            GAME_PIXEL_HEIGHT as i32 + 24 as i32,
+        ));
         player.assign(Gravity { value: 0.3f32 });
     }
 
@@ -60,7 +72,7 @@ impl PlayerSystem {
 
         if keyboard.pressed.contains(&engine::Keycode::Up) || player.jump_buffer > 0 {
             if !player.in_air || player.coyote_buffer > 0 {
-                engine::audio().play_sound(&content().tracks["jump"]);
+                // engine::audio().play_sound(&content().tracks["jump"]);
                 sprite.play("jump");
                 mover.speed.y = -JUMP_SPEED;
                 player.jump_buffer = 0;

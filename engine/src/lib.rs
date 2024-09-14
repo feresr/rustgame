@@ -117,10 +117,8 @@ pub fn run(mut game: impl Game) {
         gl::Enable(gl::DEPTH_TEST);
         // For equal z-index, do overwrite (default: g::LESS)
         gl::DepthFunc(gl::LEQUAL);
-
+        gl::Enable(gl::STENCIL_TEST);
         gl::Enable(gl::BLEND);
-        gl::BlendEquation(gl::FUNC_ADD);
-        gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
     }
 
     game.init();

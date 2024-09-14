@@ -1,9 +1,11 @@
 extern crate gl;
 
+use super::blend::BlendMode;
 use super::material::*;
 use super::mesh::*;
 use super::target::*;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DrawCall<'a> {
     pub mesh: &'a Mesh, // todo: use mesh to validate index/instance count
@@ -11,6 +13,7 @@ pub struct DrawCall<'a> {
     pub target: &'a Target,
     pub index_start: i64,
     pub index_count: i64,
+    pub blend: &'a BlendMode,
 }
 
 impl<'a> DrawCall<'a> {
@@ -35,6 +38,17 @@ impl<'a> DrawCall<'a> {
                 gl::Viewport(0, 0, self.target.width, self.target.height);
             }
 
+            gl::BlendEquationSeparate(
+                self.blend.color_op.to_gl_enum(),
+                self.blend.alpha_op.to_gl_enum(),
+            );
+            gl::BlendFuncSeparate(
+                self.blend.color_src.to_gl_enum(),
+                self.blend.color_dst.to_gl_enum(),
+                self.blend.alpha_src.to_gl_enum(),
+                self.blend.alpha_dst.to_gl_enum(),
+            );
+
             gl::DrawElements(
                 gl::TRIANGLES,
                 self.index_count as i32,
@@ -45,13 +59,19 @@ impl<'a> DrawCall<'a> {
         }
     }
 
-    pub fn new(mesh: &'a Mesh, material: &'a Material, target: &'a Target) -> DrawCall<'a> {
+    pub fn new(
+        mesh: &'a Mesh,
+        material: &'a Material,
+        target: &'a Target,
+        blend: &'a BlendMode,
+    ) -> DrawCall<'a> {
         return DrawCall {
             mesh,
             material,
             target,
             index_start: 0,
             index_count: 0,
+            blend,
         };
     }
 }

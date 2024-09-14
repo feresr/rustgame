@@ -1,6 +1,7 @@
+#![allow(dead_code, unused_variables)]
 use engine::{
     ecs::Component,
-    graphics::{batch::Batch, common::RectF, material::Material, texture::TextureSampler},
+    graphics::{common::RectF, material::Material},
 };
 
 pub struct Background {

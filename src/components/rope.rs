@@ -1,5 +1,4 @@
-use std::cell::RefCell;
-
+#![allow(dead_code)]
 use engine::{
     ecs::{Component, World, WorldOp},
     graphics::common::RectF,
@@ -13,6 +12,7 @@ use crate::{
 use super::{gravity::Gravity, mover::Mover, position::Position, sprite::Sprite};
 
 // Linked list?
+#[allow(dead_code)]
 pub struct PointMass {
     pub id: u32,
     pub mass: f32,
@@ -26,13 +26,13 @@ pub struct Link {
 impl Component for Link {}
 
 impl PointMass {
-    pub fn new(gravity: f32, mass: f32, position: glm::Vec2, world: &mut World, prev : u32) -> u32 {
+    pub fn new(gravity: f32, mass: f32, position: glm::Vec2, world: &mut World, prev: u32) -> u32 {
         let mut entity = world.add_entity();
         let id = entity.id;
         entity.assign(Position::new(position.x as i32, position.y as i32));
         entity.assign(Sprite::new(&content().sprites["rope"]));
         entity.assign(Gravity { value: gravity });
-        entity.assign(Mover{
+        entity.assign(Mover {
             speed: glm::vec2(0.2, 0.0),
             reminder: glm::vec2(0.0, 0.0),
         });
@@ -59,6 +59,7 @@ impl PointMass {
 }
 impl Component for PointMass {}
 
+#[allow(dead_code)]
 pub struct Rope {
     pub points: Vec<u32>,
 }

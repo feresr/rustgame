@@ -154,6 +154,7 @@ impl Shader {
     }
 }
 
+#[allow(dead_code)]
 #[derive(PartialEq, Clone, Debug)]
 enum ShaderType {
     None,

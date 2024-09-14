@@ -1,52 +1,41 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    cell::RefMut,
-    path::PrefixComponent,
-};
-
-use engine::{
-    ecs::{World, WorldOp},
-    graphics::{batch::Batch, common::RectF},
-};
+#![allow(dead_code, unused_variables)]
+use engine::ecs::{World, WorldOp};
 use glm::vec2;
 
 use crate::components::{
-    collider::{Collider, ColliderType},
-    gravity::Gravity,
     mover::Mover,
-    position::{self, Position},
-    rope::{Link, PointMass, Rope},
+    position::Position,
+    rope::{Link, Rope},
 };
 
-
 // in main
-        // let mut rope = Rope::new();
-        // let point = PointMass::new(
-        //     0.0,
-        //     900.0,
-        //     glm::vec2(26.0, GAME_PIXEL_HEIGHT as f32 + 30.0 ),
-        //     &mut self.world,
-        //     0,
-        // );
-        // let mut prev = point;
-        // for i in 1..14 {
-        //     let mass = if i == 1 { 900.0 } else { 1.0 };
-        //     let point = PointMass::new(
-        //         0.1, 
-        //         mass,
-        //         glm::vec2(
-        //             26.0 + i as f32 * 5.0,
-        //             GAME_PIXEL_HEIGHT as f32 + 30.0 + i as f32 * 10.0,
-        //         ),
-        //         &mut self.world,
-        //         prev,
-        //     );
-        //     prev = point;
-        //     rope.add_point(point);
-        // }
+// let mut rope = Rope::new();
+// let point = PointMass::new(
+//     0.0,
+//     900.0,
+//     glm::vec2(26.0, GAME_PIXEL_HEIGHT as f32 + 30.0 ),
+//     &mut self.world,
+//     0,
+// );
+// let mut prev = point;
+// for i in 1..14 {
+//     let mass = if i == 1 { 900.0 } else { 1.0 };
+//     let point = PointMass::new(
+//         0.1,
+//         mass,
+//         glm::vec2(
+//             26.0 + i as f32 * 5.0,
+//             GAME_PIXEL_HEIGHT as f32 + 30.0 + i as f32 * 10.0,
+//         ),
+//         &mut self.world,
+//         prev,
+//     );
+//     prev = point;
+//     rope.add_point(point);
+// }
 
-        // let mut rope_entity = self.world.add_entity();
-        // rope_entity.assign(rope);
+// let mut rope_entity = self.world.add_entity();
+// rope_entity.assign(rope);
 
 pub struct RopeSystem;
 
@@ -56,7 +45,7 @@ impl RopeSystem {
             // https://owlree.blog/posts/simulating-a-rope.html
             // https://medium.com/@szewczyk.franciszek02/rope-simulator-in-c-a595a3ef956c
             // https://matthias-research.github.io/pages/publications/posBasedDyn.pdf
-            let rope = rope.component.borrow_mut();
+            let _rope = rope.component.borrow_mut();
 
             for iteration in 0..1 {
                 for entity in world.find_all::<Link>() {
@@ -72,15 +61,15 @@ impl RopeSystem {
                     position.y = to.y + (direction.y * distance) as i32;
                     let direciton_tangent = vec2(-direction.y, direction.x);
 
-                    let velocityTangential =
+                    let velocity_tangential =
                         mover.speed - glm::dot(&mover.speed, &direction) * direction;
 
                     let projection = (glm::dot(&mover.speed, &direciton_tangent)
                         / glm::dot(&direciton_tangent, &direciton_tangent))
                         * direciton_tangent;
 
-                    mover.speed.x = velocityTangential.x;
-                    mover.speed.y = velocityTangential.y; 
+                    mover.speed.x = velocity_tangential.x;
+                    mover.speed.y = velocity_tangential.y;
                     // mover.reminder.x = 0.0;
                     // mover.reminder.y = 0.0;
 

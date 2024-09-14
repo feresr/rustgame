@@ -1,4 +1,4 @@
-use std::{ffi::CStr, fs, io::Read};
+use std::{fs, io::Read};
 
 #[derive(Debug)]
 pub struct Frame {
@@ -16,8 +16,10 @@ pub struct Tag {
     pub to: u16,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Slice {
+    pub name: String,
     pub x: u16,
     pub y: u16,
     width: u16,
@@ -25,6 +27,7 @@ pub struct Slice {
     pub pivot_x: u16,
     pub pivot_y: u16,
 }
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Aseprite {
     pub frame_count: u32,
@@ -46,6 +49,7 @@ pub struct Aseprite {
  *   2 bytes for height
  * 2 bytes for number of slices
  *   for each slice:
+ *     a null terminated string for name
  *     2 bytes for x
  *     2 bytes for y
  *     2 bytes for width
@@ -93,7 +97,18 @@ impl Aseprite {
         let slice_count = u16::from_le_bytes(buffer);
 
         let mut slices: Vec<Slice> = Vec::with_capacity(slice_count as usize);
-        for i in 0..slice_count {
+        for _ in 0..slice_count {
+            let mut name = String::new();
+            loop {
+                let mut char = [0u8; 1]; // (1 byte) at a time
+                file.read_exact(&mut char).unwrap();
+                let byte = char[0];
+                if byte == 0 {
+                    // null terminator
+                    break;
+                }
+                name.push(byte as char);
+            }
             file.read_exact(&mut buffer).unwrap();
             let x = u16::from_le_bytes(buffer);
             file.read_exact(&mut buffer).unwrap();
@@ -108,6 +123,7 @@ impl Aseprite {
             let pivot_y = u16::from_le_bytes(buffer);
 
             slices.push(Slice {
+                name,
                 x,
                 y,
                 width: w,

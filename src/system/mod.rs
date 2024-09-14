@@ -4,3 +4,4 @@ pub mod player_system;
 pub mod animation_system;
 pub mod room_system;
 pub mod rope_system;
+pub mod light_system;

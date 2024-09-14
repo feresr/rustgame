@@ -1,8 +1,9 @@
 pub mod background;
 pub mod collider;
-pub mod player;
 pub mod gravity;
+pub mod light;
 pub mod mover;
+pub mod player;
 pub mod position;
 pub mod room;
 pub mod rope;

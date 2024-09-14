@@ -101,7 +101,7 @@ impl Material {
     }
 
     // todo: uploading data to opengl should happen before rendering (DrawCall) not here
-    pub fn set_valuef(&mut self, name: &str, value: f32) {
+    pub fn set_valuef(&self, name: &str, value: f32) {
         if let Some(uniform) = self.find_uniform(name) {
             self.shader.set();
             unsafe {

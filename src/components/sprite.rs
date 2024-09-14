@@ -1,4 +1,8 @@
-use engine::{ecs::Component, graphics::texture::SubTexture};
+use engine::{
+    ecs::Component,
+    graphics::texture::{SubTexture, Texture},
+};
+use ldtk_rust::TilesetDefinition;
 use std::collections::HashMap;
 
 pub struct Frame {
@@ -7,11 +11,33 @@ pub struct Frame {
     pub pivot: (u32, u32),
 }
 
+#[allow(dead_code)]
+pub struct Tileset {
+    pub texture: Texture,
+    pub tile_size: u32,
+    pub rows: i64,
+    pub columns: i64,
+}
+impl Tileset {
+    pub fn from_ldtk(definition: TilesetDefinition) -> Self {
+        let path = definition.rel_path.expect("Tileset is missing image path");
+        // TODO
+        let f = format!("src/assets/{}", &path);
+        Self {
+            texture: Texture::from_path(f.as_str()),
+            tile_size: definition.tile_grid_size as u32,
+            rows: definition.c_hei,
+            columns: definition.c_wid,
+        }
+    }
+}
+
 pub struct Animation {
     pub frames: Vec<Frame>,
     pub name: String,
 }
 
+#[allow(dead_code)]
 pub struct Sprite {
     current_frame: usize,
     frame_counter: u32,
@@ -25,6 +51,7 @@ pub struct Sprite {
 
 impl Component for Sprite {}
 
+#[allow(dead_code)]
 impl Sprite {
     pub fn stop(&mut self) {
         self.playing = false;

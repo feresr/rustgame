@@ -70,6 +70,7 @@ impl Texture {
             }
         };
         unsafe {
+            // TODO: textures are not RAII (.clone()) - we never destroy them?
             gl::GenTextures(1, &mut texture.id);
             // gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, texture.id);
@@ -153,8 +154,6 @@ impl Texture {
         };
         return tex;
     }
-
-    pub fn loadImage(&self, path: &str) {}
 
     pub fn update_sampler(&self, sampler: &TextureSampler) {
         let filter = match sampler.filter {

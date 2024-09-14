@@ -1,13 +1,10 @@
 use engine::{
     ecs::{Component, World, WorldOp},
-    graphics::{
-        batch::Batch,
-        common::{PointF, RectF},
-    },
+    graphics::common::{PointF, RectF},
 };
 
 use crate::Position;
-
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum ColliderType {
     Circle {
@@ -29,6 +26,7 @@ pub enum Direction {
     HORIZONTAL,
     VERTICAL,
 }
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct Collision {
     pub other: u32,
@@ -77,18 +75,18 @@ impl Collider {
         offset: PointF,
     ) -> bool {
         return match &self.collider_type {
-            ColliderType::Circle { radius: radius_a } => match &other.collider_type {
-                ColliderType::Circle { radius: radius_b } => {
+            ColliderType::Circle { radius: _radius_a } => match &other.collider_type {
+                ColliderType::Circle { radius: _radius_b } => {
                     return true;
                 }
-                ColliderType::Rect { rect: rect_b } => {
+                ColliderType::Rect { rect: _rect_b } => {
                     return true;
                 }
                 ColliderType::Grid {
-                    columns,
-                    rows,
-                    tile_size,
-                    cells,
+                    columns: _,
+                    rows: _,
+                    tile_size: _,
+                    cells: _,
                 } => {
                     // TODO: Implement grid to circle collision
                     return true;
@@ -120,15 +118,15 @@ impl Collider {
                         cells,
                     )
                 }
-                ColliderType::Circle { radius: radius_b } => {
+                ColliderType::Circle { radius: _radius_b } => {
                     return true;
                 }
             },
             ColliderType::Grid {
-                columns,
-                rows,
-                tile_size,
-                cells,
+                columns: _,
+                rows: _,
+                tile_size: _,
+                cells: _,
             } => {
                 //
                 return false;

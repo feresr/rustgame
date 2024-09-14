@@ -1,4 +1,4 @@
-use engine::{ecs::WorldOp, graphics::batch::Batch};
+use engine::ecs::WorldOp;
 use ldtk_rust::Project;
 
 use crate::{
@@ -22,8 +22,8 @@ use crate::{
  */
 
 pub trait Scene {
-    fn init(&mut self, world: &mut impl WorldOp) {}
-    fn destroy(&mut self, world: &mut impl WorldOp) {}
+    fn init(&mut self, _world: &mut impl WorldOp) {}
+    fn destroy(&mut self, _world: &mut impl WorldOp) {}
 }
 
 pub struct GameScene {
@@ -43,16 +43,17 @@ impl Scene for GameScene {
     fn init(&mut self, world: &mut impl WorldOp) {
         let mut room_entity = world.add_entity();
 
-        let ldtk = Project::new("src/map.ldtk");
+        let ldtk = Project::new("src/assets/map.ldtk");
         let level = ldtk
             .levels
             .get(self.room_index as usize)
             .expect("No level present in ldtk");
+
         let room = Room::from_level(level);
 
         room_entity.assign(Position::new(level.world_x as i32, level.world_y as i32));
         let mut collisions = vec![false; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
-        for tile in room.tiles.iter() {
+        for tile in room.layers.first().unwrap().tiles.iter() {
             let x = (tile.x as f32 / TILE_SIZE as f32) as u32;
             let y = (tile.y as f32 / TILE_SIZE as f32) as u32;
             collisions[(x + y * GAME_TILE_WIDTH as u32) as usize] = true;

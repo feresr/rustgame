@@ -22,7 +22,7 @@ impl Mesh {
             // bind ARRAY_BUFFER to VAO
             {
                 let stride =
-                    (8 * core::mem::size_of::<f32>() + 4 * core::mem::size_of::<u8>()) as i32;
+                    (9 * core::mem::size_of::<f32>() + 4 * core::mem::size_of::<u8>()) as i32;
                 gl::BindBuffer(gl::ARRAY_BUFFER, buffers[0]);
                 // aPos;
                 gl::VertexAttribPointer(
@@ -37,7 +37,7 @@ impl Mesh {
                 // aColor
                 gl::VertexAttribPointer(
                     1,
-                    3,
+                    4,
                     gl::FLOAT,
                     gl::FALSE,
                     stride,
@@ -61,7 +61,7 @@ impl Mesh {
                     gl::UNSIGNED_BYTE,
                     gl::TRUE,
                     stride,
-                    (8 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
+                    (9 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid,
                 );
                 gl::EnableVertexAttribArray(3);
             }

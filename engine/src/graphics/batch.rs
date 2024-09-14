@@ -4,6 +4,8 @@ use imgui::TreeNodeFlags;
 use imgui::Ui;
 use std::f32::consts::TAU;
 
+use super::blend;
+use super::blend::BlendMode;
 use super::common::*;
 use super::drawcall;
 use super::material::*;
@@ -31,6 +33,7 @@ pub struct DrawBatch {
     material: Material,
     texture: Texture,
     sampler: TextureSampler,
+    blend: BlendMode,
 }
 
 impl Batch {
@@ -54,6 +57,33 @@ impl Batch {
             batches: Vec::new(),
             default_material: material,
         };
+    }
+
+    pub fn enable_stencil(&mut self) {
+        unsafe {
+            gl::Enable(gl::STENCIL_TEST);
+        }
+    }
+
+    pub fn write_stencil(&mut self, value: bool) {
+        unsafe {
+            if value {
+                gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE); // Disable writing to the color buffer
+                gl::StencilOp(gl::KEEP, gl::KEEP, gl::REPLACE);
+                gl::StencilFunc(gl::ALWAYS, 1, 0xFF);
+                gl::StencilMask(0xFF); // Enable writing to all bits of the stencil buffer
+            } else {
+                gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
+                gl::StencilFunc(gl::EQUAL, 1, 0xFF);
+                gl::StencilMask(0x00); // Disable writing to all bits of the stencil buffer
+            }
+        }
+    }
+
+    pub fn disable_stencil(&mut self) {
+        unsafe {
+            gl::Disable(gl::STENCIL_TEST);
+        }
     }
 
     pub fn render(&mut self, target: &Target, projection: &glm::Mat4) {
@@ -80,7 +110,8 @@ impl Batch {
                     .set_value2i("u_resolution", (target.width, target.height));
             }
 
-            let mut pass = drawcall::DrawCall::new(&self.mesh, &batch.material, target);
+            let mut pass =
+                drawcall::DrawCall::new(&self.mesh, &batch.material, target, &batch.blend);
             pass.index_count = batch.elements * 3;
             if pass.index_count == 0 {
                 continue;
@@ -124,7 +155,7 @@ impl Batch {
     }
 
     // todo: naive implementation, avoid duplicating verices
-    pub fn cube(&mut self, center: (f32, f32), size: f32, color: (f32, f32, f32)) {
+    pub fn cube(&mut self, center: (f32, f32), size: f32, color: (f32, f32, f32, f32)) {
         let rect = RectF {
             x: center.0 - size / 2.0,
             y: center.1 - size / 2.0,
@@ -251,7 +282,22 @@ impl Batch {
         self.pop_matrix();
     }
 
-    pub fn rect(&mut self, rect: &RectF, color: (f32, f32, f32)) {
+    pub fn circle_fan(
+        &mut self,
+        center: (f32, f32),
+        points: &Vec<(f32, f32)>,
+        color: (f32, f32, f32, f32),
+    ) {
+        // TODO: use fan instead of triangles
+        for i in 0..points.len() {
+            let next = points[(i + 1) % points.len()];
+            let pos0 = (points[i].0, points[i].1, 0.0);
+            let pos1 = (next.0, next.1, 0.0);
+            self.tri(pos0, pos1, (center.0, center.1, 0.0), color);
+        }
+    }
+
+    pub fn rect(&mut self, rect: &RectF, color: (f32, f32, f32, f32)) {
         self.push_quad(
             (rect.x + rect.w, rect.y, 0.0),
             (rect.x + rect.w, rect.y + rect.h, 0.0),
@@ -271,7 +317,13 @@ impl Batch {
         );
     }
 
-    pub fn circle(&mut self, center: (f32, f32), radius: f32, steps: u32, color: (f32, f32, f32)) {
+    pub fn circle(
+        &mut self,
+        center: (f32, f32),
+        radius: f32,
+        steps: u32,
+        color: (f32, f32, f32, f32),
+    ) {
         let mut last = (center.0 + radius, center.1, 0.0);
         let center = (center.0, center.1, 0.0);
         let radians = (1 as f32 / steps as f32) * TAU;
@@ -286,7 +338,7 @@ impl Batch {
         }
     }
 
-    pub fn sprite(&mut self, rect: &RectF, subtexture: &SubTexture, color: (f32, f32, f32)) {
+    pub fn sprite(&mut self, rect: &RectF, subtexture: &SubTexture, color: (f32, f32, f32, f32)) {
         let current = self.current_batch();
         if current.texture == subtexture.texture || current.elements == 0 {
             // reuse existing batch
@@ -320,7 +372,7 @@ impl Batch {
         );
     }
 
-    pub fn tex(&mut self, rect: &RectF, texture: &Texture, color: (f32, f32, f32)) {
+    pub fn tex(&mut self, rect: &RectF, texture: &Texture, color: (f32, f32, f32, f32)) {
         let current = self.current_batch();
         if current.texture == *texture || current.elements == 0 {
             // reuse existing batch
@@ -354,7 +406,7 @@ impl Batch {
         pos0: (f32, f32, f32),
         pos1: (f32, f32, f32),
         pos2: (f32, f32, f32),
-        color: (f32, f32, f32),
+        color: (f32, f32, f32, f32),
     ) {
         let last_vertex_index = self.vertices.len() as u32;
         self.indices.extend([
@@ -371,6 +423,10 @@ impl Batch {
 
     pub fn peek_material(&mut self) -> &mut Material {
         &mut self.current_batch().material
+    }
+
+    pub fn set_blend(&mut self, blend_mode: BlendMode) {
+        self.current_batch().blend = blend_mode;
     }
 
     pub fn push_material(&mut self, material: &Material) {
@@ -419,7 +475,7 @@ impl Batch {
         &mut self,
         pos: (f32, f32, f32),
         tex: (f32, f32),
-        col: (f32, f32, f32),
+        col: (f32, f32, f32, f32),
         mult: u8,
         wash: u8,
         fill: u8,
@@ -455,10 +511,10 @@ impl Batch {
         tex1: (f32, f32),
         tex2: (f32, f32),
         tex3: (f32, f32),
-        color0: (f32, f32, f32),
-        color1: (f32, f32, f32),
-        color2: (f32, f32, f32),
-        color3: (f32, f32, f32),
+        color0: (f32, f32, f32, f32),
+        color1: (f32, f32, f32, f32),
+        color2: (f32, f32, f32, f32),
+        color3: (f32, f32, f32, f32),
         mult: u8,
         wash: u8,
         fill: u8,
@@ -495,6 +551,7 @@ impl Batch {
                 material: self.default_material.clone(),
                 texture: Texture::default(),
                 sampler: TextureSampler::default(),
+                blend: blend::NORMAL,
             };
             self.material_stack.push(self.default_material.clone());
             self.batches.push(value);
@@ -506,7 +563,7 @@ impl Batch {
 // ---- IMGUI ---- //
 
 pub(crate) trait ImGuiable {
-    fn render_imgui(&self, imgGui: &Ui);
+    fn render_imgui(&self, img_gui: &Ui);
 }
 
 impl ImGuiable for Batch {

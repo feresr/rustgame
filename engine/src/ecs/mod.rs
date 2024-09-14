@@ -159,8 +159,8 @@ impl WorldOp for World {
         if let None = self.components.get(&type_id) {
             return None;
         }
-        if let Some(storage) = self.components.get_mut(&type_id) {
-            if let Some(storage) = storage.as_any_mut().downcast_mut::<ComponentStorage<T>>() {
+        if let Some(storage) = self.components.get(&type_id) {
+            if let Some(storage) = storage.as_any().downcast_ref::<ComponentStorage<T>>() {
                 for wrapper in storage.data.iter() {
                     return Some(Entity {
                         id: wrapper.entity_id,

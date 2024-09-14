@@ -21,7 +21,7 @@ impl RenderSystem {
                 .expect("Sprite component requires a Position");
             let offset = glm::vec3(position.x as f32, position.y as f32, 0.0f32);
             batch.push_matrix(glm::Mat4::new_translation(&offset));
-            batch.tex(&room.rect, &room.texture.unwrap(), (1.0, 1.0, 1.0));
+            batch.tex(&room.rect, &room.texture.unwrap(), (1.0, 1.0, 1.0, 1.0));
             batch.pop_matrix();
         }
 
@@ -46,7 +46,7 @@ impl RenderSystem {
                 &glm::vec3(if sprite.flip_x { -1.0 } else { 1.0 }, 1.0, 1.0),
             );
             batch.push_matrix(matrix);
-            batch.sprite(&rect, subtexture, (1f32, 1f32, 1f32));
+            batch.sprite(&rect, subtexture, (1f32, 1f32, 1f32, 1f32));
             batch.pop_matrix();
         }
     }

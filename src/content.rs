@@ -7,14 +7,16 @@ use engine::{
         texture::{SubTexture, Texture},
     },
 };
+use ldtk_rust::Project;
 
 use crate::{
     aseprite::{self, Aseprite},
-    components::sprite::{Animation, Frame},
+    components::sprite::{Animation, Frame, Tileset},
 };
 
+#[allow(dead_code)]
 pub struct Content {
-    atlas: Texture,
+    pub tilesets: HashMap<i64, Tileset>,
     pub textures: HashMap<String, Texture>,
     // animation sets
     pub sprites: HashMap<String, HashMap<String, Animation>>,
@@ -26,6 +28,7 @@ impl Content {
         // TODO: Async?
         let mut textures = HashMap::new();
         let mut sprites = HashMap::new();
+        let mut tilesets = HashMap::new();
 
         let assets = fs::read_dir("src/assets/").unwrap();
         for asset in assets {
@@ -79,25 +82,30 @@ impl Content {
                         sprites.insert(filename.to_string(), animations);
                     }
                 }
+
+                if extension == "ldtk" {
+                    let ldtk = Project::new(path);
+                    for tileset_definition in ldtk.defs.tilesets {
+                        let uid = tileset_definition.uid;
+                        let tilset = Tileset::from_ldtk(tileset_definition);
+                        tilesets.insert(uid, tilset);
+                    }
+                }
             }
         }
 
         // TODO: Load all audio in folder
         let mut tracks = HashMap::new();
-        let audio = AudioTrack::new("src/assets/song.ogg").unwrap();
+        let audio = AudioTrack::new("src/assets/audio/song.ogg").unwrap();
         tracks.insert("music-1", audio);
-        let audio = AudioTrack::new("src/assets/jump.ogg").unwrap();
+        let audio = AudioTrack::new("src/assets/audio/jump.ogg").unwrap();
         tracks.insert("jump", audio);
         Content {
-            atlas: Texture::from_path("src/atlas.png"),
+            tilesets,
             textures,
             sprites,
             tracks,
         }
-    }
-
-    pub fn altas(&self) -> &Texture {
-        return &self.atlas;
     }
 }
 

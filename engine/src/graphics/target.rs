@@ -52,13 +52,14 @@ impl Target {
 
             for (i, attachment) in attachments.iter().enumerate() {
                 let texture = Texture::new(width, height, *attachment);
+                let texture_id = texture.id;
                 target.attachments.push(texture);
                 if *attachment != TextureFormat::DepthStencil {
                     gl::FramebufferTexture2D(
                         gl::FRAMEBUFFER,
                         gl::COLOR_ATTACHMENT0 + i as u32,
                         gl::TEXTURE_2D,
-                        texture.id,
+                        texture_id,
                         0,
                     );
                 } else {
@@ -66,7 +67,7 @@ impl Target {
                         gl::FRAMEBUFFER,
                         gl::DEPTH_STENCIL_ATTACHMENT,
                         gl::TEXTURE_2D,
-                        texture.id,
+                        texture_id,
                         0,
                     );
                 }
