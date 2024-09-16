@@ -76,13 +76,24 @@ impl Target {
         return target;
     }
 
+    pub fn clear_stencil(&self, v: i32) {
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, self.id);
+            gl::StencilMask(0xFF);
+            gl::ClearStencil(v);
+            gl::Clear(gl::STENCIL_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
+    }
+
     pub fn clear(&self, color: (f32, f32, f32, f32)) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.id);
+            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
             gl::ClearColor(color.0, color.1, color.2, color.3);
             gl::ClearDepth(1.0);
+            gl::StencilMask(0xFF);
+            gl::ClearStencil(0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-            // gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
         }
     }
 }

@@ -22,6 +22,9 @@ impl Position {
     pub fn as_vec2(&self) -> glm::Vec2 {
         return glm::vec2(self.x as f32, self.y as f32);
     }
+    pub fn as_vec3(&self) -> glm::Vec3 {
+        return glm::vec3(self.x as f32, self.y as f32, 0f32);
+    }
 }
 impl Component for Position {
     const CAPACITY: usize = 64;

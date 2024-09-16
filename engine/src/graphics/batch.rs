@@ -1,5 +1,6 @@
 extern crate gl;
 
+use gl::types::GLenum;
 use imgui::TreeNodeFlags;
 use imgui::Ui;
 use std::f32::consts::TAU;
@@ -15,6 +16,54 @@ use super::target::Target;
 use super::texture::*;
 use super::FRAGMENT_SHADER_SOURCE;
 use super::VERTEX_SHADER_SOURCE;
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct Stencil {
+    pub stencil_val: u32, // Optional stencil value for masking
+    pub stencil_func: GLenum,
+    pub stencil_op: GLenum,
+    pub color_mask: u8,
+    pub stencil_mask: u8,
+}
+impl Stencil {
+    pub fn disable() -> Option<Stencil> {
+        None
+    }
+
+    // writes to the color buffer (uses the stencil)
+    pub fn mask(val: u32) -> Option<Stencil> {
+        // Only pass the test if the stencil value is EQ to 1
+        Some(Stencil {
+            stencil_val: val,
+            stencil_func: gl::EQUAL,
+            stencil_op: gl::KEEP, // don't modify the stencil
+            color_mask: gl::TRUE, // write the color buffer
+            stencil_mask: 0x00,
+        })
+    }
+    // writes to the stencil (leves color alone)
+    pub fn write(val: u32) -> Option<Stencil> {
+        // TODO: find a way to make this warn about target without stencil texture
+        // Alwasys pass the test, and replace the stencil value with val
+        Some(Stencil {
+            stencil_val: val,
+            stencil_func: gl::ALWAYS, // always modify the stencil
+            stencil_op: gl::REPLACE,  // put val in the stencil
+            color_mask: gl::FALSE,    // don't write a color
+            stencil_mask: 0xFF,
+        })
+    }
+    // Writes to the stencil AND the color at the same time
+    pub fn write_color(val: u32) -> Option<Stencil> {
+        Some(Stencil {
+            stencil_val: val,
+            stencil_func: gl::ALWAYS, // always modify the stencil
+            stencil_op: gl::REPLACE,  // put val in the stencil
+            color_mask: gl::TRUE,     // don't write a color
+            stencil_mask: 0xFF,
+        })
+    }
+}
 
 // Sprite batcher used to draw text and textures
 pub struct Batch {
@@ -34,6 +83,7 @@ pub struct DrawBatch {
     texture: Texture,
     sampler: TextureSampler,
     blend: BlendMode,
+    stencil: Option<Stencil>,
 }
 
 impl Batch {
@@ -59,31 +109,12 @@ impl Batch {
         };
     }
 
-    pub fn enable_stencil(&mut self) {
-        unsafe {
-            gl::Enable(gl::STENCIL_TEST);
+    pub fn set_stencil(&mut self, stencil: Option<Stencil>) {
+        let current = self.current_batch();
+        if current.elements > 0 && stencil != current.stencil {
+            self.push_batch();
         }
-    }
-
-    pub fn write_stencil(&mut self, value: bool) {
-        unsafe {
-            if value {
-                gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE); // Disable writing to the color buffer
-                gl::StencilOp(gl::KEEP, gl::KEEP, gl::REPLACE);
-                gl::StencilFunc(gl::ALWAYS, 1, 0xFF);
-                gl::StencilMask(0xFF); // Enable writing to all bits of the stencil buffer
-            } else {
-                gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-                gl::StencilFunc(gl::EQUAL, 1, 0xFF);
-                gl::StencilMask(0x00); // Disable writing to all bits of the stencil buffer
-            }
-        }
-    }
-
-    pub fn disable_stencil(&mut self) {
-        unsafe {
-            gl::Disable(gl::STENCIL_TEST);
-        }
+        self.current_batch().stencil = stencil;
     }
 
     pub fn render(&mut self, target: &Target, projection: &glm::Mat4) {
@@ -109,9 +140,13 @@ impl Batch {
                     .material
                     .set_value2i("u_resolution", (target.width, target.height));
             }
-
-            let mut pass =
-                drawcall::DrawCall::new(&self.mesh, &batch.material, target, &batch.blend);
+            let mut pass = drawcall::DrawCall::new(
+                &self.mesh,
+                &batch.material,
+                target,
+                &batch.blend,
+                &batch.stencil,
+            );
             pass.index_count = batch.elements * 3;
             if pass.index_count == 0 {
                 continue;
@@ -426,6 +461,10 @@ impl Batch {
     }
 
     pub fn set_blend(&mut self, blend_mode: BlendMode) {
+        if self.current_batch().blend == blend_mode {
+            return;
+        }
+        self.push_batch(); // TODO blend stack?
         self.current_batch().blend = blend_mode;
     }
 
@@ -552,6 +591,7 @@ impl Batch {
                 texture: Texture::default(),
                 sampler: TextureSampler::default(),
                 blend: blend::NORMAL,
+                stencil: None,
             };
             self.material_stack.push(self.default_material.clone());
             self.batches.push(value);

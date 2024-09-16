@@ -117,7 +117,8 @@ pub fn run(mut game: impl Game) {
         gl::Enable(gl::DEPTH_TEST);
         // For equal z-index, do overwrite (default: g::LESS)
         gl::DepthFunc(gl::LEQUAL);
-        gl::Enable(gl::STENCIL_TEST);
+        gl::Disable(gl::STENCIL_TEST); // Stencil disabled by default
+        gl::ClearStencil(0);
         gl::Enable(gl::BLEND);
     }
 

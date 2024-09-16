@@ -4,9 +4,10 @@ use engine::{
     ecs::{World, WorldOp},
     graphics::{
         self,
-        batch::Batch,
+        batch::{Batch, Stencil},
+        blend::{self},
         common::RectF,
-        material::{Material},
+        material::Material,
         target::Target,
         texture::{Texture, TextureFormat},
     },
@@ -53,7 +54,7 @@ pub struct LightSystem {
 impl LightSystem {
     pub fn new() -> Self {
         // TODO: could this be TextureFormat:R?
-        let attachments = [TextureFormat::RGBA];
+        let attachments = [TextureFormat::RGBA, TextureFormat::DepthStencil];
         let target = Target::new(
             GAME_PIXEL_WIDTH as i32,
             GAME_PIXEL_HEIGHT as i32,
@@ -77,24 +78,28 @@ impl LightSystem {
     pub fn render(&self, world: &World, batch: &mut Batch) {
         let base_color = (0.0, 0.0, 0.0, 1.0);
         let light_color = (0.05, 0.05, 0.05, 1.0);
-
         const PROJECTION_DISTANCE: f32 = 140.0;
-        let room = world.find_all::<Room>().next().expect("No Room present");
+
+        let room: &engine::ecs::ComponentWrapper<Room> =
+            world.find_all::<Room>().next().expect("No Room present");
         let room_position = world
             .find_component::<Position>(room.entity_id)
             .expect("Sprite component requires a Position");
-        let ortho = glm::ortho(
-            room_position.x as f32,
-            room_position.x as f32 + GAME_PIXEL_WIDTH as f32,
-            room_position.y as f32,
-            room_position.y as f32 + GAME_PIXEL_HEIGHT as f32,
-            0.0f32,
-            2f32,
-        );
         let material = self.material.borrow();
         let target = self.target.borrow_mut();
+
+        let translation = &room_position.as_vec3().scale(-1f32);
+        // TODO: do not do this translation on every frame
+        let ortho = &room
+            .component
+            .borrow()
+            .ortho
+            .prepend_translation(translation);
+
         target.clear(base_color);
+        // Make the target non-drawable
         for light in world.find_all::<Light>() {
+            target.clear_stencil(0);
             batch.push_material(&material);
             let id = light.entity_id;
 
@@ -107,20 +112,10 @@ impl LightSystem {
             let ligh_posx = light_position.x - room_position.x as f32;
             let ligh_posy = light_position.y - room_position.y as f32;
             material.set_value2f("u_light_position", (ligh_posx, ligh_posy));
-            // material.set_valuef("u_light_radius", PROJECTION_DISTANCE / 2f32);
-
-            // Draw light circle radius
             material.set_valuef("u_light_radius", PROJECTION_DISTANCE / 2f32);
-            batch.rect(
-                &RectF {
-                    x: light_position.x - PROJECTION_DISTANCE / 2f32,
-                    y: light_position.y - PROJECTION_DISTANCE / 2f32,
-                    w: PROJECTION_DISTANCE,
-                    h: PROJECTION_DISTANCE,
-                },
-                light_color,
-            );
 
+            // Draw oclusion shadows (in the stencil buffer)
+            batch.set_stencil(Stencil::write(1));
             for tile in room.component.borrow().layers.first().unwrap().tiles.iter() {
                 let tile_position = glm::vec2(
                     room_position.x as f32 + tile.x as f32,
@@ -186,19 +181,34 @@ impl LightSystem {
                 points[3].x += distance_from_light_norm.x * PROJECTION_DISTANCE * 2.0;
                 points[3].y += distance_from_light_norm.y * PROJECTION_DISTANCE * 2.0;
 
-                let points = points.iter().map(|p| (p.x, p.y)).collect::<Vec<_>>();
+                let points = points.into_iter().map(|p| (p.x, p.y)).collect::<Vec<_>>();
+
                 batch.circle_fan(
                     (x1 + TILE_SIZE as f32 / 2.0, y1 + TILE_SIZE as f32 / 2.0),
                     &vec![points[0], points[1], points[3], points[2]],
-                    base_color,
+                    light_color,
                 );
             }
 
+            // Draw a circle (stencil out the shadows)
+            batch.set_stencil(Stencil::mask(0));
+            batch.rect(
+                &RectF {
+                    x: light_position.x - PROJECTION_DISTANCE / 2f32,
+                    y: light_position.y - PROJECTION_DISTANCE / 2f32,
+                    w: PROJECTION_DISTANCE,
+                    h: PROJECTION_DISTANCE,
+                },
+                light_color,
+            );
+
+            batch.set_stencil(Stencil::disable());
             batch.pop_material();
-            {
-                batch.render(&target, &ortho);
-            }
+            batch.render(&target, ortho);
+            batch.clear();
         }
+
+        batch.set_blend(blend::NORMAL);
         batch.clear();
     }
 }

@@ -28,13 +28,11 @@ pub struct Room {
     pub layers: Vec<Layer>,
     pub rect: RectF,
     pub texture: Option<Texture>,
-    ortho: glm::Mat4,
+    pub ortho: glm::Mat4,
     batch: Batch,
 }
 impl Room {
     pub fn from_level(level: &Level) -> Self {
-        let entities = level.layer_instances.as_ref().unwrap().get(2).unwrap();
-
         let mut layers: Vec<Layer> = Vec::new();
         for layer in level.layer_instances.as_ref().unwrap() {
             match layer.layer_instance_type.as_str() {
@@ -55,20 +53,7 @@ impl Room {
                         tiles,
                     })
                 }
-                "Entities" => {
-                    // TODO
-                }
                 _ => {}
-            }
-        }
-
-        for e in entities.entity_instances.iter() {
-            if let Some(a) = e.field_instances.get(0) {
-                if let Some(b) = a.value.as_ref() {
-                    if let Some(d) = b.as_str() {
-                        dbg!(&d);
-                    }
-                }
             }
         }
 

@@ -22,8 +22,8 @@ pub struct Slice {
     pub name: String,
     pub x: u16,
     pub y: u16,
-    width: u16,
-    height: u16,
+    pub width: u16,
+    pub height: u16,
     pub pivot_x: u16,
     pub pivot_y: u16,
 }

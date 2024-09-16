@@ -1,5 +1,6 @@
 extern crate gl;
 
+use super::batch::Stencil;
 use super::blend::BlendMode;
 use super::material::*;
 use super::mesh::*;
@@ -14,6 +15,7 @@ pub struct DrawCall<'a> {
     pub index_start: i64,
     pub index_count: i64,
     pub blend: &'a BlendMode,
+    pub stencil: &'a Option<Stencil>,
 }
 
 impl<'a> DrawCall<'a> {
@@ -49,6 +51,21 @@ impl<'a> DrawCall<'a> {
                 self.blend.alpha_dst.to_gl_enum(),
             );
 
+            if let Some(s) = self.stencil {
+                gl::Enable(gl::STENCIL_TEST);
+                gl::StencilFunc(s.stencil_func, s.stencil_val as i32, 0xFF);
+                gl::StencilOp(gl::KEEP, gl::KEEP, s.stencil_op);
+
+                gl::ColorMask(s.color_mask, s.color_mask, s.color_mask, s.color_mask);
+                gl::DepthMask(s.color_mask);
+
+                gl::StencilMask(s.stencil_mask as u32);
+            } else {
+                gl::Disable(gl::STENCIL_TEST);
+                gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
+                gl::DepthMask(gl::TRUE);
+            }
+
             gl::DrawElements(
                 gl::TRIANGLES,
                 self.index_count as i32,
@@ -64,6 +81,7 @@ impl<'a> DrawCall<'a> {
         material: &'a Material,
         target: &'a Target,
         blend: &'a BlendMode,
+        stencil: &'a Option<Stencil>,
     ) -> DrawCall<'a> {
         return DrawCall {
             mesh,
@@ -72,6 +90,7 @@ impl<'a> DrawCall<'a> {
             index_start: 0,
             index_count: 0,
             blend,
+            stencil,
         };
     }
 }

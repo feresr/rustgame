@@ -21,6 +21,7 @@ pub struct Content {
     // animation sets
     pub sprites: HashMap<String, HashMap<String, Animation>>,
     pub tracks: HashMap<&'static str, AudioTrack>,
+    pub ldkt : Project
 }
 
 impl Content {
@@ -29,6 +30,52 @@ impl Content {
         let mut textures = HashMap::new();
         let mut sprites = HashMap::new();
         let mut tilesets = HashMap::new();
+
+        let assets = fs::read_dir("src/assets/atlas/").unwrap();
+        for asset in assets {
+            let path = asset.unwrap().path();
+            if let Some(extension) = path.extension() {
+                if extension == "json" {
+                    if let Some(path_str) = path.to_str() {
+                        // todo: Repalce .bin with .png
+                        let png_str = path_str.replace(".json", ".png");
+                        let texture = Texture::from_path(&png_str);
+                        let filename = path.file_stem().unwrap().to_str().unwrap();
+                        textures.insert(filename.to_string(), texture);
+
+                        let aseprite = Aseprite::new(path_str);
+                        let texture = textures.get(filename).unwrap();
+
+                        for slice in aseprite.slices.iter() {
+                            let mut animations = HashMap::new();
+                            let mut frames = Vec::new();
+                            let frame = Frame {
+                                image: SubTexture::new(
+                                    texture,
+                                    RectF {
+                                        x: slice.x as f32,
+                                        y: slice.y as f32,
+                                        w: slice.width as f32,
+                                        h: slice.height as f32,
+                                    },
+                                ),
+                                duration: 1,
+                                pivot: ((slice.pivot_x) as u32, (slice.pivot_y) as u32),
+                            };
+                            frames.push(frame);
+                            animations.insert(
+                                slice.name.clone(),
+                                Animation {
+                                    frames,
+                                    name: slice.name.clone(),
+                                },
+                            );
+                            sprites.insert(slice.name.clone(), animations);
+                        }
+                    }
+                }
+            }
+        }
 
         let assets = fs::read_dir("src/assets/").unwrap();
         for asset in assets {
@@ -101,6 +148,7 @@ impl Content {
         let audio = AudioTrack::new("src/assets/audio/jump.ogg").unwrap();
         tracks.insert("jump", audio);
         Content {
+            ldkt: Project::new("src/assets/map.ldtk"),
             tilesets,
             textures,
             sprites,

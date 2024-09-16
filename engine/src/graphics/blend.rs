@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BlendOp {
     Add,
     Subtract,
@@ -17,7 +17,7 @@ impl BlendOp {
         }
     }
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BlendFactor {
     Zero,
     One,
@@ -76,7 +76,7 @@ impl BlendMask {
     pub const RGB: Self = Self(Self::RED.0 | Self::GREEN.0 | Self::BLUE.0);
     pub const RGBA: Self = Self(Self::RGB.0 | Self::ALPHA.0);
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BlendMode {
     pub color_op: BlendOp,
     pub color_src: BlendFactor,

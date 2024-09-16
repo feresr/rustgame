@@ -1,13 +1,14 @@
 use engine::ecs::WorldOp;
-use ldtk_rust::Project;
 
 use crate::{
     components::{
         collider::{Collider, ColliderType},
+        light::Light,
         position::Position,
         room::Room,
+        sprite::Sprite,
     },
-    GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE,
+    content, GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE,
 };
 
 /**
@@ -42,8 +43,7 @@ impl GameScene {
 impl Scene for GameScene {
     fn init(&mut self, world: &mut impl WorldOp) {
         let mut room_entity = world.add_entity();
-
-        let ldtk = Project::new("src/assets/map.ldtk");
+        let ldtk = &content().ldkt;
         let level = ldtk
             .levels
             .get(self.room_index as usize)
@@ -67,6 +67,28 @@ impl Scene for GameScene {
         }));
         room_entity.assign(room);
         self.entities.push(room_entity.id);
+
+        // Entities
+        for layer in level.layer_instances.as_ref().unwrap() {
+            match layer.layer_instance_type.as_str() {
+                "Entities" => {
+                    for entity in layer.entity_instances.iter() {
+                        let mut e = world.add_entity();
+                        e.assign(Position {
+                            x: level.world_x as i32 + entity.px[0] as i32,
+                            y: level.world_y as i32 + entity.px[1] as i32,
+                        });
+                        for field in entity.field_instances.iter() {
+                            let f = field.value.as_ref().unwrap();
+                            e.assign(Sprite::new(&content().sprites[f.as_str().unwrap()]));
+                            e.assign(Light {})
+                        }
+                        self.entities.push(e.id);
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     fn destroy(&mut self, world: &mut impl WorldOp) {

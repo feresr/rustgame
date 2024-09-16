@@ -7,10 +7,10 @@ mod system;
 extern crate engine;
 extern crate nalgebra_glm as glm;
 
-use components::{light::Light, position::Position};
+use components::position::Position;
 use content::content;
 use engine::{
-    ecs::{World, WorldOp},
+    ecs::World,
     graphics::{
         batch::*,
         blend::{self},
@@ -95,14 +95,6 @@ impl Game for Foo {
         self.player_system.init(&mut self.world);
         self.room_system.scene.init(&mut self.world);
         self.light_system = Some(LightSystem::new());
-
-        let mut light = self.world.add_entity();
-        light.assign(Light::new());
-        light.assign(Position {
-            x: GAME_PIXEL_WIDTH as i32 / 2,
-            y: GAME_PIXEL_HEIGHT as i32 / 2 + 24,
-        });
-
         // engine::audio().play_music(&content().tracks["music-1"]);
     }
 
@@ -121,8 +113,8 @@ impl Game for Foo {
             self.animation_system.tick(&self.world);
 
             //
-            self.render_system.render(&self.world, batch);
             batch.set_blend(blend::NORMAL);
+            self.render_system.render(&self.world, batch);
             batch.render(&self.gbuffer, &self.room_system.camera);
             batch.clear();
 
@@ -131,6 +123,7 @@ impl Game for Foo {
                 .unwrap()
                 .render(&self.world, batch);
             batch.clear();
+            batch.set_blend(blend::ADDITIVE);
             batch.tex(
                 &RectF {
                     x: 0f32,
@@ -141,7 +134,6 @@ impl Game for Foo {
                 &self.light_system.as_ref().unwrap().color(),
                 (1f32, 1f32, 1f32, 1.0f32),
             );
-            batch.set_blend(blend::ADDITIVE);
             batch.render(
                 &self.gbuffer,
                 &glm::ortho(
