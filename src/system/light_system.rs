@@ -9,7 +9,7 @@ use engine::{
         common::RectF,
         material::Material,
         target::Target,
-        texture::{Texture, TextureFormat},
+        texture::{Texture, TextureFormat, TextureSampler},
     },
 };
 
@@ -32,14 +32,14 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
 
             void main()\n
             {\n
-                if (distance(u_light_position, gl_FragCoord.xy) > u_light_radius) {\n
+                vec2 frag_to_light = gl_FragCoord.xy - u_light_position; \n
+                if (length(frag_to_light) > u_light_radius) {\n
                 discard; \n
                 } \n
-                vec4 tex = texture(u_texture, TexCoord); \n
-                FragColor = \n
-                    a_type.x * tex * a_color + \n
-                    a_type.y * tex.a * a_color + \n
-                    a_type.z * a_color; \n 
+                frag_to_light = normalize(frag_to_light);
+                frag_to_light *= 0.5; 
+                frag_to_light += vec2(1.0, 1.0); 
+                FragColor = vec4(frag_to_light.xy, a_color.x, 1.0); \n
             }";
 
 pub struct LightSystem {
@@ -62,7 +62,7 @@ impl LightSystem {
         );
         let shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
-        let material = Material::new(shader);
+        let material = Material::with_sampler(shader, TextureSampler::nearest());
 
         LightSystem {
             texture: target.color().clone(),
@@ -77,7 +77,7 @@ impl LightSystem {
 
     pub fn render(&self, world: &World, batch: &mut Batch) {
         let base_color = (0.0, 0.0, 0.0, 1.0);
-        let light_color = (0.05, 0.05, 0.05, 1.0);
+        let light_color = (1.00, 1.00, 1.00, 1.0);
         const PROJECTION_DISTANCE: f32 = 140.0;
 
         let room: &engine::ecs::ComponentWrapper<Room> =
@@ -88,19 +88,13 @@ impl LightSystem {
         let material = self.material.borrow();
         let target = self.target.borrow_mut();
 
-        let translation = &room_position.as_vec3().scale(-1f32);
-        // TODO: do not do this translation on every frame
-        let ortho = &room
-            .component
-            .borrow()
-            .ortho
-            .prepend_translation(translation);
-
+        // TODO: this is the camera. should the camera be part of the world (an entity)?
+        let ortho = &room.component.borrow().world_ortho;
         target.clear(base_color);
         // Make the target non-drawable
         for light in world.find_all::<Light>() {
-            target.clear_stencil(0);
             batch.push_material(&material);
+            target.clear_stencil(0);
             let id = light.entity_id;
 
             let light_position = world
@@ -203,7 +197,6 @@ impl LightSystem {
             );
 
             batch.set_stencil(Stencil::disable());
-            batch.pop_material();
             batch.render(&target, ortho);
             batch.clear();
         }

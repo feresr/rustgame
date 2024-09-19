@@ -24,11 +24,16 @@ pub struct Layer {
     pub tiles: Vec<Tile>,
 }
 
+#[allow(dead_code)]
 pub struct Room {
+    pub world_position: glm::Vec2,
     pub layers: Vec<Layer>,
     pub rect: RectF,
     pub texture: Option<Texture>,
+    // Used to pre-render room-space coordinates tiles into a 0, 0 texture
     pub ortho: glm::Mat4,
+    // This is essentially the camera in world space
+    pub world_ortho: glm::Mat4,
     batch: Batch,
 }
 impl Room {
@@ -66,13 +71,16 @@ impl Room {
             "Level width must be GAME_PIXEL_HEIGHT"
         );
 
+        //
         let rect = RectF {
-            x: 0.0,
-            y: 0.0,
+            x: level.world_x as f32,
+            y: level.world_y as f32,
             w: GAME_PIXEL_WIDTH as f32,
             h: GAME_PIXEL_HEIGHT as f32,
         };
+
         Room {
+            world_position: glm::Vec2::new(level.world_x as f32, level.world_y as f32),
             layers,
             rect,
             texture: None,
@@ -81,6 +89,14 @@ impl Room {
                 GAME_PIXEL_WIDTH as f32,
                 0 as f32,
                 GAME_PIXEL_HEIGHT as f32,
+                -1.0,
+                1.0,
+            ),
+            world_ortho: glm::ortho(
+                level.world_x as f32,
+                level.world_x as f32 + GAME_PIXEL_WIDTH as f32,
+                level.world_y as f32,
+                level.world_y as f32 + GAME_PIXEL_HEIGHT as f32,
                 -1.0,
                 1.0,
             ),

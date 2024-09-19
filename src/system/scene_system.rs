@@ -10,13 +10,13 @@ use crate::{
  * Determines what Room the player is currently in.
  * Updating the current room if necessary.
  */
-pub struct RoomSystem {
+pub struct SceneSystem {
     pub current_room: (usize, usize),
     pub camera: glm::Mat4,
     pub map: Map,
     pub scene: GameScene,
 }
-impl RoomSystem {
+impl SceneSystem {
     pub fn new() -> Self {
         let mut map = Map::new(2, 2);
         map.set(0, 0, 2);
@@ -33,7 +33,7 @@ impl RoomSystem {
         );
         let current_room = (0, 0);
         let first = map.get(current_room.0, current_room.1).unwrap();
-        RoomSystem {
+        SceneSystem {
             current_room,
             camera: ortho,
             map,
@@ -58,7 +58,6 @@ impl RoomSystem {
                 .get(self.current_room.0, self.current_room.1)
                 .unwrap();
             let new_scene = GameScene::with_map(new_level.to_owned());
-            // Player::move_from(&mut self.scene.world, &mut new_scene.world);
             self.scene.destroy(world);
             self.scene = new_scene;
             self.scene.init(world);

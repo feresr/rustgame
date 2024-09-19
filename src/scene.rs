@@ -30,12 +30,14 @@ pub trait Scene {
 pub struct GameScene {
     pub room_index: u32,
     entities: Vec<u32>,
+    pub camera : glm::Mat4
 }
 impl GameScene {
     pub fn with_map(index: u32) -> Self {
         GameScene {
             room_index: index,
             entities: Vec::new(),
+            camera: glm::Mat4::identity()
         }
     }
 }
@@ -50,6 +52,7 @@ impl Scene for GameScene {
             .expect("No level present in ldtk");
 
         let room = Room::from_level(level);
+        self.camera = room.world_ortho;
 
         room_entity.assign(Position::new(level.world_x as i32, level.world_y as i32));
         let mut collisions = vec![false; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];

@@ -97,12 +97,16 @@ impl PlayerSystem {
             if keyboard.held.contains(&engine::Keycode::Left) {
                 mover.speed.x -= WALK_SPEED;
                 sprite.flip_x = true;
-                sprite.play("run");
+                if !player.in_air {
+                    sprite.play("run");
+                }
             }
             if keyboard.held.contains(&engine::Keycode::Right) {
                 mover.speed.x += WALK_SPEED;
                 sprite.flip_x = false;
-                sprite.play("run");
+                if !player.in_air {
+                    sprite.play("run");
+                }
             }
         }
         if keyboard.held.contains(&engine::Keycode::Space) {

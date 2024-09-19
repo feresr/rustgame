@@ -90,7 +90,9 @@ impl Batch {
     pub fn default() -> Self {
         Batch::new(
             Mesh::new(),
-            Material::new(Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE)),
+            Material::new(
+                Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE),
+            ),
         )
     }
     pub fn new(
@@ -338,10 +340,10 @@ impl Batch {
             (rect.x + rect.w, rect.y + rect.h, 0.0),
             (rect.x, rect.y, 0.0),
             (rect.x, rect.y + rect.h, 0.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
             (0.0, 0.0),
-            (0.0, 0.0),
-            (0.0, 0.0),
-            (0.0, 0.0),
+            (0.0, 1.0),
             color,
             color,
             color,

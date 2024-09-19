@@ -209,6 +209,13 @@ pub struct TextureSampler {
 }
 
 impl TextureSampler {
+    pub fn linear() -> Self {
+        return TextureSampler {
+            filter: TextureFilter::Linear,
+            wrap_x: TextureWrap::Border,
+            wrap_y: TextureWrap::Border,
+        };
+    }
     pub fn nearest() -> Self {
         return TextureSampler {
             filter: TextureFilter::Nearest,
@@ -218,7 +225,7 @@ impl TextureSampler {
     }
     pub fn default() -> Self {
         return TextureSampler {
-            filter: TextureFilter::Linear,
+            filter: TextureFilter::Nearest,
             wrap_x: TextureWrap::Border,
             wrap_y: TextureWrap::Border,
         };

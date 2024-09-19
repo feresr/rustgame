@@ -10,6 +10,19 @@ pub struct Material {
 }
 
 impl Material {
+    pub fn with_sampler(shader: Shader, sampler: TextureSampler) -> Material {
+        let texture_uniforms = shader
+            .uniforms
+            .iter()
+            .filter(|it| it.uniform_type == UniformType::Texture2D);
+        let texture_count = texture_uniforms.count();
+        return Material {
+            shader,
+            data: Vec::new(),
+            textures: vec![Texture::default(); texture_count],
+            samplers: vec![sampler; texture_count],
+        };
+    }
     pub fn new(shader: Shader) -> Material {
         let texture_uniforms = shader
             .uniforms
@@ -92,11 +105,17 @@ impl Material {
             .iter()
             .filter(|it| it.uniform_type == UniformType::Texture2D);
 
+        let mut set = false;
         for (index, uniform) in texture_uniforms.enumerate() {
             if uniform.name == *name {
+                set = true;
                 self.samplers[index] = sampler.clone();
                 break;
             }
+        }
+        // TODO: only do this check in debug
+        if !set {
+            panic!("texture sampler not set!")
         }
     }
 

@@ -30,7 +30,7 @@ impl PointF {
         PointF { x: 0.0, y: 0.0 }
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RectF {
     pub x: f32,
     pub y: f32,
