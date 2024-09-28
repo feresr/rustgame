@@ -29,7 +29,8 @@ pub struct Room {
     pub world_position: glm::Vec2,
     pub layers: Vec<Layer>,
     pub rect: RectF,
-    pub texture: Option<Texture>,
+    pub albedo_texture: Option<Texture>,
+    pub normal_texture: Option<Texture>,
     // Used to pre-render room-space coordinates tiles into a 0, 0 texture
     pub ortho: glm::Mat4,
     // This is essentially the camera in world space
@@ -83,7 +84,8 @@ impl Room {
             world_position: glm::Vec2::new(level.world_x as f32, level.world_y as f32),
             layers,
             rect,
-            texture: None,
+            albedo_texture: None,
+            normal_texture: None,
             ortho: glm::ortho(
                 0.0,
                 GAME_PIXEL_WIDTH as f32,
@@ -139,7 +141,46 @@ impl Room {
             self.batch.render(&target, &self.ortho);
         }
 
-        self.texture = Some(*target.color());
+        self.albedo_texture = Some(*target.color());
+        self.batch.clear();
+
+        // NORMALS
+        let attachments = [TextureFormat::RGBA];
+        let target = Target::new(
+            GAME_PIXEL_WIDTH as i32,
+            GAME_PIXEL_HEIGHT as i32,
+            &attachments,
+        );
+        target.clear((0.5f32, 0.5f32, 1.0f32, 0f32));
+        // Creates a new batch (we don't want to clear the current content of the game batch - we need to actually draw these)
+
+        for layer in self.layers.iter().rev() {
+            let tileset = content().tilesets.get(&layer.tileset_id).unwrap();
+            for tile in layer.tiles.iter() {
+                let tile_rect = RectF {
+                    x: tile.x as f32,
+                    y: tile.y as f32,
+                    w: TILE_SIZE as f32,
+                    h: TILE_SIZE as f32,
+                };
+                self.batch.sprite(
+                    &tile_rect,
+                    &SubTexture::new(
+                        &tileset.normal,
+                        RectF {
+                            x: tile.src_x as f32,
+                            y: tile.src_y as f32,
+                            w: tileset.tile_size as f32,
+                            h: tileset.tile_size as f32,
+                        },
+                    ),
+                    (1f32, 1f32, 1f32, 1f32),
+                );
+            }
+            self.batch.render(&target, &self.ortho);
+        }
+
+        self.normal_texture = Some(*target.color());
         self.batch.clear();
     }
 }

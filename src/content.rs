@@ -21,7 +21,7 @@ pub struct Content {
     // animation sets
     pub sprites: HashMap<String, HashMap<String, Animation>>,
     pub tracks: HashMap<&'static str, AudioTrack>,
-    pub ldkt : Project
+    pub ldkt: Project,
 }
 
 impl Content {

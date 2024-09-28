@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, num::Wrapping};
 
 use engine::{
     ecs::{World, WorldOp},
@@ -32,14 +32,13 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
 
             void main()\n
             {\n
-                vec2 frag_to_light = gl_FragCoord.xy - u_light_position; \n
+                float frag_to_light = distance(gl_FragCoord.xy, u_light_position); \n
                 if (length(frag_to_light) > u_light_radius) {\n
-                discard; \n
+                    discard; \n
                 } \n
-                frag_to_light = normalize(frag_to_light);
-                frag_to_light *= 0.5; 
-                frag_to_light += vec2(1.0, 1.0); 
-                FragColor = vec4(frag_to_light.xy, a_color.x, 1.0); \n
+                float f = mix(1.0, 0.7, step(0.8, frag_to_light / u_light_radius)); \n
+                // float f = smoothstep(1.5, 0.8, frag_to_light / u_light_radius); \n
+                FragColor = vec4(f, f, f, 1.0); \n
             }";
 
 pub struct LightSystem {
@@ -49,6 +48,7 @@ pub struct LightSystem {
     target: RefCell<Target>,
     texture: Texture,
     material: RefCell<Material>,
+    time: RefCell<Wrapping<u32>>,
 }
 
 impl LightSystem {
@@ -68,6 +68,7 @@ impl LightSystem {
             texture: target.color().clone(),
             target: RefCell::new(target),
             material: RefCell::new(material),
+            time: RefCell::new(Wrapping(0)),
         }
     }
 
@@ -75,10 +76,13 @@ impl LightSystem {
         &self.texture
     }
 
+
     pub fn render(&self, world: &World, batch: &mut Batch) {
+        let mut time = self.time.borrow_mut();
+        *time += 1;
         let base_color = (0.0, 0.0, 0.0, 1.0);
         let light_color = (1.00, 1.00, 1.00, 1.0);
-        const PROJECTION_DISTANCE: f32 = 140.0;
+        let projection_distance: f32 = 140.0 + 5.0f32 * f32::sin(time.0 as f32 / 60f32);
 
         let room: &engine::ecs::ComponentWrapper<Room> =
             world.find_all::<Room>().next().expect("No Room present");
@@ -106,10 +110,11 @@ impl LightSystem {
             let ligh_posx = light_position.x - room_position.x as f32;
             let ligh_posy = light_position.y - room_position.y as f32;
             material.set_value2f("u_light_position", (ligh_posx, ligh_posy));
-            material.set_valuef("u_light_radius", PROJECTION_DISTANCE / 2f32);
+            material.set_valuef("u_light_radius", projection_distance / 2f32);
 
             // Draw oclusion shadows (in the stencil buffer)
             batch.set_stencil(Stencil::write(1));
+            batch.set_blend(blend::ADDITIVE);
             for tile in room.component.borrow().layers.first().unwrap().tiles.iter() {
                 let tile_position = glm::vec2(
                     room_position.x as f32 + tile.x as f32,
@@ -117,7 +122,7 @@ impl LightSystem {
                 );
 
                 let tile_light_distance = glm::distance(&tile_position, &light_position);
-                if tile_light_distance > PROJECTION_DISTANCE {
+                if tile_light_distance > projection_distance {
                     continue;
                 }
 
@@ -168,12 +173,12 @@ impl LightSystem {
                 // Take the furtherest two points, and project them outwards from the light
                 let distance_from_light = points[2] - light_position;
                 let distance_from_light_norm = glm::normalize(&distance_from_light);
-                points[2].x += distance_from_light_norm.x * PROJECTION_DISTANCE * 2.0;
-                points[2].y += distance_from_light_norm.y * PROJECTION_DISTANCE * 2.0;
+                points[2].x += distance_from_light_norm.x * projection_distance * 2.0;
+                points[2].y += distance_from_light_norm.y * projection_distance * 2.0;
                 let distance_from_light = points[3] - light_position;
                 let distance_from_light_norm = glm::normalize(&distance_from_light);
-                points[3].x += distance_from_light_norm.x * PROJECTION_DISTANCE * 2.0;
-                points[3].y += distance_from_light_norm.y * PROJECTION_DISTANCE * 2.0;
+                points[3].x += distance_from_light_norm.x * projection_distance * 2.0;
+                points[3].y += distance_from_light_norm.y * projection_distance * 2.0;
 
                 let points = points.into_iter().map(|p| (p.x, p.y)).collect::<Vec<_>>();
 
@@ -188,10 +193,10 @@ impl LightSystem {
             batch.set_stencil(Stencil::mask(0));
             batch.rect(
                 &RectF {
-                    x: light_position.x - PROJECTION_DISTANCE / 2f32,
-                    y: light_position.y - PROJECTION_DISTANCE / 2f32,
-                    w: PROJECTION_DISTANCE,
-                    h: PROJECTION_DISTANCE,
+                    x: light_position.x - projection_distance / 2f32,
+                    y: light_position.y - projection_distance / 2f32,
+                    w: projection_distance,
+                    h: projection_distance,
                 },
                 light_color,
             );

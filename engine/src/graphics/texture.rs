@@ -15,12 +15,14 @@ pub struct Texture {
 #[derive(Clone, Debug)]
 pub struct SubTexture {
     pub texture: Texture,
+    pub normal: Option<Texture>,
     pub source: RectF,
 }
 impl SubTexture {
     pub fn new(texture: &Texture, source: RectF) -> Self {
         Self {
             texture: texture.clone(),
+            normal: None,
             source,
         }
     }
@@ -91,7 +93,7 @@ impl Texture {
 
     pub fn from_path(path: &str) -> Self {
         // Load file into memory
-        let mut f = File::open(path).expect("file not found: ");
+        let mut f = File::open(path).expect(format!("Path not found: {}", &path).as_str());
         let mut contents = vec![];
         f.read_to_end(&mut contents).unwrap();
 

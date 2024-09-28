@@ -105,8 +105,6 @@ impl Shader {
                     &mut type_ as *mut gl::types::GLenum,
                     &mut name[0] as *mut gl::types::GLchar,
                 );
-                // println!("program uniforms:");
-                // println!("{:?}", name);
 
                 // todo: this is pretty bad
                 let uniform_name = &name[0..(length as usize)];

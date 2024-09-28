@@ -90,9 +90,7 @@ impl Batch {
     pub fn default() -> Self {
         Batch::new(
             Mesh::new(),
-            Material::new(
-                Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE),
-            ),
+            Material::new(Shader::new(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE)),
         )
     }
     pub fn new(
@@ -383,7 +381,7 @@ impl Batch {
         } else {
             // create a new batch
             self.push_batch();
-            self.current_batch().texture = subtexture.texture.clone();
+            self.current_batch().texture = subtexture.texture;
         }
         // current.texture = subtexture.texture.clone();
         let x = subtexture.source.x / subtexture.texture.width as f32;

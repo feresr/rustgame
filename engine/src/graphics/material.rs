@@ -1,3 +1,5 @@
+use gl::types::GLsizei;
+
 use super::{shader::*, texture::*};
 extern crate gl;
 
@@ -126,6 +128,20 @@ impl Material {
             unsafe {
                 gl::Uniform1f(uniform.location, value);
             }
+        }
+    }
+
+    pub fn set_vector2f(&self, name: &str, value: &[f32]) {
+        let uniform = self
+            .find_uniform(name)
+            .expect(format!("Uniform {} not found", name).as_str());
+        self.shader.set();
+        unsafe {
+            gl::Uniform2fv(
+                uniform.location,
+                (value.len() / 2) as GLsizei,
+                value.as_ptr(),
+            );
         }
     }
 

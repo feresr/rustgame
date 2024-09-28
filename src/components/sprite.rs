@@ -14,6 +14,7 @@ pub struct Frame {
 #[allow(dead_code)]
 pub struct Tileset {
     pub texture: Texture,
+    pub normal: Texture,
     pub tile_size: u32,
     pub rows: i64,
     pub columns: i64,
@@ -22,9 +23,12 @@ impl Tileset {
     pub fn from_ldtk(definition: TilesetDefinition) -> Self {
         let path = definition.rel_path.expect("Tileset is missing image path");
         // TODO
-        let f = format!("src/assets/{}", &path);
+        let path = format!("src/assets/{}", &path);
+        let texture = Texture::from_path(&path);
+        let normal = Texture::from_path(&path.replace(".png", "-normal.png"));
         Self {
-            texture: Texture::from_path(f.as_str()),
+            texture,
+            normal,
             tile_size: definition.tile_grid_size as u32,
             rows: definition.c_hei,
             columns: definition.c_wid,

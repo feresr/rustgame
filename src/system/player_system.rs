@@ -5,14 +5,7 @@ use engine::{
 
 use crate::{
     components::{
-        approach,
-        collider::{Collider, ColliderType},
-        gravity::Gravity,
-        light::Light,
-        mover::Mover,
-        player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED},
-        position::Position,
-        sprite::Sprite,
+        approach, collider::{Collider, ColliderType}, gravity::Gravity, light::Light, mover::Mover, player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED}, position::Position, sprite::Sprite
     },
     content::content,
     GAME_PIXEL_HEIGHT,

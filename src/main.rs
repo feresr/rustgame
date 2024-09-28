@@ -7,7 +7,7 @@ mod system;
 extern crate engine;
 extern crate nalgebra_glm as glm;
 
-use components::{position::Position, room};
+use components::position::Position;
 use content::content;
 use engine::{
     ecs::World,
@@ -49,7 +49,6 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             uniform sampler2D u_color_texture;\n
             uniform sampler2D u_light_texture;\n
 
-            uniform vec2 u_light_position;\n
             uniform float u_light_radius;\n
 
             uniform ivec2 u_resolution;\n
@@ -59,10 +58,17 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
                 vec4 color = texture(u_color_texture, TexCoord); \n
                 vec4 light = texture(u_light_texture, TexCoord); \n
 
-                color = color + (light.x) * vec4(0.1); \n 
-                color = mix(color * vec4(0.50), color, light.x); \n 
+                color = color + (light.x) * vec4(0.15); \n 
+                // color = mix(color * vec4(0.60), color, 0.5); \n 
 
-                FragColor = vec4(color.rgb, 1.0); \n
+                float crtIntensity = 0.70; \n // 0 = max 1 = min
+                float crt = (sin(gl_FragCoord.y * 3.14) + 1.0) * 0.5; \n
+                crt = (crt * (1.0 - (crtIntensity))) + crtIntensity; \n
+                // crt = (crt * 0.50) + 0.50; \n
+                crt = mix(crt, 1.0, light.x); \n
+
+                FragColor = vec4(color.rgb, 1.0) * vec4(crt, crt, crt, 1.0); \n
+
             }";
 
 struct Foo {
@@ -77,7 +83,6 @@ struct Foo {
     screen_target: Target,
     screen_ortho: glm::Mat4,
     screen_rect: RectF,
-
     material: Option<Material>,
 }
 
@@ -162,7 +167,7 @@ impl Game for Foo {
             batch.set_sampler(&TextureSampler::nearest());
             self.animation_system.tick(&self.world);
 
-            // batch.set_blend(blend::NORMAL);
+            batch.set_blend(blend::NORMAL);
             self.render_system
                 .as_ref()
                 .unwrap()
