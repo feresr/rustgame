@@ -5,6 +5,7 @@ extern crate sdl2;
 
 use audio::AudioPlayer;
 use graphics::batch::{Batch, ImGuiable};
+use graphics::target::Target;
 use imgui::{Context, Ui};
 
 pub mod audio;
@@ -13,6 +14,7 @@ pub mod graphics;
 
 use sdl2::event::Event;
 pub use sdl2::keyboard::Keycode;
+use sdl2::sys::daddr_t;
 use sdl2::video::GLProfile;
 use sdl2::{AudioSubsystem, Sdl, VideoSubsystem};
 use std::collections::HashSet;
@@ -31,7 +33,7 @@ pub trait Game {
     fn config(&self) -> Config;
     fn init(&mut self);
     fn update(&mut self) -> bool;
-    fn render(&self, batch: &mut Batch);
+    fn render(&self, batch: &mut Batch, screen: &Target);
     fn debug(&self, imgui: &Ui);
     fn dispose(&mut self);
 }
@@ -76,6 +78,9 @@ pub fn run(mut game: impl Game) {
         // .borderless()
         .build()
         .unwrap();
+
+    let drawable_size = window.drawable_size();
+    let mut screen = Target::screen(drawable_size.0 as i32, drawable_size.1 as i32);
 
     let _ctx = window.gl_create_context().unwrap();
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
@@ -135,6 +140,21 @@ pub fn run(mut game: impl Game) {
                 continue;
             }
             match event {
+                Event::Window {
+                    timestamp: _,
+                    window_id: _,
+                    win_event,
+                } => {
+                    match win_event {
+                        sdl2::event::WindowEvent::Resized(_w, _hh) => {
+                            let drawable_size = window.drawable_size();
+                            screen = Target::screen(drawable_size.0 as i32, drawable_size.1 as i32);
+                        }
+                        _ => {
+                            // no op
+                        }
+                    }
+                }
                 Event::Quit { .. }
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
@@ -174,8 +194,9 @@ pub fn run(mut game: impl Game) {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
         batch.clear();
-        game.render(&mut batch);
+        game.render(&mut batch, &screen);
 
+        // Error checks
         unsafe {
             let mut error: u32 = gl::GetError();
             while error != gl::NO_ERROR {

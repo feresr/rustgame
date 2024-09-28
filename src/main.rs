@@ -80,7 +80,6 @@ struct Foo {
     scene_system: SceneSystem,
     animation_system: AnimationSystem,
     light_system: Option<LightSystem>,
-    screen_target: Target,
     screen_ortho: glm::Mat4,
     screen_rect: RectF,
     material: Option<Material>,
@@ -107,7 +106,6 @@ impl Foo {
             scene_system: SceneSystem::new(),
             animation_system: AnimationSystem,
             light_system: None,
-            screen_target: Target::screen(SCREEN_WIDTH as i32, SCREEN_HEIGHT as i32),
             screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
             material: None,
         }
@@ -160,7 +158,7 @@ impl Game for Foo {
         return true;
     }
 
-    fn render(&self, batch: &mut Batch) {
+    fn render(&self, batch: &mut Batch, screen : &Target) {
         {
             // Render into low-res target (gbuffer)
             self.gbuffer.clear((0.1f32, 0.1f32, 0.24f32, 1.0f32));
@@ -213,7 +211,7 @@ impl Game for Foo {
                 &self.gbuffer.color(),
                 (1.0f32, 1.0f32, 1.0f32, 1f32),
             );
-            batch.render(&self.screen_target, &self.screen_ortho);
+            batch.render(&screen, &self.screen_ortho);
         }
     }
 

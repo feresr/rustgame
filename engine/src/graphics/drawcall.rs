@@ -31,14 +31,7 @@ impl<'a> DrawCall<'a> {
         unsafe {
             self.material.set();
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.target.id);
-            if self.target.id == 0 {
-                // todo: hardcoded screen dimensions
-                // gl::Viewport(0, 0, 1400, 800);
-                // * 2 because of mac hdpi
-                gl::Viewport(0, 0, self.target.width * 2, self.target.height * 2);
-            } else {
-                gl::Viewport(0, 0, self.target.width, self.target.height);
-            }
+            gl::Viewport(0, 0, self.target.width, self.target.height);
 
             gl::BlendEquationSeparate(
                 self.blend.color_op.to_gl_enum(),
