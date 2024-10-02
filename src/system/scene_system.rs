@@ -44,8 +44,8 @@ impl SceneSystem {
         let room_x;
         let room_y;
         {
-            let player = world.find_first::<Player>().expect("Player not found");
-            let position = player.get_component::<Position>().unwrap();
+            let player = world.first::<Player>().expect("Player not found");
+            let position = player.get::<Position>();
             room_x = (position.x as f32 / GAME_PIXEL_WIDTH as f32) as usize;
             room_y = (position.y as f32 / GAME_PIXEL_HEIGHT as f32) as usize;
         }

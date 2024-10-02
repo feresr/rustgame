@@ -5,7 +5,15 @@ use engine::{
 
 use crate::{
     components::{
-        approach, collider::{Collider, ColliderType}, gravity::Gravity, light::Light, mover::Mover, player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED}, position::Position, sprite::Sprite
+        approach,
+        button::Button,
+        collider::{Collider, ColliderType},
+        gravity::Gravity,
+        light::Light,
+        mover::Mover,
+        player::{Player, COYOTE_BUFFER_TIME, JUMP_BUFFER_TIME, JUMP_SPEED, WALK_SPEED},
+        position::Position,
+        sprite::Sprite,
     },
     content::content,
     GAME_PIXEL_HEIGHT,
@@ -19,14 +27,17 @@ impl PlayerSystem {
         player.assign(Mover::default());
         player.assign(Sprite::new(&content().sprites["player"]));
         player.assign(Light::new());
-        player.assign(Collider::new(ColliderType::Rect {
-            rect: RectF {
-                x: -3.0,
-                y: -8.0,
-                w: 6.0,
-                h: 8.0,
+        player.assign(Collider::new(
+            ColliderType::Rect {
+                rect: RectF {
+                    x: -3.0,
+                    y: -8.0,
+                    w: 6.0,
+                    h: 8.0,
+                },
             },
-        }));
+            true,
+        ));
         player.assign(Position::new(
             72 as i32,
             GAME_PIXEL_HEIGHT as i32 + 24 as i32,
@@ -35,16 +46,14 @@ impl PlayerSystem {
     }
 
     pub fn update(&self, world: &mut World) {
-        let player_entity = world.find_first::<Player>().expect("Player not found");
+        let player_entity = world.first::<Player>().expect("Player not found");
 
         let id = player_entity.id;
-        let mut mover = player_entity.get_component::<Mover>().unwrap();
-        let mut sprite = player_entity.get_component::<Sprite>().unwrap();
-        let position = player_entity.get_component::<Position>().unwrap();
-        let collider = player_entity
-            .get_component::<Collider>()
-            .expect("No Collider on Player");
-        let mut player = player_entity.get_component::<Player>().unwrap();
+        let mut mover = player_entity.get::<Mover>();
+        let mut sprite = player_entity.get::<Sprite>();
+        let position = player_entity.get::<Position>();
+        let collider = player_entity.get::<Collider>();
+        let mut player = player_entity.get::<Player>();
         let keyboard = engine::keyboard();
 
         // TODO: coyote time
@@ -62,6 +71,10 @@ impl PlayerSystem {
             player.coyote_buffer = COYOTE_BUFFER_TIME;
         }
         player.was_in_air = player.in_air;
+
+        if Button::is_pressed(world, "b1") {
+            engine::audio().play_sound(&content().tracks["jump"]);
+        }
 
         if keyboard.pressed.contains(&engine::Keycode::Up) || player.jump_buffer > 0 {
             if !player.in_air || player.coyote_buffer > 0 {

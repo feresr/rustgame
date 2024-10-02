@@ -2,8 +2,10 @@ pub mod component;
 
 use std::any::{Any, TypeId};
 use std::cell::{RefCell, RefMut};
+use std::collections::binary_heap::Iter;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::ops::Index;
 use std::rc::Rc;
 
 pub use component::{Component, ComponentStorage, ComponentWrapper};
@@ -19,6 +21,11 @@ pub struct IEntity {
 }
 
 pub struct Entity<'a> {
+    pub id: u32,
+    pub world: &'a World,
+}
+
+pub struct EntityMut<'a> {
     pub id: u32,
     pub world: &'a mut World,
 }
@@ -42,14 +49,18 @@ trait Updateable {
 }
 
 pub trait WorldOp {
-    fn add_entity<'a>(&'a mut self) -> Entity<'_>;
+    fn add_entity<'a>(&'a mut self) -> EntityMut<'_>;
     fn remove_entity<'a>(&'a mut self, entity: u32);
 
     fn add_component<T: Component + 'static>(&mut self, entity: &IEntity, component: T);
     fn remove_component<T: Component + 'static>(&mut self, entity: u32);
     fn find_component<'a, T: Component + 'static>(&'a self, entity: u32) -> Option<RefMut<'a, T>>;
 
-    fn find_first<'a, T: Component + 'static>(&'a mut self) -> Option<Entity<'_>>;
+    fn entity(&self, entity: u32) -> Entity<'_>;
+    fn entity_mut(&mut self, entity: u32) -> EntityMut<'_>;
+
+    fn first<'a, T: Component + 'static>(&'a self) -> Option<Entity<'_>>;
+    fn all_with<T: Component + 'static>(&self) -> Box<dyn Iterator<Item = Entity<'_>> + '_>;
     fn find_all<T: Component + 'static>(
         &self,
     ) -> Box<dyn Iterator<Item = &ComponentWrapper<T>> + '_>;
@@ -103,12 +114,12 @@ impl World {
 
 impl WorldOp for World {
     // Add a new entity to the world and return it
-    fn add_entity(&mut self) -> Entity<'_> {
+    fn add_entity(&mut self) -> EntityMut<'_> {
         // let id = self.entities.len() as u32;
         self.entity_count = self.entity_count + 1;
         let rng: u32 = rand::thread_rng().r#gen();
         self.entities.push(IEntity { id: rng });
-        return Entity {
+        return EntityMut {
             id: rng,
             world: self,
         };
@@ -119,6 +130,20 @@ impl WorldOp for World {
             updatable.remove_component(entity);
         }
         self.entities.retain(|e| e.id != entity);
+    }
+
+    fn entity(&self, entity: u32) -> Entity<'_> {
+        return Entity {
+            id: entity,
+            world: self,
+        };
+    }
+
+    fn entity_mut(&mut self, entity: u32) -> EntityMut<'_> {
+        return EntityMut {
+            id: entity,
+            world: self,
+        };
     }
 
     fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<RefMut<'_, T>> {
@@ -154,7 +179,7 @@ impl WorldOp for World {
         }
     }
 
-    fn find_first<'a, T: Component + 'static>(&'a mut self) -> Option<Entity<'a>> {
+    fn first<'a, T: Component + 'static>(&'a self) -> Option<Entity<'a>> {
         let type_id = TypeId::of::<T>();
         if let None = self.components.get(&type_id) {
             return None;
@@ -170,6 +195,24 @@ impl WorldOp for World {
             }
         }
         return None;
+    }
+
+    // TODO: first with
+    fn all_with<T: Component + 'static>(&self) -> Box<dyn Iterator<Item = Entity<'_>> + '_> {
+        let type_id = TypeId::of::<T>();
+        match self.components.get(&type_id) {
+            Some(storage) => {
+                let storage = storage
+                    .as_any()
+                    .downcast_ref::<ComponentStorage<T>>()
+                    .unwrap();
+                return Box::new(storage.data.iter().map(|a| Entity {
+                    id: a.entity_id,
+                    world: self,
+                }));
+            }
+            None => return Box::new(std::iter::empty()),
+        }
     }
 
     fn find_all<T: Component + 'static>(
@@ -189,13 +232,25 @@ impl WorldOp for World {
     }
 }
 
-impl<'a> Entity<'a> {
+impl<'a> EntityMut<'a> {
     pub fn extract_component<T: Component + 'static>(&mut self) -> Option<T> {
         return self.world.extract_component::<T>(self.id);
     }
 }
 
 impl<'a> Entity<'a> {
+    pub fn get<T: Component + 'static>(&self) -> RefMut<'_, T> {
+        return self
+            .world
+            .find_component::<T>(self.id)
+            .expect("not present");
+    }
+    pub fn has<T: Component + 'static>(&self) -> Option<RefMut<'_, T>> {
+        return self.world.find_component::<T>(self.id);
+    }
+}
+
+impl<'a> EntityMut<'a> {
     // Adds a component to this entity
     pub fn assign<T: Component + 'static>(&mut self, component: T) {
         let entity = IEntity { id: self.id };

@@ -8,6 +8,7 @@ pub mod position;
 pub mod room;
 pub mod rope;
 pub mod sprite;
+pub mod button;
 use std::cmp::PartialOrd;
 use std::ops::{Add, Sub};
 

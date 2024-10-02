@@ -1,6 +1,9 @@
 use engine::{
-    ecs::{Component, World, WorldOp},
-    graphics::common::{PointF, RectF},
+    ecs::{Component, Entity, World, WorldOp},
+    graphics::{
+        batch::Batch,
+        common::{PointF, RectF},
+    },
 };
 
 use crate::Position;
@@ -37,17 +40,48 @@ pub struct Collision {
 pub struct Collider {
     pub collider_type: ColliderType,
     pub collisions: Vec<Collision>,
+    pub solid: bool,
 }
 impl Collider {
-    pub fn new(collider_type: ColliderType) -> Self {
+    pub fn new(collider_type: ColliderType, solid: bool) -> Self {
         Collider {
             collider_type,
             collisions: Vec::new(),
+            solid,
         }
     }
 }
 impl Component for Collider {}
 impl Collider {
+    pub fn render(world: &World, batch: &mut Batch) {
+        for collider in world.all_with::<Collider>() {
+            let position = collider.get::<Position>();
+            let collider = collider.get::<Collider>();
+            match &collider.collider_type {
+                ColliderType::Circle { radius } => {}
+                ColliderType::Rect { rect } => {
+                    dbg!(position.y);
+                    dbg!(rect.y);
+                    batch.rect(
+                        &RectF {
+                            x: position.x as f32 + rect.x,
+                            y: position.y as f32 + rect.y,
+                            w: rect.w,
+                            h: rect.h,
+                        },
+                        (1.0, 0.0, 0.0, 0.5),
+                    );
+                }
+                ColliderType::Grid {
+                    columns,
+                    rows,
+                    tile_size,
+                    cells,
+                } => {}
+            }
+        }
+    }
+
     pub fn check_all(
         &self,
         self_id: u32,
@@ -55,12 +89,12 @@ impl Collider {
         offset: PointF,
         world: &World,
     ) -> bool {
-        for wrapper in world.find_all::<Collider>() {
-            if wrapper.entity_id == self_id {
+        for collider_entity in world.all_with::<Collider>() {
+            if collider_entity.id == self_id {
                 continue;
             }
-            let other_position = world.find_component::<Position>(wrapper.entity_id).unwrap();
-            let other_collider = wrapper.component.borrow();
+            let other_position = collider_entity.get::<Position>();
+            let other_collider = collider_entity.get::<Collider>();
             if self.check(&other_collider, self_position, &other_position, offset) {
                 return true;
             }

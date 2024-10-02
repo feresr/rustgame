@@ -11,7 +11,7 @@
 	"iid": "3c6dde10-4ce0-11ef-a4bc-89125a658ffd",
 	"jsonVersion": "1.5.3",
 	"appBuildId": 473703,
-	"nextUid": 22,
+	"nextUid": 27,
 	"identifierStyle": "Capitalize",
 	"toc": [],
 	"worldLayout": "GridVania",
@@ -148,7 +148,7 @@
 		}
 	], "entities": [
 		{
-			"identifier": "Farola",
+			"identifier": "Light1",
 			"uid": 11,
 			"tags": [],
 			"exportToToc": false,
@@ -180,51 +180,10 @@
 			"limitBehavior": "MoveLastOne",
 			"pivotX": 0.5,
 			"pivotY": 0.5,
-			"fieldDefs": [
-				{
-					"identifier": "sprite",
-					"doc": null,
-					"__type": "String",
-					"uid": 18,
-					"type": "F_String",
-					"isArray": false,
-					"canBeNull": true,
-					"arrayMinLength": null,
-					"arrayMaxLength": null,
-					"editorDisplayMode": "Hidden",
-					"editorDisplayScale": 1,
-					"editorDisplayPos": "Above",
-					"editorLinkStyle": "StraightArrow",
-					"editorDisplayColor": null,
-					"editorAlwaysShow": false,
-					"editorShowInWorld": true,
-					"editorCutLongValues": true,
-					"editorTextSuffix": null,
-					"editorTextPrefix": null,
-					"useForSmartColor": false,
-					"exportToToc": false,
-					"searchable": false,
-					"min": null,
-					"max": null,
-					"regex": null,
-					"acceptFileTypes": null,
-					"defaultOverride": {
-						"id": "V_String",
-						"params": ["Light1"]
-					},
-					"textLanguageMode": null,
-					"symmetricalRef": false,
-					"autoChainRef": true,
-					"allowOutOfLevelRef": true,
-					"allowedRefs": "OnlySame",
-					"allowedRefsEntityUid": null,
-					"allowedRefTags": [],
-					"tilesetUid": null
-				}
-			]
+			"fieldDefs": []
 		},
 		{
-			"identifier": "Farola2",
+			"identifier": "Light2",
 			"uid": 14,
 			"tags": [],
 			"exportToToc": false,
@@ -256,51 +215,10 @@
 			"limitBehavior": "MoveLastOne",
 			"pivotX": 0.5,
 			"pivotY": 0.5,
-			"fieldDefs": [
-				{
-					"identifier": "sprite",
-					"doc": null,
-					"__type": "String",
-					"uid": 19,
-					"type": "F_String",
-					"isArray": false,
-					"canBeNull": true,
-					"arrayMinLength": null,
-					"arrayMaxLength": null,
-					"editorDisplayMode": "Hidden",
-					"editorDisplayScale": 1,
-					"editorDisplayPos": "Above",
-					"editorLinkStyle": "StraightArrow",
-					"editorDisplayColor": null,
-					"editorAlwaysShow": false,
-					"editorShowInWorld": true,
-					"editorCutLongValues": true,
-					"editorTextSuffix": null,
-					"editorTextPrefix": null,
-					"useForSmartColor": false,
-					"exportToToc": false,
-					"searchable": false,
-					"min": null,
-					"max": null,
-					"regex": null,
-					"acceptFileTypes": null,
-					"defaultOverride": {
-						"id": "V_String",
-						"params": ["Light4"]
-					},
-					"textLanguageMode": null,
-					"symmetricalRef": false,
-					"autoChainRef": true,
-					"allowOutOfLevelRef": true,
-					"allowedRefs": "OnlySame",
-					"allowedRefsEntityUid": null,
-					"allowedRefTags": [],
-					"tilesetUid": null
-				}
-			]
+			"fieldDefs": []
 		},
 		{
-			"identifier": "Farola3",
+			"identifier": "Light3",
 			"uid": 15,
 			"tags": [],
 			"exportToToc": false,
@@ -332,51 +250,10 @@
 			"limitBehavior": "MoveLastOne",
 			"pivotX": 0.5,
 			"pivotY": 0.5,
-			"fieldDefs": [
-				{
-					"identifier": "sprite",
-					"doc": null,
-					"__type": "String",
-					"uid": 20,
-					"type": "F_String",
-					"isArray": false,
-					"canBeNull": true,
-					"arrayMinLength": null,
-					"arrayMaxLength": null,
-					"editorDisplayMode": "Hidden",
-					"editorDisplayScale": 1,
-					"editorDisplayPos": "Above",
-					"editorLinkStyle": "StraightArrow",
-					"editorDisplayColor": null,
-					"editorAlwaysShow": false,
-					"editorShowInWorld": true,
-					"editorCutLongValues": true,
-					"editorTextSuffix": null,
-					"editorTextPrefix": null,
-					"useForSmartColor": false,
-					"exportToToc": false,
-					"searchable": false,
-					"min": null,
-					"max": null,
-					"regex": null,
-					"acceptFileTypes": null,
-					"defaultOverride": {
-						"id": "V_String",
-						"params": ["Light3"]
-					},
-					"textLanguageMode": null,
-					"symmetricalRef": false,
-					"autoChainRef": true,
-					"allowOutOfLevelRef": true,
-					"allowedRefs": "OnlySame",
-					"allowedRefsEntityUid": null,
-					"allowedRefTags": [],
-					"tilesetUid": null
-				}
-			]
+			"fieldDefs": []
 		},
 		{
-			"identifier": "Farola4",
+			"identifier": "Light4",
 			"uid": 16,
 			"tags": [],
 			"exportToToc": false,
@@ -408,15 +285,50 @@
 			"limitBehavior": "MoveLastOne",
 			"pivotX": 0.5,
 			"pivotY": 0.5,
+			"fieldDefs": []
+		},
+		{
+			"identifier": "Button",
+			"uid": 22,
+			"tags": [],
+			"exportToToc": false,
+			"allowOutOfBounds": false,
+			"doc": null,
+			"width": 8,
+			"height": 5,
+			"resizableX": false,
+			"resizableY": false,
+			"minWidth": null,
+			"maxWidth": null,
+			"minHeight": null,
+			"maxHeight": null,
+			"keepAspectRatio": false,
+			"tileOpacity": 1,
+			"fillOpacity": 0.08,
+			"lineOpacity": 0,
+			"hollow": false,
+			"color": "#BE4A2F",
+			"renderMode": "Tile",
+			"showName": true,
+			"tilesetId": 9,
+			"tileRenderMode": "FitInside",
+			"tileRect": { "tilesetUid": 9, "x": 40, "y": 0, "w": 8, "h": 8 },
+			"uiTileRect": null,
+			"nineSliceBorders": [],
+			"maxCount": 0,
+			"limitScope": "PerLevel",
+			"limitBehavior": "MoveLastOne",
+			"pivotX": 0.5,
+			"pivotY": 1,
 			"fieldDefs": [
 				{
-					"identifier": "sprite",
+					"identifier": "name",
 					"doc": null,
 					"__type": "String",
-					"uid": 21,
+					"uid": 26,
 					"type": "F_String",
 					"isArray": false,
-					"canBeNull": true,
+					"canBeNull": false,
 					"arrayMinLength": null,
 					"arrayMaxLength": null,
 					"editorDisplayMode": "Hidden",
@@ -438,7 +350,7 @@
 					"acceptFileTypes": null,
 					"defaultOverride": {
 						"id": "V_String",
-						"params": ["Light2"]
+						"params": ["b1"]
 					},
 					"textLanguageMode": null,
 					"symmetricalRef": false,
@@ -476,7 +388,7 @@
 			"__cHei": 8,
 			"identifier": "Background_atlas",
 			"uid": 9,
-			"relPath": "background-atlas.png",
+			"relPath": "atlas/sheet.png",
 			"embedAtlas": null,
 			"pxWid": 64,
 			"pxHei": 64,
@@ -490,7 +402,7 @@
 			"savedSelections": [],
 			"cachedPixelData": {
 				"opaqueTiles": "0000000000000000000000000000000000000000000000000000000000000000",
-				"averageColors": "eaaad999d999d999ecbb000000000000faaafaaaf999faaafaaa000000000000200020001000200020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+				"averageColors": "eaaad999d999d999ecbb772200000000faaafaaaf999faaafaaa000000000000200020001000200020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 			}
 		}
 	], "enums": [], "externalEnums": [], "levelFields": [] },
@@ -532,7 +444,7 @@
 					"layerDefUid": 12,
 					"pxOffsetX": 0,
 					"pxOffsetY": 0,
-					"visible": false,
+					"visible": true,
 					"optionalRules": [],
 					"intGridCsv": [],
 					"autoLayerTiles": [],
@@ -541,7 +453,7 @@
 					"gridTiles": [],
 					"entityInstances": [
 						{
-							"__identifier": "Farola2",
+							"__identifier": "Light2",
 							"__grid": [20,9],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
@@ -552,9 +464,44 @@
 							"height": 19,
 							"defUid": 14,
 							"px": [164,76],
-							"fieldInstances": [{ "__identifier": "sprite", "__type": "String", "__value": "Light4", "__tile": null, "defUid": 19, "realEditorValues": [] }],
+							"fieldInstances": [],
 							"__worldX": 164,
 							"__worldY": 260
+						},
+						{
+							"__identifier": "Button",
+							"__grid": [12,5],
+							"__pivot": [0.5,1],
+							"__tags": [],
+							"__tile": { "tilesetUid": 9, "x": 40, "y": 0, "w": 8, "h": 8 },
+							"__smartColor": "#BE4A2F",
+							"iid": "e8693130-73f0-11ef-8475-c513f8d93844",
+							"width": 8,
+							"height": 5,
+							"defUid": 22,
+							"px": [100,48],
+							"fieldInstances": [{ "__identifier": "name", "__type": "String", "__value": "b3", "__tile": null, "defUid": 26, "realEditorValues": [{
+								"id": "V_String",
+								"params": ["b3"]
+							}] }],
+							"__worldX": 100,
+							"__worldY": 232
+						},
+						{
+							"__identifier": "Light3",
+							"__grid": [33,5],
+							"__pivot": [0.5,0.5],
+							"__tags": [],
+							"__tile": { "tilesetUid": 9, "x": 20, "y": 0, "w": 10, "h": 20 },
+							"__smartColor": "#BE4A2F",
+							"iid": "ff1d43d0-73f0-11ef-8475-ebae7bed9e77",
+							"width": 10,
+							"height": 19,
+							"defUid": 15,
+							"px": [268,44],
+							"fieldInstances": [],
+							"__worldX": 268,
+							"__worldY": 228
 						}
 					]
 				},
@@ -585,22 +532,28 @@
 						{ "px": [8,0], "src": [0,8], "f": 0, "t": 3, "d": [1], "a": 1 },
 						{ "px": [16,0], "src": [0,8], "f": 0, "t": 3, "d": [2], "a": 1 },
 						{ "px": [24,0], "src": [0,8], "f": 0, "t": 3, "d": [3], "a": 1 },
+						{ "px": [32,0], "src": [0,0], "f": 0, "t": 0, "d": [4], "a": 1 },
 						{ "px": [0,8], "src": [0,8], "f": 0, "t": 3, "d": [40], "a": 1 },
 						{ "px": [8,8], "src": [0,8], "f": 0, "t": 3, "d": [41], "a": 1 },
 						{ "px": [16,8], "src": [0,8], "f": 0, "t": 3, "d": [42], "a": 1 },
 						{ "px": [24,8], "src": [0,8], "f": 0, "t": 3, "d": [43], "a": 1 },
 						{ "px": [32,8], "src": [0,0], "f": 0, "t": 0, "d": [44], "a": 1 },
-						{ "px": [40,8], "src": [0,0], "f": 0, "t": 0, "d": [45], "a": 1 },
-						{ "px": [48,8], "src": [0,0], "f": 0, "t": 0, "d": [46], "a": 1 },
-						{ "px": [56,8], "src": [0,8], "f": 0, "t": 3, "d": [47], "a": 1 },
 						{ "px": [296,8], "src": [8,0], "f": 0, "t": 1, "d": [77], "a": 1 },
 						{ "px": [0,16], "src": [0,8], "f": 0, "t": 3, "d": [80], "a": 1 },
+						{ "px": [16,16], "src": [0,0], "f": 0, "t": 0, "d": [82], "a": 1 },
+						{ "px": [24,16], "src": [0,0], "f": 0, "t": 0, "d": [83], "a": 1 },
+						{ "px": [32,16], "src": [0,0], "f": 0, "t": 0, "d": [84], "a": 1 },
+						{ "px": [40,16], "src": [0,0], "f": 0, "t": 0, "d": [85], "a": 1 },
+						{ "px": [48,16], "src": [0,0], "f": 0, "t": 0, "d": [86], "a": 1 },
 						{ "px": [56,16], "src": [0,8], "f": 0, "t": 3, "d": [87], "a": 1 },
 						{ "px": [296,16], "src": [8,0], "f": 0, "t": 1, "d": [117], "a": 1 },
 						{ "px": [304,16], "src": [8,0], "f": 0, "t": 1, "d": [118], "a": 1 },
 						{ "px": [0,24], "src": [0,8], "f": 0, "t": 3, "d": [120], "a": 1 },
+						{ "px": [40,24], "src": [0,0], "f": 0, "t": 0, "d": [125], "a": 1 },
+						{ "px": [48,24], "src": [0,0], "f": 0, "t": 0, "d": [126], "a": 1 },
 						{ "px": [56,24], "src": [0,8], "f": 0, "t": 3, "d": [127], "a": 1 },
 						{ "px": [0,32], "src": [0,8], "f": 0, "t": 3, "d": [160], "a": 1 },
+						{ "px": [48,32], "src": [0,0], "f": 0, "t": 0, "d": [166], "a": 1 },
 						{ "px": [56,32], "src": [0,8], "f": 0, "t": 3, "d": [167], "a": 1 },
 						{ "px": [64,32], "src": [0,0], "f": 0, "t": 0, "d": [168], "a": 1 },
 						{ "px": [0,40], "src": [0,8], "f": 0, "t": 3, "d": [200], "a": 1 },
@@ -933,7 +886,7 @@
 					"gridTiles": [],
 					"entityInstances": [
 						{
-							"__identifier": "Farola3",
+							"__identifier": "Light3",
 							"__grid": [14,3],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
@@ -944,7 +897,7 @@
 							"height": 19,
 							"defUid": 15,
 							"px": [116,28],
-							"fieldInstances": [{ "__identifier": "sprite", "__type": "String", "__value": "Light3", "__tile": null, "defUid": 20, "realEditorValues": [] }],
+							"fieldInstances": [],
 							"__worldX": 436,
 							"__worldY": 212
 						}
@@ -1247,7 +1200,7 @@
 					"gridTiles": [],
 					"entityInstances": [
 						{
-							"__identifier": "Farola2",
+							"__identifier": "Light2",
 							"__grid": [12,7],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
@@ -1258,12 +1211,12 @@
 							"height": 19,
 							"defUid": 14,
 							"px": [100,60],
-							"fieldInstances": [{ "__identifier": "sprite", "__type": "String", "__value": "Light4", "__tile": null, "defUid": 19, "realEditorValues": [] }],
+							"fieldInstances": [],
 							"__worldX": 100,
 							"__worldY": 60
 						},
 						{
-							"__identifier": "Farola4",
+							"__identifier": "Light4",
 							"__grid": [31,7],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
@@ -1274,9 +1227,60 @@
 							"height": 19,
 							"defUid": 16,
 							"px": [252,60],
-							"fieldInstances": [{ "__identifier": "sprite", "__type": "String", "__value": "Light2", "__tile": null, "defUid": 21, "realEditorValues": [] }],
+							"fieldInstances": [],
 							"__worldX": 252,
 							"__worldY": 60
+						},
+						{
+							"__identifier": "Button",
+							"__grid": [11,16],
+							"__pivot": [0.5,1],
+							"__tags": [],
+							"__tile": { "tilesetUid": 9, "x": 40, "y": 0, "w": 8, "h": 8 },
+							"__smartColor": "#BE4A2F",
+							"iid": "7f51a450-73f0-11ef-8475-25fe56eec437",
+							"width": 8,
+							"height": 5,
+							"defUid": 22,
+							"px": [92,136],
+							"fieldInstances": [{ "__identifier": "name", "__type": "String", "__value": "b1", "__tile": null, "defUid": 26, "realEditorValues": [] }],
+							"__worldX": 92,
+							"__worldY": 136
+						},
+						{
+							"__identifier": "Button",
+							"__grid": [19,18],
+							"__pivot": [0.5,1],
+							"__tags": [],
+							"__tile": { "tilesetUid": 9, "x": 40, "y": 0, "w": 8, "h": 8 },
+							"__smartColor": "#BE4A2F",
+							"iid": "83e4e810-73f0-11ef-8475-79b95cc2509c",
+							"width": 8,
+							"height": 5,
+							"defUid": 22,
+							"px": [156,152],
+							"fieldInstances": [{ "__identifier": "name", "__type": "String", "__value": "b3", "__tile": null, "defUid": 26, "realEditorValues": [{
+								"id": "V_String",
+								"params": ["b3"]
+							}] }],
+							"__worldX": 156,
+							"__worldY": 152
+						},
+						{
+							"__identifier": "Button",
+							"__grid": [27,16],
+							"__pivot": [0.5,1],
+							"__tags": [],
+							"__tile": { "tilesetUid": 9, "x": 40, "y": 0, "w": 8, "h": 8 },
+							"__smartColor": "#BE4A2F",
+							"iid": "87e2f0b0-73f0-11ef-8475-998dda320e16",
+							"width": 8,
+							"height": 5,
+							"defUid": 22,
+							"px": [220,136],
+							"fieldInstances": [{ "__identifier": "name", "__type": "String", "__value": "b1", "__tile": null, "defUid": 26, "realEditorValues": [] }],
+							"__worldX": 220,
+							"__worldY": 136
 						}
 					]
 				},
@@ -1400,11 +1404,13 @@
 						{ "px": [0,168], "src": [8,0], "f": 0, "t": 1, "d": [840], "a": 1 },
 						{ "px": [8,168], "src": [8,0], "f": 0, "t": 1, "d": [841], "a": 1 },
 						{ "px": [16,168], "src": [8,0], "f": 0, "t": 1, "d": [842], "a": 1 },
+						{ "px": [24,168], "src": [8,0], "f": 0, "t": 1, "d": [843], "a": 1 },
 						{ "px": [32,168], "src": [0,8], "f": 0, "t": 3, "d": [844], "a": 1 },
 						{ "px": [0,176], "src": [8,0], "f": 0, "t": 1, "d": [880], "a": 1 },
 						{ "px": [8,176], "src": [8,0], "f": 0, "t": 1, "d": [881], "a": 1 },
 						{ "px": [16,176], "src": [8,0], "f": 0, "t": 1, "d": [882], "a": 1 },
-						{ "px": [24,176], "src": [8,0], "f": 0, "t": 1, "d": [883], "a": 1 }
+						{ "px": [24,176], "src": [8,0], "f": 0, "t": 1, "d": [883], "a": 1 },
+						{ "px": [32,176], "src": [8,0], "f": 0, "t": 1, "d": [884], "a": 1 }
 					],
 					"entityInstances": []
 				},
@@ -2251,7 +2257,7 @@
 					"gridTiles": [],
 					"entityInstances": [
 						{
-							"__identifier": "Farola3",
+							"__identifier": "Light3",
 							"__grid": [7,8],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
@@ -2262,12 +2268,12 @@
 							"height": 19,
 							"defUid": 15,
 							"px": [60,68],
-							"fieldInstances": [{ "__identifier": "sprite", "__type": "String", "__value": "Light3", "__tile": null, "defUid": 20, "realEditorValues": [] }],
+							"fieldInstances": [],
 							"__worldX": 380,
 							"__worldY": 68
 						},
 						{
-							"__identifier": "Farola4",
+							"__identifier": "Light4",
 							"__grid": [31,8],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
@@ -2278,12 +2284,12 @@
 							"height": 19,
 							"defUid": 16,
 							"px": [252,68],
-							"fieldInstances": [{ "__identifier": "sprite", "__type": "String", "__value": "Light2", "__tile": null, "defUid": 21, "realEditorValues": [] }],
+							"fieldInstances": [],
 							"__worldX": 572,
 							"__worldY": 68
 						},
 						{
-							"__identifier": "Farola2",
+							"__identifier": "Light2",
 							"__grid": [19,8],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
@@ -2294,7 +2300,7 @@
 							"height": 19,
 							"defUid": 14,
 							"px": [156,68],
-							"fieldInstances": [{ "__identifier": "sprite", "__type": "String", "__value": "Light4", "__tile": null, "defUid": 19, "realEditorValues": [] }],
+							"fieldInstances": [],
 							"__worldX": 476,
 							"__worldY": 68
 						}

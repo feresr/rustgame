@@ -36,14 +36,17 @@ impl PointMass {
             speed: glm::vec2(0.2, 0.0),
             reminder: glm::vec2(0.0, 0.0),
         });
-        entity.assign(Collider::new(ColliderType::Rect {
-            rect: RectF {
-                x: -1f32,
-                y: -1f32,
-                w: 2.0,
-                h: 2.0,
+        entity.assign(Collider::new(
+            ColliderType::Rect {
+                rect: RectF {
+                    x: -1f32,
+                    y: -1f32,
+                    w: 2.0,
+                    h: 2.0,
+                },
             },
-        }));
+            true,
+        ));
         if prev != 0 {
             entity.assign(Link { to: prev });
         }

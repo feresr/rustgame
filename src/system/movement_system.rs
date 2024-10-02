@@ -18,10 +18,15 @@ use crate::{
 pub struct MovementSystem;
 impl MovementSystem {
     pub fn update(&self, world: &mut World) {
-        for mover in world.find_all::<Mover>() {
-            let entity_id = mover.entity_id;
-            let mut mover = mover.component.borrow_mut();
-            let gravity = world.find_component::<Gravity>(entity_id);
+        // Clear all previous collisions
+        world.all_with::<Collider>().for_each(|collider_entity| {
+            collider_entity.get::<Collider>().collisions.clear();
+        });
+
+        // For everything tha moves...
+        for mover_entity in world.all_with::<Mover>() {
+            let mut mover = mover_entity.get::<Mover>();
+            let gravity = mover_entity.has::<Gravity>();
             if let Some(g) = gravity {
                 if mover.speed.y < 0.0 {
                     // falling down
@@ -43,11 +48,9 @@ impl MovementSystem {
                 mover.reminder.y = total.y - mover.speed.y;
             }
 
-            let mut position = world
-                .find_component::<Position>(entity_id)
-                .expect("Mover requires the entity to have a Position component");
+            let mut position = mover_entity.get::<Position>();
 
-            let collider = world.find_component::<Collider>(entity_id);
+            let collider = mover_entity.has::<Collider>();
             if collider.is_none() {
                 // Entity has no collider, move it and return early
                 position.x = position.x + mover.speed.x as i32;
@@ -58,7 +61,7 @@ impl MovementSystem {
             collider.collisions.clear();
             MovementSystem::move_x(
                 mover.speed.x as i32,
-                entity_id,
+                mover_entity.id,
                 &mut collider,
                 &mut position,
                 &mut mover,
@@ -66,7 +69,7 @@ impl MovementSystem {
             );
             MovementSystem::move_y(
                 mover.speed.y as i32,
-                entity_id,
+                mover_entity.id,
                 &mut collider,
                 &mut position,
                 &mut mover,
@@ -83,18 +86,14 @@ impl MovementSystem {
         mover: &mut RefMut<Mover>,
         world: &World,
     ) {
-        if amount == 0 {
-            return;
-        }
-
-        let sign_x = if amount > 0 { 1 } else { -1 };
+        let sign_x = amount.signum();
         let mut amount = amount;
-        for wrapper in world.find_all::<Collider>() {
-            if wrapper.entity_id == entity {
+        for collider_entity in world.all_with::<Collider>() {
+            if collider_entity.id == entity {
                 continue;
             }
-            let other_position = world.find_component::<Position>(wrapper.entity_id).unwrap();
-            let other_collider = wrapper.component.borrow();
+            let other_position = collider_entity.get::<Position>();
+            let mut other_collider = collider_entity.get::<Collider>();
             let mut collision = false;
             while collider.check(
                 &other_collider,
@@ -106,14 +105,24 @@ impl MovementSystem {
                 },
             ) {
                 if !collision {
-                    collision = true;
-                    let _ = collider.collisions.push(Collision {
-                        other: wrapper.entity_id,
+                    collider.collisions.push(Collision {
+                        other: collider_entity.id,
                         directions: crate::components::collider::Direction::HORIZONTAL,
                         self_velocity: mover.speed,
                     });
-                    mover.speed.x = 0.0;
-                    mover.reminder.x = 0.0;
+                    other_collider.collisions.push(Collision {
+                        other: entity,
+                        directions: crate::components::collider::Direction::VERTICAL,
+                        self_velocity: glm::Vec2::new(0f32, 0f32),
+                    });
+
+                    if other_collider.solid {
+                        collision = true;
+                        mover.speed.x = 0.0;
+                        mover.reminder.x = 0.0;
+                    } else {
+                        break;
+                    }
                 }
                 amount -= sign_x;
             }
@@ -129,19 +138,16 @@ impl MovementSystem {
         mover: &mut RefMut<Mover>,
         world: &World,
     ) {
-        if amount == 0 {
-            return;
-        }
-
-        let sign_y = if amount > 0 { 1 } else { -1 };
+        let sign_y = amount.signum();
         let mut amount = amount;
-        for wrapper in world.find_all::<Collider>() {
-            if wrapper.entity_id == entity {
+        for collider_entity in world.all_with::<Collider>() {
+            if collider_entity.id == entity {
                 continue;
             }
-            let other_position = world.find_component::<Position>(wrapper.entity_id).unwrap();
-            let other_collider = wrapper.component.borrow();
+            let other_position = collider_entity.get::<Position>();
+            let mut other_collider = collider_entity.get::<Collider>();
             let mut collision = false;
+
             while collider.check(
                 &other_collider,
                 &position,
@@ -152,14 +158,24 @@ impl MovementSystem {
                 },
             ) {
                 if !collision {
-                    collision = true;
-                    let _ = collider.collisions.push(Collision {
-                        other: wrapper.entity_id,
+                    collider.collisions.push(Collision {
+                        other: collider_entity.id,
                         directions: crate::components::collider::Direction::VERTICAL,
                         self_velocity: mover.speed,
                     });
-                    mover.speed.y = 0.0;
-                    mover.reminder.y = 0.0;
+                    other_collider.collisions.push(Collision {
+                        other: entity,
+                        directions: crate::components::collider::Direction::VERTICAL,
+                        self_velocity: glm::Vec2::new(0f32, 0f32),
+                    });
+
+                    if other_collider.solid {
+                        collision = true;
+                        mover.speed.y = 0.0;
+                        mover.reminder.y = 0.0;
+                    } else {
+                        break;
+                    }
                 }
                 amount -= sign_y;
             }

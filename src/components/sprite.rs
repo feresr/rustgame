@@ -84,6 +84,13 @@ impl Sprite {
             .expect("Missing frame");
         &frame.image
     }
+    pub fn update_animation(&mut self, animations: &'static HashMap<String, Animation>) {
+        let first_key = animations.keys().next().expect("No animations found");
+        self.animations = animations;
+        self.current_animation = animations.get(first_key).unwrap();
+        self.next_animation = animations.get(first_key).unwrap();
+    }
+
     pub fn tick(&mut self) {
         if !self.playing {
             return;

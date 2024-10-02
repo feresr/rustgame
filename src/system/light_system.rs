@@ -76,7 +76,6 @@ impl LightSystem {
         &self.texture
     }
 
-
     pub fn render(&self, world: &World, batch: &mut Batch) {
         let mut time = self.time.borrow_mut();
         *time += 1;
@@ -84,41 +83,35 @@ impl LightSystem {
         let light_color = (1.00, 1.00, 1.00, 1.0);
         let projection_distance: f32 = 140.0 + 5.0f32 * f32::sin(time.0 as f32 / 60f32);
 
-        let room: &engine::ecs::ComponentWrapper<Room> =
-            world.find_all::<Room>().next().expect("No Room present");
-        let room_position = world
-            .find_component::<Position>(room.entity_id)
-            .expect("Sprite component requires a Position");
+        let room_entity = world.all_with::<Room>().next().expect("No Room present");
+        let room = room_entity.get::<Room>();
+        let position = room_entity.get::<Position>();
+
         let material = self.material.borrow();
         let target = self.target.borrow_mut();
 
         // TODO: this is the camera. should the camera be part of the world (an entity)?
-        let ortho = &room.component.borrow().world_ortho;
+        let ortho = &room.world_ortho;
         target.clear(base_color);
         // Make the target non-drawable
-        for light in world.find_all::<Light>() {
+        for light_entity in world.all_with::<Light>() {
             batch.push_material(&material);
             target.clear_stencil(0);
-            let id = light.entity_id;
-
-            let light_position = world
-                .find_component::<Position>(id)
-                .expect("Light has no position")
-                .as_vec2();
+            let light_position = light_entity.get::<Position>().as_vec2();
 
             // normalise light position
-            let ligh_posx = light_position.x - room_position.x as f32;
-            let ligh_posy = light_position.y - room_position.y as f32;
+            let ligh_posx = light_position.x - position.x as f32;
+            let ligh_posy = light_position.y - position.y as f32;
             material.set_value2f("u_light_position", (ligh_posx, ligh_posy));
             material.set_valuef("u_light_radius", projection_distance / 2f32);
 
             // Draw oclusion shadows (in the stencil buffer)
             batch.set_stencil(Stencil::write(1));
             batch.set_blend(blend::ADDITIVE);
-            for tile in room.component.borrow().layers.first().unwrap().tiles.iter() {
+            for tile in room.layers.first().unwrap().tiles.iter() {
                 let tile_position = glm::vec2(
-                    room_position.x as f32 + tile.x as f32,
-                    room_position.y as f32 + tile.y as f32,
+                    position.x as f32 + tile.x as f32,
+                    position.y as f32 + tile.y as f32,
                 );
 
                 let tile_light_distance = glm::distance(&tile_position, &light_position);

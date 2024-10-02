@@ -7,7 +7,7 @@ mod system;
 extern crate engine;
 extern crate nalgebra_glm as glm;
 
-use components::position::Position;
+use components::{button::Button, collider::Collider, light::LightSwitch, position::Position};
 use content::content;
 use engine::{
     ecs::World,
@@ -155,10 +155,12 @@ impl Game for Foo {
         self.player_system.update(&mut self.world);
         self.movement_system.update(&mut self.world);
         self.scene_system.update(&mut self.world);
+        Button::update(&mut self.world);
+        LightSwitch::update(&mut self.world);
         return true;
     }
 
-    fn render(&self, batch: &mut Batch, screen : &Target) {
+    fn render(&self, batch: &mut Batch, screen: &Target) {
         {
             // Render into low-res target (gbuffer)
             self.gbuffer.clear((0.1f32, 0.1f32, 0.24f32, 1.0f32));
@@ -202,6 +204,7 @@ impl Game for Foo {
             batch.pop_material();
 
             batch.clear();
+
         }
         {
             // Render low-res target onto the screen

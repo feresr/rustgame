@@ -1,9 +1,10 @@
-use engine::ecs::WorldOp;
+use engine::{ecs::WorldOp, graphics::common::RectF};
 
 use crate::{
     components::{
+        button::Button,
         collider::{Collider, ColliderType},
-        light::Light,
+        light::{Light, LightSwitch},
         position::Position,
         room::Room,
         sprite::Sprite,
@@ -30,14 +31,14 @@ pub trait Scene {
 pub struct GameScene {
     pub room_index: u32,
     entities: Vec<u32>,
-    pub camera : glm::Mat4
+    pub camera: glm::Mat4,
 }
 impl GameScene {
     pub fn with_map(index: u32) -> Self {
         GameScene {
             room_index: index,
             entities: Vec::new(),
-            camera: glm::Mat4::identity()
+            camera: glm::Mat4::identity(),
         }
     }
 }
@@ -62,12 +63,15 @@ impl Scene for GameScene {
             collisions[(x + y * GAME_TILE_WIDTH as u32) as usize] = true;
         }
         // make this a factory to create the room
-        room_entity.assign(Collider::new(ColliderType::Grid {
-            columns: GAME_TILE_WIDTH,
-            rows: GAME_TILE_HEIGHT,
-            tile_size: TILE_SIZE,
-            cells: collisions,
-        }));
+        room_entity.assign(Collider::new(
+            ColliderType::Grid {
+                columns: GAME_TILE_WIDTH,
+                rows: GAME_TILE_HEIGHT,
+                tile_size: TILE_SIZE,
+                cells: collisions,
+            },
+            true,
+        ));
         room_entity.assign(room);
         self.entities.push(room_entity.id);
 
@@ -75,18 +79,58 @@ impl Scene for GameScene {
         for layer in level.layer_instances.as_ref().unwrap() {
             match layer.layer_instance_type.as_str() {
                 "Entities" => {
-                    for entity in layer.entity_instances.iter() {
-                        let mut e = world.add_entity();
-                        e.assign(Position {
-                            x: level.world_x as i32 + entity.px[0] as i32,
-                            y: level.world_y as i32 + entity.px[1] as i32,
+                    for map_entity in layer.entity_instances.iter() {
+                        let mut entity = world.add_entity();
+                        entity.assign(Position {
+                            x: level.world_x as i32 + map_entity.px[0] as i32,
+                            y: level.world_y as i32 + map_entity.px[1] as i32,
                         });
-                        for field in entity.field_instances.iter() {
-                            let f = field.value.as_ref().unwrap();
-                            e.assign(Sprite::new(&content().sprites[f.as_str().unwrap()]));
-                            e.assign(Light {})
+                        dbg!(&map_entity.identifier);
+                        entity.assign(Sprite::new(
+                            &content().sprites[map_entity.identifier.as_str()],
+                        ));
+                        match map_entity.identifier.as_str() {
+                            id if id.starts_with("Light") => {
+                                entity.assign(Light::new());
+                                entity.assign(LightSwitch::new("b3"))
+                            }
+                            "Button" => {
+                                dbg!("creating btn");
+                                let name = map_entity
+                                    .field_instances
+                                    .iter()
+                                    .find(|f| f.identifier == "name")
+                                    .unwrap();
+                                entity.assign(Button {
+                                    name: name.value.as_ref().unwrap().as_str().unwrap(),
+                                    pressed: false,
+                                });
+                                entity.assign(Collider::new(
+                                    ColliderType::Rect {
+                                        rect: RectF {
+                                            x: -4f32,
+                                            y: -5f32,
+                                            w: 8f32,
+                                            h: 5f32,
+                                        },
+                                    },
+                                    false,
+                                ));
+                            }
+                            _ => {}
                         }
-                        self.entities.push(e.id);
+                        // for field in map_entity.field_instances.iter() {
+                        //     match field.identifier.as_str() {
+                        //         "light" => {
+                        //             entity.assign(Light {});
+                        //         }
+                        //         "button" => {
+                        //             Button::new(player, 0, 0, world);
+                        //         }
+                        //         _ => {}
+                        //     }
+                        // }
+                        self.entities.push(entity.id);
                     }
                 }
                 _ => {}

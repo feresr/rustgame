@@ -7,7 +7,6 @@ use engine::{
         batch::Batch,
         common::RectF,
         material::Material,
-        shader::Shader,
         target::Target,
         texture::{Texture, TextureFormat, TextureSampler},
     },
@@ -17,6 +16,8 @@ use crate::{
     components::{light::Light, player::Player, position::Position, room::Room, sprite::Sprite},
     GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH,
 };
+
+use super::light_system;
 
 pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             in vec2 TexCoord;\n
@@ -104,13 +105,13 @@ impl RenderSystem {
         batch.clear();
 
         let mut positions: [f32; 10] = [0.0f32; 10];
-        for room in world.find_all::<Room>() {
-            let mut room = room.component.borrow_mut();
+        for room_entity in world.all_with::<Room>() {
+            let mut room = room_entity.get::<Room>();
             if let None = room.albedo_texture {
                 room.prerender();
             }
-            for (i, light) in world.find_all::<Light>().enumerate() {
-                let position = world.find_component::<Position>(light.entity_id).unwrap();
+            for (i, light_entity) in world.all_with::<Light>().enumerate() {
+                let position = light_entity.get::<Position>();
                 positions[i * 2] = position.x as f32 - room.rect.x;
                 positions[i * 2 + 1] = position.y as f32 - room.rect.y;
             }
@@ -125,12 +126,9 @@ impl RenderSystem {
         }
 
         let mut rect = RectF::default();
-        for sprite in world.find_all::<Sprite>() {
-            let entity = sprite.entity_id;
-            let sprite = sprite.component.borrow();
-            let position = world
-                .find_component::<Position>(entity)
-                .expect("Sprite component requires a Position");
+        for sprite_entity in world.all_with::<Sprite>() {
+            let sprite = sprite_entity.get::<Sprite>();
+            let position = sprite_entity.get::<Position>();
 
             let subtexture = sprite.subtexture();
             let pivot = sprite.pivot();
@@ -150,10 +148,11 @@ impl RenderSystem {
 
             batch.sprite(&rect, subtexture, (1f32, 1f32, 1f32, 1f32));
         }
+        // Only in debug
+        // Collider::render(&world, batch);
 
-        let room: &engine::ecs::ComponentWrapper<Room> =
-            world.find_all::<Room>().next().expect("No Room present");
-        let ortho = &room.component.borrow().world_ortho;
+        let room_entity = world.all_with::<Room>().next().expect("No Room present");
+        let ortho = &room_entity.get::<Room>().world_ortho;
         batch.render(&self.target, ortho);
         batch.clear();
     }
