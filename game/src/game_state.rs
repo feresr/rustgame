@@ -33,36 +33,7 @@ pub const GAME_PIXEL_HEIGHT: usize = 184;
 pub const GAME_TILE_WIDTH: usize = GAME_PIXEL_WIDTH / TILE_SIZE;
 pub const GAME_TILE_HEIGHT: usize = GAME_PIXEL_HEIGHT / TILE_SIZE;
 
-pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
-            in vec2 TexCoord;\n
-            in vec4 a_color;\n
-            in vec4 a_type;\n 
-            layout(location = 0) out vec4 FragColor;\n
-
-            uniform sampler2D u_color_texture;\n
-            uniform sampler2D u_light_texture;\n
-
-            uniform float u_light_radius;\n
-
-            uniform ivec2 u_resolution;\n
-
-            void main()\n
-            {\n
-                vec4 color = texture(u_color_texture, TexCoord); \n
-                vec4 light = texture(u_light_texture, TexCoord); \n
-
-                color = color + (light.x) * vec4(0.15); \n 
-                // color = mix(color * vec4(0.60), color, 0.5); \n 
-
-                float crtIntensity = 0.70; \n // 0 = max 1 = min
-                float crt = (sin(gl_FragCoord.y * 3.14) + 1.0) * 0.5; \n
-                crt = (crt * (1.0 - (crtIntensity))) + crtIntensity; \n
-                // crt = (crt * 0.50) + 0.50; \n
-                crt = mix(crt, 1.0, light.x); \n
-
-                FragColor = vec4(color.rgb, 1.0) * vec4(crt, crt, crt, 1.0); \n
-
-            }";
+pub const FRAGMENT_SHADER_SOURCE: &str = include_str!("crt_shader.fs");
 
 #[repr(C)]
 pub struct GameState {
@@ -126,14 +97,14 @@ impl GameState {
 
         let animation_system = AnimationSystem;
 
-        let shader =
+        let crt_shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
-        let mut material = Material::with_sampler(shader, TextureSampler::nearest());
+        let mut post_processing_material = Material::with_sampler(crt_shader, TextureSampler::nearest());
         let sampler = TextureSampler::nearest();
-        material.set_sampler("u_color_texture", &sampler);
-        material.set_texture("u_color_texture", &render_system.color());
-        material.set_sampler("u_light_texture", &sampler);
-        material.set_texture("u_light_texture", &light_system.color());
+        post_processing_material.set_sampler("u_color_texture", &sampler);
+        post_processing_material.set_texture("u_color_texture", &render_system.color());
+        post_processing_material.set_sampler("u_light_texture", &sampler);
+        post_processing_material.set_texture("u_light_texture", &light_system.color());
         // engine::audio().play_music(&content().tracks["music-1"]);
 
         Self {
@@ -149,7 +120,7 @@ impl GameState {
             light_system,
             screen_target: Target::screen(SCREEN_WIDTH as i32 * 2, SCREEN_HEIGHT as i32 * 2),
             screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
-            material,
+            material: post_processing_material,
         }
     }
 

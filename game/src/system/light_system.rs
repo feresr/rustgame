@@ -1,8 +1,11 @@
-use std::{
-    cell::{Cell, RefCell},
-    num::Wrapping,
+use crate::{
+    components::{
+        light::Light,
+        position::Position,
+        room::{Room, Tile},
+    },
+    game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
 };
-
 use engine::{
     ecs::{World, WorldOp},
     graphics::{
@@ -15,35 +18,10 @@ use engine::{
         texture::{Texture, TextureFormat, TextureSampler},
     },
 };
+use std::num::Wrapping;
 
-use crate::{components::{
-    light::Light,
-    position::Position,
-    room::{Room, Tile},
-}, game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE}};
 // todo a_type is (mult wash fill pad) document better
-pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
-            in vec2 TexCoord;\n
-            in vec4 a_color;\n
-            in vec4 a_type;\n 
-            layout(location = 0) out vec4 FragColor;\n
-
-            uniform vec2 u_light_position;\n
-            uniform float u_light_radius;\n
-
-            uniform sampler2D u_texture;\n
-            uniform ivec2 u_resolution;\n
-
-            void main()\n
-            {\n
-                float frag_to_light = distance(gl_FragCoord.xy, u_light_position); \n
-                if (length(frag_to_light) > u_light_radius) {\n
-                    discard; \n
-                } \n
-                float f = mix(1.0, 0.7, step(0.8, frag_to_light / u_light_radius)); \n
-                // float f = smoothstep(1.5, 0.8, frag_to_light / u_light_radius); \n
-                FragColor = vec4(f, f, f, 1.0); \n
-            }";
+const FRAGMENT_SHADER_SOURCE: &str = include_str!("light_shader.fs");
 
 pub struct LightSystem {
     target: Target,
@@ -88,17 +66,16 @@ impl LightSystem {
         let room_position = room_entity.get::<Position>();
 
         let material = &self.material;
-        let target = &self.target;
 
         let projection_distance: f32 = 140.0 + 5.0f32 * f32::sin(self.time.0 as f32 / 60f32);
 
         // TODO: this is the camera. should the camera be part of the world (an entity)?
         let ortho = &room.world_ortho;
-        target.clear(base_color);
+        self.target.clear(base_color);
         // Make the target non-drawable
         for light_entity in world.all_with::<Light>() {
             batch.push_material(material);
-            target.clear_stencil(0);
+            self.target.clear_stencil(0);
             let light_offset = light_entity.get::<Light>();
             let light_position = light_entity.get::<Position>().as_vec2();
             let light_position =
@@ -138,7 +115,7 @@ impl LightSystem {
             );
 
             batch.set_stencil(Stencil::disable());
-            batch.render(&target, ortho);
+            batch.render(&self.target, ortho);
             batch.clear();
         }
         // batch.pop_material();

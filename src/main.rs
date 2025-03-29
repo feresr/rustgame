@@ -59,8 +59,6 @@ fn main() {
 
     // TODO
     env::set_var("RUST_BACKTRACE", "1");
-    // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
-    // let config = game.config();
 
     // Start engine
     let config = (game.get_config)();
@@ -68,10 +66,6 @@ fn main() {
     let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
     let audio_subsystem: AudioSubsystem = sdl_context.audio().unwrap();
-    // TODO
-
-    // let audio_player = AudioPlayer::new(audio_subsystem);
-    // unsafe { AUDIO = Some(audio_player) };
 
     let gl_attr = video_subsystem.gl_attr();
     gl_attr.set_context_profile(GLProfile::Core);
