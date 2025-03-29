@@ -3,7 +3,7 @@ use engine::{
     graphics::texture::{SubTexture, Texture},
 };
 use ldtk_rust::TilesetDefinition;
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 pub struct Frame {
     pub image: SubTexture,
@@ -13,8 +13,8 @@ pub struct Frame {
 
 #[allow(dead_code)]
 pub struct Tileset {
-    pub texture: Texture,
-    pub normal: Texture,
+    pub texture: Rc<Texture>,
+    pub normal: Rc<Texture>,
     pub tile_size: u32,
     pub rows: i64,
     pub columns: i64,
@@ -24,8 +24,8 @@ impl Tileset {
         let path = definition.rel_path.expect("Tileset is missing image path");
         // TODO
         let path = format!("game/src/assets/{}", &path);
-        let texture = Texture::from_path(&path);
-        let normal = Texture::from_path(&path.replace(".png", "-normal.png"));
+        let texture = Rc::new(Texture::from_path(&path));
+        let normal = Rc::new(Texture::from_path(&path.replace(".png", "-normal.png")));
         Self {
             texture,
             normal,

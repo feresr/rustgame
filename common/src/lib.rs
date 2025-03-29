@@ -1,5 +1,19 @@
-use std::collections::HashSet;
 use sdl2::keyboard::Keycode;
+use std::collections::HashSet;
+
+#[macro_export]
+macro_rules! check_gl_errors {
+    ($msg:expr) => {
+        #[cfg(debug_assertions)]
+        {
+            unsafe {
+                while gl::GetError() != gl::NO_ERROR {
+                    panic!("OpenGL error: {}", $msg);
+                }
+            }
+        }
+    };
+}
 
 #[repr(C)]
 pub struct GameMemory {

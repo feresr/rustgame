@@ -6,6 +6,7 @@ use crate::{
     },
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
 };
+use common::check_gl_errors;
 use engine::{
     ecs::{World, WorldOp},
     graphics::{
@@ -18,14 +19,13 @@ use engine::{
         texture::{Texture, TextureFormat, TextureSampler},
     },
 };
-use std::num::Wrapping;
+use std::{num::Wrapping, rc::Rc};
 
 // todo a_type is (mult wash fill pad) document better
 const FRAGMENT_SHADER_SOURCE: &str = include_str!("light_shader.fs");
 
 pub struct LightSystem {
-    target: Target,
-    texture: Texture,
+    target: Target, // Where it's going to render the lights - temporarily
     material: Material,
     time: Wrapping<u32>,
 }
@@ -44,15 +44,14 @@ impl LightSystem {
         let material = Material::with_sampler(shader, TextureSampler::nearest());
 
         LightSystem {
-            texture: target.color().clone(),
-            target: target,
-            material: material,
+            target,
+            material,
             time: Wrapping(0),
         }
     }
 
-    pub fn color(&self) -> &Texture {
-        &self.texture
+    pub fn color(&self) -> Rc<Texture> {
+        return self.target.attachments[0].clone()
     }
 
     pub fn render(&mut self, world: &World, batch: &mut Batch) {
@@ -65,8 +64,6 @@ impl LightSystem {
         let room = room_entity.get::<Room>();
         let room_position = room_entity.get::<Position>();
 
-        let material = &self.material;
-
         let projection_distance: f32 = 140.0 + 5.0f32 * f32::sin(self.time.0 as f32 / 60f32);
 
         // TODO: this is the camera. should the camera be part of the world (an entity)?
@@ -74,7 +71,7 @@ impl LightSystem {
         self.target.clear(base_color);
         // Make the target non-drawable
         for light_entity in world.all_with::<Light>() {
-            batch.push_material(material);
+            batch.push_material(&self.material);
             self.target.clear_stencil(0);
             let light_offset = light_entity.get::<Light>();
             let light_position = light_entity.get::<Position>().as_vec2();
@@ -84,8 +81,10 @@ impl LightSystem {
             // normalise light position (0 - 1) for the shader
             let ligh_posx = light_position.x - room_position.x as f32;
             let ligh_posy = light_position.y - room_position.y as f32;
-            material.set_value2f("u_light_position", (ligh_posx, ligh_posy));
-            material.set_valuef("u_light_radius", projection_distance / 2f32);
+            self.material
+                .set_value2f("u_light_position", (ligh_posx, ligh_posy));
+            self.material
+                .set_valuef("u_light_radius", projection_distance / 2f32);
 
             // Draw oclusion shadows (in the stencil buffer)
             batch.set_stencil(Stencil::write(1));

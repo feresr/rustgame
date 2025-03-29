@@ -33,11 +33,11 @@ pub const GAME_PIXEL_HEIGHT: usize = 184;
 pub const GAME_TILE_WIDTH: usize = GAME_PIXEL_WIDTH / TILE_SIZE;
 pub const GAME_TILE_HEIGHT: usize = GAME_PIXEL_HEIGHT / TILE_SIZE;
 
-pub const FRAGMENT_SHADER_SOURCE: &str = include_str!("crt_shader.fs");
+pub const CRT_FRAGMENT_SOURCE: &str = include_str!("crt_shader.fs");
 
 #[repr(C)]
 pub struct GameState {
-    gbuffer: Target,
+    gbuffer: Target, // low-res target
     world: World,
     batch: Batch,
     movement_system: MovementSystem,
@@ -54,13 +54,6 @@ pub struct GameState {
 
 impl GameState {
     pub fn new() -> Self {
-        let shader = graphics::shader::Shader::new(
-            graphics::VERTEX_SHADER_SOURCE,
-            graphics::FRAGMENT_SHADER_SOURCE,
-        );
-        let batch_default_material = graphics::material::Material::new(shader);
-        let mesh = graphics::mesh::Mesh::new();
-        let batch = graphics::batch::Batch::new(mesh, batch_default_material);
         let screen_ortho = glm::ortho(
             0.0,
             SCREEN_WIDTH as f32,
@@ -70,19 +63,10 @@ impl GameState {
             2f32,
         );
 
-        let attachments = [
-            // Albedo
-            TextureFormat::RGBA,
-            // Shadows
-            TextureFormat::RGBA,
-            // Depth
-            TextureFormat::DepthStencil,
-        ];
-
         let gbuffer = Target::new(
             GAME_PIXEL_WIDTH as i32,
             GAME_PIXEL_HEIGHT as i32,
-            &attachments,
+            &[TextureFormat::RGBA],
         );
 
         let mut world = World::new();
@@ -98,15 +82,17 @@ impl GameState {
         let animation_system = AnimationSystem;
 
         let crt_shader =
-            graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
-        let mut post_processing_material = Material::with_sampler(crt_shader, TextureSampler::nearest());
+            graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, CRT_FRAGMENT_SOURCE);
+        let mut post_processing_material =
+            Material::with_sampler(crt_shader, TextureSampler::nearest());
         let sampler = TextureSampler::nearest();
         post_processing_material.set_sampler("u_color_texture", &sampler);
-        post_processing_material.set_texture("u_color_texture", &render_system.color());
+        post_processing_material.set_texture("u_color_texture", render_system.color());
         post_processing_material.set_sampler("u_light_texture", &sampler);
-        post_processing_material.set_texture("u_light_texture", &light_system.color());
+        post_processing_material.set_texture("u_light_texture", light_system.color());
         // engine::audio().play_music(&content().tracks["music-1"]);
 
+        let batch = graphics::batch::Batch::default();
         Self {
             screen_ortho,
             gbuffer,
@@ -179,7 +165,7 @@ impl GameState {
             self.batch.set_sampler(&TextureSampler::nearest());
             self.batch.tex(
                 &self.screen_rect,
-                &self.gbuffer.color(),
+                self.gbuffer.color(),
                 (1.0f32, 1.0f32, 1.0f32, 1f32),
             );
             // TODO

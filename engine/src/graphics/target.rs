@@ -1,5 +1,9 @@
 extern crate gl;
 
+use std::rc::Rc;
+
+use common::check_gl_errors;
+
 use super::texture::Texture;
 use super::texture::TextureFormat;
 
@@ -8,7 +12,8 @@ pub struct Target {
     pub id: u32,
     pub width: i32,
     pub height: i32,
-    pub attachments: Vec<Texture>, // todo maybe this should have a getter instead of being pub
+    // Target draws to these
+    pub attachments: Vec<Rc<Texture>>,
 }
 impl Target {
     pub fn empty() -> Self {
@@ -27,12 +32,22 @@ impl Target {
             attachments: vec![],
         }
     }
-    pub fn color(&self) -> &Texture {
+    pub fn color(&self) -> Rc<Texture> {
         return self
             .attachments
             .iter()
             .find(|f| f.format != TextureFormat::DepthStencil)
+            .map(|a| a.clone())
             .expect("Target has no color texture attachment");
+    }
+}
+
+impl Drop for Target {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteFramebuffers(1, &self.id);
+            check_gl_errors!("Error trying to drop target");
+        }
     }
 }
 
@@ -51,7 +66,7 @@ impl Target {
             gl::BindFramebuffer(gl::FRAMEBUFFER, target.id);
 
             for (i, attachment) in attachments.iter().enumerate() {
-                let texture = Texture::new(width, height, *attachment);
+                let texture = Rc::new(Texture::new(width, height, *attachment));
                 let texture_id = texture.id;
                 target.attachments.push(texture);
                 if *attachment != TextureFormat::DepthStencil {
@@ -97,11 +112,3 @@ impl Target {
         }
     }
 }
-
-// This is copied, destroying one would destroy the underlaying fbo (reference count?)
-// impl Drop for Target { fn drop(&mut self) {
-//         unsafe {
-//             glDeleteFramebuffers(1, &self.id);
-//         }
-//     }
-// }

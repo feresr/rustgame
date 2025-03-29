@@ -1,5 +1,7 @@
 extern crate gl;
 
+use common::check_gl_errors;
+
 use super::common::*;
 
 #[derive(Debug)]
@@ -8,6 +10,16 @@ pub struct Mesh {
     count: usize,
     vertex_buffer: u32,
     index_buffer: u32,
+}
+
+impl Drop for Mesh {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteVertexArrays(1, &self.id);
+            gl::DeleteBuffers(2, [self.index_buffer, self.vertex_buffer].as_ptr());
+        }
+        check_gl_errors!("Mesh::Drop")
+    }
 }
 
 impl Mesh {
@@ -67,9 +79,8 @@ impl Mesh {
             }
             // bind EBO to VAO
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffers[1]);
-            while gl::GetError() != gl::NO_ERROR {
-                panic!("Something went wrong creating Mesh")
-            }
+
+            check_gl_errors!("Something went wrong creating Mesh");
         }
         Mesh {
             id: vao,
@@ -82,6 +93,7 @@ impl Mesh {
     pub fn set_data(&mut self, vertices: &[Vertex]) {
         unsafe {
             gl::BindVertexArray(self.id);
+            check_gl_errors!("OpenGl error Mesh#set_data bind vertex array");
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
@@ -91,9 +103,7 @@ impl Mesh {
                 gl::DYNAMIC_DRAW,
             );
             gl::BindVertexArray(0);
-            while gl::GetError() != gl::NO_ERROR {
-                panic!("OpenGL error Mesh#set_data")
-            }
+            check_gl_errors!("OpenGl error Mesh#set_data");
         }
         self.count = vertices.len();
     }
@@ -120,9 +130,7 @@ impl Mesh {
         }
         unsafe {
             gl::BindVertexArray(self.id);
-            while gl::GetError() != gl::NO_ERROR {
-                panic!("OpenGL error Mesh#bind")
-            }
+            check_gl_errors!("Mesh::bind");
         }
     }
 }

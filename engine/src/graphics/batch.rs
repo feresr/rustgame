@@ -1,9 +1,11 @@
 extern crate gl;
 
+use common::check_gl_errors;
 use gl::types::GLenum;
 use imgui::TreeNodeFlags;
 use imgui::Ui;
 use std::f32::consts::TAU;
+use std::rc::Rc;
 
 use super::blend;
 use super::blend::BlendMode;
@@ -80,7 +82,7 @@ pub struct DrawBatch {
     offset: i64,
     elements: i64,
     material: Material,
-    texture: Texture,
+    texture: Rc<Texture>,
     sampler: TextureSampler,
     blend: BlendMode,
     stencil: Option<Stencil>,
@@ -126,10 +128,12 @@ impl Batch {
         self.mesh.set_data(&self.vertices);
         self.mesh.set_index_data(&self.indices);
 
+        check_gl_errors!("Batch::Render pre draw");
+
         for batch in self.batches.iter_mut() {
             // TODO: upload a u_time uniform?
             if batch.material.has_uniform("u_texture") {
-                batch.material.set_texture("u_texture", &batch.texture);
+                batch.material.set_texture("u_texture", batch.texture.clone());
                 batch.material.set_sampler("u_texture", &batch.sampler);
             }
             if batch.material.has_uniform("u_matrix") {
@@ -154,6 +158,7 @@ impl Batch {
             pass.index_start = batch.offset * 3;
 
             pass.perform();
+            check_gl_errors!("Batch::Render::Perform");
         }
     }
 
@@ -168,13 +173,13 @@ impl Batch {
 
     // Sets the current texture used for drawing.
     // Note that certain functions will override this (ex the `str` and `tex` methods)
-    pub fn set_texture(&mut self, texture: &Texture) {
+    pub fn set_texture(&mut self, texture: Rc<Texture>) {
         let current = self.current_batch();
-        if current.elements > 0 && *texture != current.texture {
+        if current.elements > 0 && texture != current.texture {
             self.push_batch();
         }
         let current = self.current_batch();
-        current.texture = texture.clone();
+        current.texture = texture;
     }
 
     fn push_batch(&mut self) {
@@ -183,7 +188,7 @@ impl Batch {
             offset: current.offset + current.elements,
             elements: 0,
             material: current.material.clone(),
-            texture: current.texture,
+            texture: current.texture.clone(),
             ..*current
         };
         self.batches.push(value);
@@ -377,11 +382,11 @@ impl Batch {
         let current = self.current_batch();
         if current.texture == subtexture.texture || current.elements == 0 {
             // reuse existing batch
-            current.texture = subtexture.texture;
+            current.texture = subtexture.texture.clone();
         } else {
             // create a new batch
             self.push_batch();
-            self.current_batch().texture = subtexture.texture;
+            self.current_batch().texture = subtexture.texture.clone();
         }
         // current.texture = subtexture.texture.clone();
         let x = subtexture.source.x / subtexture.texture.width as f32;
@@ -407,11 +412,11 @@ impl Batch {
         );
     }
 
-    pub fn tex(&mut self, rect: &RectF, texture: &Texture, color: (f32, f32, f32, f32)) {
+    pub fn tex(&mut self, rect: &RectF, texture: Rc<Texture>, color: (f32, f32, f32, f32)) {
         let current = self.current_batch();
-        if current.texture == *texture || current.elements == 0 {
+        if current.texture == texture || current.elements == 0 {
             // reuse existing batch
-            current.texture = *texture;
+            current.texture = texture;
         } else {
             // create a new batch
             self.push_batch();
@@ -540,7 +545,6 @@ impl Batch {
         }
     }
 
-
     fn push_quad(
         &mut self,
         pos0: (f32, f32, f32),
@@ -589,7 +593,7 @@ impl Batch {
                 offset: 0,
                 elements: 0,
                 material: self.default_material.clone(),
-                texture: Texture::default(),
+                texture: Rc::new(Texture::default()),
                 sampler: TextureSampler::default(),
                 blend: blend::NORMAL,
                 stencil: None,

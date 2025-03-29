@@ -1,5 +1,7 @@
 extern crate gl;
 
+use common::check_gl_errors;
+
 use super::batch::Stencil;
 use super::blend::BlendMode;
 use super::material::*;
@@ -28,10 +30,13 @@ impl<'a> DrawCall<'a> {
         //     );
         // }
 
+        check_gl_errors!("DrawCall::perform::pre_check");
         unsafe {
             self.material.set();
+            check_gl_errors!("DrawCall::perform::material_set");
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.target.id);
             gl::Viewport(0, 0, self.target.width, self.target.height);
+            check_gl_errors!("DrawCall::perform::bind_frame_buffer");
 
             gl::BlendEquationSeparate(
                 self.blend.color_op.to_gl_enum(),

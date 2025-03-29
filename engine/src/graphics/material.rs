@@ -1,13 +1,17 @@
+use std::rc::Rc;
+
+use common::check_gl_errors;
 use gl::types::GLsizei;
 
 use super::{shader::*, texture::*};
 extern crate gl;
 
+// TODO: why can we clone a material?
 #[derive(PartialEq, Debug, Clone)]
 pub struct Material {
-    shader: Shader,
+    shader: Rc<Shader>,
     data: Vec<f32>,
-    textures: Vec<Texture>,
+    textures: Vec<Rc<Texture>>, // Textures are shared by Materials an Targets, there is no clear owner, hard to know when they should be dropped, so we use Rc.
     samplers: Vec<TextureSampler>,
 }
 
@@ -18,10 +22,12 @@ impl Material {
             .iter()
             .filter(|it| it.uniform_type == UniformType::Texture2D);
         let texture_count = texture_uniforms.count();
+        let textures: Vec<Rc<Texture>> = (0..texture_count).map(|_| Rc::new(Texture::default())).collect();
+
         return Material {
-            shader,
+            shader : Rc::new(shader),
             data: Vec::new(),
-            textures: vec![Texture::default(); texture_count],
+            textures,
             samplers: vec![sampler; texture_count],
         };
     }
@@ -31,10 +37,11 @@ impl Material {
             .iter()
             .filter(|it| it.uniform_type == UniformType::Texture2D);
         let texture_count = texture_uniforms.count();
+        let textures: Vec<Rc<Texture>> = (0..texture_count).map(|_| Rc::new(Texture::default())).collect();
         return Material {
-            shader,
+            shader: Rc::new(shader),
             data: Vec::new(),
-            textures: vec![Texture::default(); texture_count],
+            textures,
             samplers: vec![TextureSampler::default(); texture_count],
         };
     }
@@ -43,6 +50,7 @@ impl Material {
         let mut texture_slot = 0;
         unsafe {
             self.shader.set();
+            check_gl_errors!("Material::set::shader_set");
             let texture_uniforms: Vec<&Uniform> = self
                 .shader
                 .uniforms
@@ -55,6 +63,7 @@ impl Material {
                 gl::ActiveTexture(gl::TEXTURE0 + texture_slot);
                 // put a texture in that slot
                 gl::BindTexture(gl::TEXTURE_2D, texture.id);
+                check_gl_errors!("Material::set::bind_texture");
                 texture.update_sampler(sampler);
 
                 // map uniform location to slot
@@ -77,7 +86,7 @@ impl Material {
             > 0
     }
 
-    pub fn set_texture(&mut self, name: &str, texture: &Texture) {
+    pub fn set_texture(&mut self, name: &str, texture: Rc<Texture>) {
         let texture_uniforms = self
             .shader
             .uniforms
@@ -86,7 +95,7 @@ impl Material {
 
         for (index, uniform) in texture_uniforms.enumerate() {
             if uniform.name == *name {
-                self.textures[index] = texture.clone();
+                self.textures[index] = texture;
                 break;
             }
         }

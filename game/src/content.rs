@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, rc::Rc};
 
 use engine::{
     audio::AudioTrack,
@@ -17,7 +17,7 @@ use crate::{
 #[allow(dead_code)]
 pub struct Content {
     pub tilesets: HashMap<i64, Tileset>,
-    pub textures: HashMap<String, Texture>,
+    pub textures: HashMap<String, Rc<Texture>>,
     // animation sets
     pub sprites: HashMap<String, HashMap<String, Animation>>,
     pub tracks: HashMap<&'static str, AudioTrack>,
@@ -31,7 +31,6 @@ impl Content {
         let mut sprites = HashMap::new();
         let mut tilesets = HashMap::new();
 
-
         let assets = fs::read_dir("game/src/assets/atlas/").unwrap();
         for asset in assets {
             let path = asset.unwrap().path();
@@ -40,7 +39,7 @@ impl Content {
                     if let Some(path_str) = path.to_str() {
                         // todo: Repalce .bin with .png
                         let png_str = path_str.replace(".json", ".png");
-                        let texture = Texture::from_path(&png_str);
+                        let texture = Rc::new(Texture::from_path(&png_str));
                         let filename = path.file_stem().unwrap().to_str().unwrap();
                         textures.insert(filename.to_string(), texture);
 
@@ -52,7 +51,7 @@ impl Content {
                             let mut frames = Vec::new();
                             let frame = Frame {
                                 image: SubTexture::new(
-                                    texture,
+                                    Rc::clone(texture),
                                     RectF {
                                         x: slice.x as f32,
                                         y: slice.y as f32,
@@ -86,7 +85,7 @@ impl Content {
                     if let Some(path_str) = path.to_str() {
                         // todo: Repalce .bin with .png
                         let png_str = path_str.replace(".bin", ".png");
-                        let texture = Texture::from_path(&png_str);
+                        let texture = Rc::new(Texture::from_path(&png_str));
                         let filename = path.file_stem().unwrap().to_str().unwrap();
                         textures.insert(filename.to_string(), texture);
 
@@ -103,7 +102,7 @@ impl Content {
                             for frame in frame_slice {
                                 let frame = Frame {
                                     image: SubTexture::new(
-                                        texture,
+                                        Rc::clone(texture),
                                         RectF {
                                             x: frame.x as f32,
                                             y: frame.y as f32,

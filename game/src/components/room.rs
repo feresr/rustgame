@@ -1,4 +1,9 @@
-use crate::{content::content, game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE}};
+use std::rc::Rc;
+
+use crate::{
+    content::content,
+    game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
+};
 use engine::{
     ecs::component::Component,
     graphics::{
@@ -29,8 +34,8 @@ pub struct Room {
     pub world_position: glm::Vec2,
     pub layers: Vec<Layer>,
     pub rect: RectF,
-    pub albedo_texture: Option<Texture>,
-    pub normal_texture: Option<Texture>,
+    pub albedo_texture: Option<Rc<Texture>>,
+    pub normal_texture: Option<Rc<Texture>>,
     // Used to pre-render room-space coordinates tiles into a 0, 0 texture
     pub ortho: glm::Mat4,
     // This is essentially the camera in world space
@@ -105,7 +110,9 @@ impl Room {
             batch: Batch::default(),
         }
     }
+
     pub fn prerender(&mut self) {
+        // Colors
         let attachments = [TextureFormat::RGBA];
         let target = Target::new(
             GAME_PIXEL_WIDTH as i32,
@@ -127,7 +134,7 @@ impl Room {
                 self.batch.sprite(
                     &tile_rect,
                     &SubTexture::new(
-                        &tileset.texture,
+                        Rc::clone(&tileset.texture),
                         RectF {
                             x: tile.src_x as f32,
                             y: tile.src_y as f32,
@@ -141,7 +148,7 @@ impl Room {
             self.batch.render(&target, &self.ortho);
         }
 
-        self.albedo_texture = Some(*target.color());
+        self.albedo_texture = Some(target.color());
         self.batch.clear();
 
         // NORMALS
@@ -166,7 +173,7 @@ impl Room {
                 self.batch.sprite(
                     &tile_rect,
                     &SubTexture::new(
-                        &tileset.normal,
+                        Rc::clone(&tileset.normal),
                         RectF {
                             x: tile.src_x as f32,
                             y: tile.src_y as f32,
@@ -180,7 +187,7 @@ impl Room {
             self.batch.render(&target, &self.ortho);
         }
 
-        self.normal_texture = Some(*target.color());
+        self.normal_texture = Some(target.color());
         self.batch.clear();
     }
 }

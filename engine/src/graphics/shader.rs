@@ -1,9 +1,20 @@
+use common::check_gl_errors;
+
 extern crate gl;
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Shader {
     program: u32,
     pub uniforms: Vec<Uniform>,
+}
+
+impl Drop for Shader {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteProgram(self.program);
+            check_gl_errors!("Shader::drop")
+        }
+    }
 }
 
 impl Shader {

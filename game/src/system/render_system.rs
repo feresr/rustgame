@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use engine::{
     ecs::{World, WorldOp},
@@ -11,13 +11,11 @@ use engine::{
         texture::{Texture, TextureFormat, TextureSampler},
     },
 };
-use glm::pi;
 
 use crate::{
-    components::{light::Light, player::Player, position::Position, room::Room, sprite::Sprite}, game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
+    components::{light::Light, position::Position, room::Room, sprite::Sprite},
+    game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
 };
-
-use super::light_system;
 
 pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             in vec2 TexCoord;\n
@@ -62,24 +60,16 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
 
 #[allow(dead_code)]
 pub struct RenderSystem {
-    albedo: Texture,
-    normal: Texture,
     target: Target,
     material: Material,
 }
 
 impl RenderSystem {
     pub fn new() -> Self {
-        let attachments = [
-            // Albedo
-            TextureFormat::RGBA,
-            // Normal
-            TextureFormat::RGBA,
-        ];
         let target = Target::new(
             GAME_PIXEL_WIDTH as i32,
             GAME_PIXEL_HEIGHT as i32,
-            &attachments,
+            &[TextureFormat::RGBA],
         );
 
         let shader =
@@ -88,43 +78,47 @@ impl RenderSystem {
         let sampler = TextureSampler::nearest();
         material.set_sampler("u_color_texture", &sampler);
         material.set_sampler("u_normal_texture", &sampler);
-        RenderSystem {
-            albedo: target.attachments[0].clone(),
-            normal: target.attachments[1].clone(),
-            target,
-            material: material,
-        }
+        RenderSystem { target, material }
     }
 
-    pub fn color(&self) -> &Texture {
-        &self.albedo
+    pub fn color(&self) -> Rc<Texture> {
+        self.target.attachments[0].clone()
     }
 
     pub fn render(&mut self, world: &World, batch: &mut Batch) {
         self.target.clear((0f32, 0f32, 0f32, 0f32));
         batch.clear();
 
-        let mut positions: [f32; 10] = [0.0f32; 10];
-        for room_entity in world.all_with::<Room>() {
-            let mut room = room_entity.get::<Room>();
-            if let None = room.albedo_texture {
-                room.prerender();
-            }
-            for (i, light_entity) in world.all_with::<Light>().enumerate() {
-                let position = light_entity.get::<Position>();
-                positions[i * 2] = position.x as f32 - room.rect.x;
-                positions[i * 2 + 1] = position.y as f32 - room.rect.y;
-            }
-
-            let material = &mut self.material;
-            material.set_texture("u_color_texture", &room.albedo_texture.unwrap());
-            material.set_texture("u_normal_texture", &room.normal_texture.unwrap());
-            material.set_vector2f("u_light_position[0]", &positions);
-            batch.push_material(&material);
-            batch.rect(&room.rect, (1.0, 1.0, 1.0, 1.0));
-            batch.pop_material()
+        // Pre-render room if required
+        let room_entity = world.first::<Room>().expect("No room entity present");
+        let mut room = room_entity.get::<Room>();
+        if let None = room.albedo_texture {
+            room.prerender();
+            self.material.set_texture(
+                "u_color_texture",
+                room.albedo_texture.as_ref().unwrap().clone(),
+            );
+            self.material.set_texture(
+                "u_normal_texture",
+                room.normal_texture.as_ref().unwrap().clone(),
+            );
         }
 
+        // Normalize light positions
+        let mut light_positions: [f32; 10] = [0.0f32; 10];
+        for (i, light_entity) in world.all_with::<Light>().enumerate() {
+            let light_position = light_entity.get::<Position>();
+            light_positions[i * 2] = light_position.x as f32 - room.rect.x;
+            light_positions[i * 2 + 1] = light_position.y as f32 - room.rect.y;
+        }
+        self.material
+            .set_vector2f("u_light_position[0]", &light_positions);
+        // Render lights
+        batch.push_material(&self.material);
+        batch.rect(&room.rect, (1.0, 1.0, 1.0, 1.0));
+        batch.pop_material();
+
+        // Lastly, render Sprites
         let mut rect = RectF::default();
         for sprite_entity in world.all_with::<Sprite>() {
             let sprite = sprite_entity.get::<Sprite>();
@@ -146,8 +140,6 @@ impl RenderSystem {
             rect.w = subtexture.source.w as f32;
             rect.h = subtexture.source.h as f32;
 
-            // batch.circle(pivot, 15f32, 4, (1f32, 1f32, 1f32, 1f32));
-
             if sprite.flip_x {
                 rect.x += rect.w;
                 rect.w = -rect.w;
@@ -165,9 +157,8 @@ impl RenderSystem {
         // Only in debug
         // Collider::render(&world, batch);
 
-        let room_entity = world.all_with::<Room>().next().expect("No Room present");
-        let ortho = &room_entity.get::<Room>().world_ortho;
-        batch.render(&self.target, ortho);
+        // let ortho = &room.world_ortho;
+        batch.render(&self.target, &room.world_ortho);
         batch.clear();
     }
 }

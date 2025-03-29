@@ -1,10 +1,15 @@
-use std::{fmt::Error, fmt::Formatter, fs::File, io::Read};
+use std::{
+    fmt::{Error, Formatter},
+    fs::File,
+    io::Read,
+    rc::Rc,
+};
 
 use super::common::RectF;
 
 extern crate gl;
 
-#[derive(Clone, Copy, PartialEq, Debug, Hash)]
+#[derive(PartialEq, Debug, Hash)]
 pub struct Texture {
     pub id: u32,
     pub width: i32,
@@ -12,22 +17,27 @@ pub struct Texture {
     pub format: TextureFormat, // todo: add [TextureFormat]?
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct SubTexture {
-    pub texture: Texture,
-    pub normal: Option<Texture>,
+    pub texture: Rc<Texture>,
     pub source: RectF,
 }
 impl SubTexture {
-    pub fn new(texture: &Texture, source: RectF) -> Self {
+    pub fn new(texture: Rc<Texture>, source: RectF) -> Self {
         Self {
             texture: texture.clone(),
-            normal: None,
             source,
         }
     }
 }
 
+impl Drop for Texture {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.id);
+        }
+    }
+}
 impl Texture {
     pub fn default() -> Self {
         return Texture {
