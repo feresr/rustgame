@@ -4,22 +4,16 @@ extern crate nalgebra_glm as glm;
 extern crate sdl2;
 
 use audio::AudioPlayer;
-use graphics::batch::{Batch, ImGuiable};
-use graphics::target::Target;
-use imgui::{Context, Ui};
+use common::Keyboard;
+use imgui::Ui;
 
 pub mod audio;
 pub mod ecs;
 pub mod graphics;
 
-use sdl2::event::Event;
 pub use sdl2::keyboard::Keycode;
-use sdl2::sys::daddr_t;
-use sdl2::video::GLProfile;
-use sdl2::{AudioSubsystem, Sdl, VideoSubsystem};
-use std::collections::HashSet;
-use std::env;
-use std::time::{Duration, Instant};
+use sdl2::{AudioSubsystem, VideoSubsystem};
+use std::time::Duration;
 
 pub const FPS: u64 = 60;
 pub const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
@@ -29,96 +23,26 @@ pub struct Config {
     pub window_height: u32,
 }
 
-pub trait Game {
-    fn config(&self) -> Config;
-    fn init(&mut self);
-    fn update(&mut self) -> bool;
-    fn render(&self, batch: &mut Batch, screen: &Target);
-    fn debug(&self, imgui: &Ui);
-    fn dispose(&mut self);
-}
-
-static mut KEYBOARD: Option<Keyboard> = None;
-
-pub fn keyboard() -> &'static mut Keyboard {
-    unsafe {
-        if KEYBOARD.is_none() {
-            KEYBOARD = Some(Keyboard::new());
-        }
-        KEYBOARD.as_mut().unwrap()
-    }
-}
-
 pub static mut AUDIO: Option<AudioPlayer> = None;
 
 pub fn audio() -> &'static mut AudioPlayer {
     unsafe { AUDIO.as_mut().unwrap() }
 }
 
-pub fn run(mut game: impl Game) {
-    env::set_var("RUST_BACKTRACE", "1");
-    // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
-    let config = game.config();
-    let window_size = (config.window_width, config.window_height);
-    let sdl_context: Sdl = sdl2::init().unwrap();
-    let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
-    let audio_subsystem: AudioSubsystem = sdl_context.audio().unwrap();
-
-    let audio_player = AudioPlayer::new(audio_subsystem);
-    unsafe { AUDIO = Some(audio_player) };
-
-    let gl_attr = video_subsystem.gl_attr();
-    gl_attr.set_context_profile(GLProfile::Core);
-    gl_attr.set_context_version(3, 3);
-
-    let window = video_subsystem
-        .window("Window", window_size.0, window_size.1)
-        .allow_highdpi()
-        .opengl()
-        // .borderless()
-        .build()
-        .unwrap();
-
-    let drawable_size = window.drawable_size();
-    let mut screen = Target::screen(drawable_size.0 as i32, drawable_size.1 as i32);
-
-    let _ctx = window.gl_create_context().unwrap();
+pub fn init(video_subsystem: &VideoSubsystem, audio_subsystem: &AudioSubsystem) {
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
 
-    /* create context */
-    let mut imgui = Context::create();
-    /* disable creation of files on disc */
-    imgui.set_ini_filename(None);
-    imgui.set_log_filename(None);
-
-    /* setup platform and renderer, and fonts to imgui */
-    imgui
-        .fonts()
-        .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
-    let mut platform = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
-    let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
-        video_subsystem.gl_get_proc_address(s) as _
-    });
-
-    debug_assert_eq!(gl_attr.context_profile(), GLProfile::Core);
-    debug_assert_eq!(gl_attr.context_version(), (3, 3));
-
-    let shader = graphics::shader::Shader::new(
-        graphics::VERTEX_SHADER_SOURCE,
-        graphics::FRAGMENT_SHADER_SOURCE,
-    );
-    let material = graphics::material::Material::new(shader);
-    let mesh = graphics::mesh::Mesh::new();
-    let mut batch = graphics::batch::Batch::new(mesh, material);
-    let mut events = sdl_context.event_pump().unwrap();
-
-    // OpenGL config
     unsafe {
-        // TODO: culling?
+        if AUDIO.is_none() {
+            let audio_player = AudioPlayer::new(audio_subsystem);
+            AUDIO = Some(audio_player)
+        }
+    }
+
+    unsafe {
         gl::Disable(gl::CULL_FACE);
         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
         gl::Enable(gl::MULTISAMPLE);
-
         gl::Enable(gl::DEPTH_TEST);
         // For equal z-index, do overwrite (default: g::LESS)
         gl::DepthFunc(gl::LEQUAL);
@@ -126,142 +50,14 @@ pub fn run(mut game: impl Game) {
         gl::ClearStencil(0);
         gl::Enable(gl::BLEND);
     }
-
-    game.init();
-
-    'game_loop: loop {
-        let start = Instant::now();
-        let keyboard = keyboard();
-
-        keyboard.pressed.clear();
-        for ref event in events.poll_iter() {
-            platform.handle_event(&mut imgui, event);
-            if platform.ignore_event(&event) {
-                continue;
-            }
-            match event {
-                Event::Window {
-                    timestamp: _,
-                    window_id: _,
-                    win_event,
-                } => {
-                    match win_event {
-                        sdl2::event::WindowEvent::Resized(_w, _hh) => {
-                            let drawable_size = window.drawable_size();
-                            screen = Target::screen(drawable_size.0 as i32, drawable_size.1 as i32);
-                        }
-                        _ => {
-                            // no op
-                        }
-                    }
-                }
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    break 'game_loop;
-                }
-                Event::KeyDown {
-                    keycode: Some(kc), ..
-                } => {
-                    if !keyboard.held.contains(&kc) {
-                        keyboard.pressed.insert(kc.to_owned());
-                    }
-                }
-                Event::KeyUp {
-                    keycode: Some(kc), ..
-                } => {
-                    keyboard.pressed.remove(&kc);
-                }
-                _ => {}
-            }
-        }
-        let keys: HashSet<Keycode> = events
-            .keyboard_state()
-            .pressed_scancodes()
-            .filter_map(Keycode::from_scancode)
-            .collect();
-        keyboard.held = keys;
-
-        platform.prepare_frame(imgui.io_mut(), &window, &events.mouse_state());
-
-        // Update
-        game.update();
-        // Render
-        unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
-        batch.clear();
-        game.render(&mut batch, &screen);
-
-        // Error checks
-        unsafe {
-            let mut error: u32 = gl::GetError();
-            while error != gl::NO_ERROR {
-                println!("GL error - {}", error);
-                error = gl::GetError();
-            }
-        }
-
-        // Imgui
-        let frame_rate = imgui.io().framerate;
-        let ui = imgui.frame();
-        platform.prepare_render(&ui, &window);
-        ui.window("Render calls")
-            .size([400.0, 600.0], imgui::Condition::Appearing)
-            .collapsed(true, imgui::Condition::Appearing)
-            .build(|| {
-                ui.text(format!(
-                    "Frame took: {} milli-seconds",
-                    start.elapsed().as_millis()
-                ));
-                ui.text(format!("Framerate: {} milli-seconds", frame_rate));
-
-                // if cfg!(debug_assertions) {
-                batch.render_imgui(ui);
-                game.debug(ui)
-                // }
-            });
-        platform.prepare_render(&ui, &window);
-        renderer.render(&mut imgui);
-        // println!("elapsed {:?}", start.elapsed());
-        window.gl_swap_window();
-        let sleep_until = start + FRAME_DURATION;
-        while Instant::now() < sleep_until {
-            // sleep
-        }
-    }
-    game.dispose();
 }
 
-pub struct DebugOptions {
-    pub cube_size: f32,
-    pub camera_pos: [f32; 3],
-    pub camera_target: [f32; 3],
-    pub perspective: bool,
-    pub fov: f32,
-    pub pause: bool,
-    pub render_cube_1: bool,
-    pub render_cube_2: bool,
-    pub render_background: bool,
-}
-pub struct Mouse {
-    pub positon: (i32, i32),
-    pub change: (i32, i32),
-    pub pressing: bool,
-}
-
-pub struct Keyboard {
-    pub held: HashSet<Keycode>,
-    pub pressed: HashSet<Keycode>,
-}
-impl Keyboard {
-    fn new() -> Self {
-        Keyboard {
-            held: HashSet::new(),
-            pressed: HashSet::new(),
+pub fn update() {
+    unsafe {
+        let mut error: u32 = gl::GetError();
+        while error != gl::NO_ERROR {
+            println!("GL error - {}", error);
+            error = gl::GetError();
         }
     }
 }

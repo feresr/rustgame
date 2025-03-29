@@ -1,239 +1,209 @@
-mod aseprite;
-mod components;
-mod content;
-mod scene;
-mod system;
+mod gamelib;
 
-extern crate engine;
-extern crate nalgebra_glm as glm;
-
-use components::{button::Button, collider::Collider, light::LightSwitch, position::Position};
-use content::content;
-use engine::{
-    ecs::World,
-    graphics::{
-        self,
-        batch::*,
-        blend::{self},
-        common::*,
-        material::Material,
-        target::*,
-        texture::*,
-    },
-    Config, Game,
-};
-use imgui::Ui;
-use scene::Scene;
+use common::{GameMemory, Keyboard};
+use gamelib::GameLib;
+use notify::{Config, Error, RecommendedWatcher, RecursiveMode, Watcher};
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::video::GLProfile;
+use sdl2::{AudioSubsystem, Sdl, VideoSubsystem};
+use std::collections::HashSet;
 use std::env;
-use system::{
-    animation_system::AnimationSystem, light_system::LightSystem, movement_system::MovementSystem,
-    player_system::PlayerSystem, render_system::RenderSystem, scene_system::SceneSystem,
-};
+use std::path::PathBuf;
+use std::sync::mpsc::channel;
+use std::sync::mpsc::Receiver;
+use std::time::{Duration, Instant};
 
-const SCREEN_WIDTH: usize = GAME_PIXEL_WIDTH * 4;
-const SCREEN_HEIGHT: usize = GAME_PIXEL_HEIGHT * 4;
+pub const FPS: u64 = 60;
+pub const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
 
-const TILE_SIZE: usize = 8;
-const GAME_PIXEL_WIDTH: usize = 320;
-const GAME_PIXEL_HEIGHT: usize = 184;
+fn get_lib_path() -> PathBuf {
+    let mut path = PathBuf::from("./target/debug/libgame");
 
-const GAME_TILE_WIDTH: usize = GAME_PIXEL_WIDTH / TILE_SIZE;
-const GAME_TILE_HEIGHT: usize = GAME_PIXEL_HEIGHT / TILE_SIZE;
-
-pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
-            in vec2 TexCoord;\n
-            in vec4 a_color;\n
-            in vec4 a_type;\n 
-            layout(location = 0) out vec4 FragColor;\n
-
-            uniform sampler2D u_color_texture;\n
-            uniform sampler2D u_light_texture;\n
-
-            uniform float u_light_radius;\n
-
-            uniform ivec2 u_resolution;\n
-
-            void main()\n
-            {\n
-                vec4 color = texture(u_color_texture, TexCoord); \n
-                vec4 light = texture(u_light_texture, TexCoord); \n
-
-                color = color + (light.x) * vec4(0.15); \n 
-                // color = mix(color * vec4(0.60), color, 0.5); \n 
-
-                float crtIntensity = 0.70; \n // 0 = max 1 = min
-                float crt = (sin(gl_FragCoord.y * 3.14) + 1.0) * 0.5; \n
-                crt = (crt * (1.0 - (crtIntensity))) + crtIntensity; \n
-                // crt = (crt * 0.50) + 0.50; \n
-                crt = mix(crt, 1.0, light.x); \n
-
-                FragColor = vec4(color.rgb, 1.0) * vec4(crt, crt, crt, 1.0); \n
-
-            }";
-
-struct Foo {
-    gbuffer: Target,
-    world: World,
-    movement_system: MovementSystem,
-    render_system: Option<RenderSystem>,
-    player_system: PlayerSystem,
-    scene_system: SceneSystem,
-    animation_system: AnimationSystem,
-    light_system: Option<LightSystem>,
-    screen_ortho: glm::Mat4,
-    screen_rect: RectF,
-    material: Option<Material>,
+    if cfg!(target_os = "windows") {
+        path.set_extension("dll");
+    } else if cfg!(target_os = "macos") {
+        path.set_extension("dylib");
+    } else {
+        path.set_extension("so");
+    }
+    path
 }
 
-impl Foo {
-    fn new() -> Self {
-        let screen_ortho = glm::ortho(
-            0.0,
-            SCREEN_WIDTH as f32,
-            SCREEN_HEIGHT as f32,
-            0f32,
-            0.0f32,
-            2f32,
-        );
-
-        Self {
-            screen_ortho,
-            gbuffer: Target::empty(),
-            world: World::new(),
-            movement_system: MovementSystem,
-            render_system: None,
-            player_system: PlayerSystem,
-            scene_system: SceneSystem::new(),
-            animation_system: AnimationSystem,
-            light_system: None,
-            screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
-            material: None,
-        }
+/**
+ * Watches the game library for updates
+ */
+fn check_for_updates_non_blocking(rx: &Receiver<Result<notify::Event, Error>>) -> bool {
+    let mut updated = false;
+    // Consume all existing file change events, check if at least one event happened
+    while let Ok(_event) = rx.try_recv() {
+        updated = true;
     }
-}
-
-impl Game for Foo {
-    fn init(&mut self) {
-        let attachments = [
-            // Albedo
-            TextureFormat::RGBA,
-            // Shadows
-            TextureFormat::RGBA,
-            // Depth
-            TextureFormat::DepthStencil,
-        ];
-        self.gbuffer = Target::new(
-            GAME_PIXEL_WIDTH as i32,
-            GAME_PIXEL_HEIGHT as i32,
-            &attachments,
-        );
-        self.player_system.init(&mut self.world);
-        self.scene_system.scene.init(&mut self.world);
-        self.light_system = Some(LightSystem::new());
-        self.render_system = Some(RenderSystem::new());
-
-        let shader =
-            graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
-        self.material = Some(Material::with_sampler(shader, TextureSampler::nearest()));
-
-        let material = self.material.as_mut().unwrap();
-        let sampler = TextureSampler::nearest();
-        material.set_sampler("u_color_texture", &sampler);
-        material.set_texture(
-            "u_color_texture",
-            &self.render_system.as_ref().unwrap().color(),
-        );
-        material.set_sampler("u_light_texture", &sampler);
-        material.set_texture(
-            "u_light_texture",
-            &self.light_system.as_ref().unwrap().color(),
-        );
-        // engine::audio().play_music(&content().tracks["music-1"]);
-    }
-
-    fn update(&mut self) -> bool {
-        self.player_system.update(&mut self.world);
-        self.movement_system.update(&mut self.world);
-        self.scene_system.update(&mut self.world);
-        Button::update(&mut self.world);
-        LightSwitch::update(&mut self.world);
-        return true;
-    }
-
-    fn render(&self, batch: &mut Batch, screen: &Target) {
-        {
-            // Render into low-res target (gbuffer)
-            self.gbuffer.clear((0.1f32, 0.1f32, 0.24f32, 1.0f32));
-            batch.set_sampler(&TextureSampler::nearest());
-            self.animation_system.tick(&self.world);
-
-            batch.set_blend(blend::NORMAL);
-            self.render_system
-                .as_ref()
-                .unwrap()
-                .render(&self.world, batch);
-            batch.clear();
-
-            self.light_system
-                .as_ref()
-                .unwrap()
-                .render(&self.world, batch);
-            batch.clear();
-
-            batch.push_material(&self.material.as_ref().expect("Material not initialised"));
-            batch.rect(
-                &RectF {
-                    x: 0f32,
-                    y: 0f32,
-                    w: GAME_PIXEL_WIDTH as f32,
-                    h: GAME_PIXEL_HEIGHT as f32,
-                },
-                (1f32, 1f32, 1f32, 1.0f32),
-            );
-            batch.render(
-                &self.gbuffer,
-                &glm::ortho(
-                    0f32,
-                    GAME_PIXEL_WIDTH as f32,
-                    0f32,
-                    GAME_PIXEL_HEIGHT as f32,
-                    0.0f32,
-                    0.2f32,
-                ),
-            );
-            batch.pop_material();
-
-            batch.clear();
-
-        }
-        {
-            // Render low-res target onto the screen
-            batch.set_sampler(&TextureSampler::nearest());
-            batch.tex(
-                &self.screen_rect,
-                &self.gbuffer.color(),
-                (1.0f32, 1.0f32, 1.0f32, 1f32),
-            );
-            batch.render(&screen, &self.screen_ortho);
-        }
-    }
-
-    fn dispose(&mut self) {}
-
-    fn debug(&self, imgui: &Ui) {
-        self.world.debug(imgui);
-    }
-
-    fn config(&self) -> engine::Config {
-        Config {
-            window_width: SCREEN_WIDTH as u32,
-            window_height: SCREEN_HEIGHT as u32,
-        }
-    }
+    updated
 }
 
 fn main() {
+    let lib_path = get_lib_path();
+    let mut game = GameLib::load(&lib_path).unwrap();
+
+    let (tx, rx) = channel();
+    let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+    watcher
+        .watch(&lib_path, RecursiveMode::NonRecursive)
+        .unwrap();
+
+    let mut game_memory = GameMemory {
+        initialized: false,
+        storage: [0; 1024 * 2], // 2 Kb
+    };
+
+    // TODO
     env::set_var("RUST_BACKTRACE", "1");
-    let game = Foo::new();
-    engine::run(game);
+    // From: https://github.com/Rust-SDL2/rust-sdl2#use-opengl-calls-manually
+    // let config = game.config();
+
+    // Start engine
+    let config = (game.get_config)();
+    let window_size = (config.window_width, config.window_height);
+    let sdl_context: Sdl = sdl2::init().unwrap();
+    let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
+    let audio_subsystem: AudioSubsystem = sdl_context.audio().unwrap();
+    // TODO
+
+    // let audio_player = AudioPlayer::new(audio_subsystem);
+    // unsafe { AUDIO = Some(audio_player) };
+
+    let gl_attr = video_subsystem.gl_attr();
+    gl_attr.set_context_profile(GLProfile::Core);
+    gl_attr.set_context_version(3, 3);
+
+    let window = video_subsystem
+        .window("Window", window_size.0, window_size.1)
+        .allow_highdpi()
+        .opengl()
+        // .borderless()
+        .build()
+        .unwrap();
+
+    let drawable_size = window.drawable_size();
+    // let mut screen = Target::screen(drawable_size.0 as i32, drawable_size.1 as i32);
+
+    let _ctx = window.gl_create_context().unwrap();
+
+    /* create context */
+    // let mut imgui = Context::create();
+    /* disable creation of files on disc */
+    // imgui.set_ini_filename(None);
+    // imgui.set_log_filename(None);
+
+    /* setup platform and renderer, and fonts to imgui */
+    // imgui
+    //     .fonts()
+    //     .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
+    // let mut platform = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
+    // let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
+    //     video_subsystem.gl_get_proc_address(s) as _
+    // });
+
+    debug_assert_eq!(gl_attr.context_profile(), GLProfile::Core);
+    debug_assert_eq!(gl_attr.context_version(), (3, 3));
+
+    let mut events = sdl_context.event_pump().unwrap();
+
+    (game.init)(&video_subsystem, &audio_subsystem, &mut game_memory);
+    'game_loop: loop {
+        // Reload game if needed
+        if check_for_updates_non_blocking(&rx) {
+            game = gamelib::GameLib::load(&lib_path).unwrap();
+            (game.init)(&video_subsystem, &audio_subsystem, &mut game_memory);
+        }
+
+        let start = Instant::now();
+        let mut keyboard = Keyboard::default();
+
+        keyboard.pressed.clear();
+        for ref event in events.poll_iter() {
+            // platform.handle_event(&mut imgui, event);
+            // if platform.ignore_event(&event) {
+            //     continue;
+            // }
+            match event {
+                Event::Window {
+                    timestamp: _,
+                    window_id: _,
+                    win_event,
+                } => {
+                    match win_event {
+                        sdl2::event::WindowEvent::Resized(_w, _hh) => {
+                            let drawable_size = window.drawable_size();
+                            // screen = Target::screen(drawable_size.0 as i32, drawable_size.1 as i32);
+                        }
+                        _ => {
+                            // no op
+                        }
+                    }
+                }
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => {
+                    break 'game_loop;
+                }
+                Event::KeyDown {
+                    keycode: Some(kc), ..
+                } => {
+                    if !keyboard.held.contains(&kc) {
+                        keyboard.pressed.insert(kc.to_owned());
+                    }
+                }
+                Event::KeyUp {
+                    keycode: Some(kc), ..
+                } => {
+                    keyboard.pressed.remove(&kc);
+                }
+                _ => {}
+            }
+        }
+        let keys: HashSet<Keycode> = events
+            .keyboard_state()
+            .pressed_scancodes()
+            .filter_map(Keycode::from_scancode)
+            .collect();
+        keyboard.held = keys;
+
+        // platform.prepare_frame(imgui.io_mut(), &window, &events.mouse_state());
+
+        // Update
+        (game.update)(&mut game_memory, &keyboard);
+
+        // Imgui
+        // let frame_rate = imgui.io().framerate;
+        // let ui = imgui.frame();
+        // platform.prepare_render(&ui, &window);
+        // ui.window("Render calls")
+        //     .size([400.0, 600.0], imgui::Condition::Appearing)
+        //     .collapsed(true, imgui::Condition::Appearing)
+        //     .build(|| {
+        //         ui.text(format!(
+        //             "Frame took: {} milli-seconds",
+        //             start.elapsed().as_millis()
+        //         ));
+        //         ui.text(format!("Framerate: {} milli-seconds", frame_rate));
+
+        //         // if cfg!(debug_assertions) {
+        //         batch.render_imgui(ui);
+        //         game.debug(ui)
+        //         // }
+        //     });
+        // platform.prepare_render(&ui, &window);
+        // renderer.render(&mut imgui);
+        // println!("elapsed {:?}", start.elapsed());
+        window.gl_swap_window();
+        let sleep_until = start + FRAME_DURATION;
+        while Instant::now() < sleep_until {
+            // sleep
+        }
+    }
+    (game.clear_game)(&mut game_memory);
 }

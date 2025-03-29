@@ -1,3 +1,4 @@
+use common::Keyboard;
 use engine::{
     ecs::{World, WorldOp},
     graphics::common::{PointF, RectF},
@@ -15,8 +16,7 @@ use crate::{
         position::Position,
         sprite::Sprite,
     },
-    content::content,
-    GAME_PIXEL_HEIGHT,
+    content::content, game_state::GAME_PIXEL_HEIGHT,
 };
 
 pub struct PlayerSystem;
@@ -26,7 +26,7 @@ impl PlayerSystem {
         player.assign(Player::default());
         player.assign(Mover::default());
         player.assign(Sprite::new(&content().sprites["player"]));
-        player.assign(Light::new());
+        player.assign(Light::withOffset(0f32, -12f32));
         player.assign(Collider::new(
             ColliderType::Rect {
                 rect: RectF {
@@ -45,7 +45,7 @@ impl PlayerSystem {
         player.assign(Gravity { value: 0.3f32 });
     }
 
-    pub fn update(&self, world: &mut World) {
+    pub fn update(&self, world: &mut World, keyboard: &Keyboard) {
         let player_entity = world.first::<Player>().expect("Player not found");
 
         let id = player_entity.id;
@@ -54,7 +54,9 @@ impl PlayerSystem {
         let position = player_entity.get::<Position>();
         let collider = player_entity.get::<Collider>();
         let mut player = player_entity.get::<Player>();
-        let keyboard = engine::keyboard();
+
+        sprite.scale_x = approach(sprite.scale_x, 1.0f32, 0.10);
+        sprite.scale_y = approach(sprite.scale_y, 1.0f32, 0.10);
 
         // TODO: coyote time
         // TODO: jump buffer time
@@ -68,7 +70,14 @@ impl PlayerSystem {
         );
 
         if player.in_air == true && player.was_in_air == false {
+            // Player walked off a ledge
             player.coyote_buffer = COYOTE_BUFFER_TIME;
+        }
+
+        if !player.in_air && player.was_in_air {
+            // Player just landed
+            sprite.scale_x = 1.4f32;
+            sprite.scale_y = 0.6f32;
         }
         player.was_in_air = player.in_air;
 
@@ -80,6 +89,8 @@ impl PlayerSystem {
             if !player.in_air || player.coyote_buffer > 0 {
                 // engine::audio().play_sound(&content().tracks["jump"]);
                 sprite.play("jump");
+                sprite.scale_x = 0.6f32;
+                sprite.scale_y = 2.0f32;
                 mover.speed.y = -JUMP_SPEED;
                 player.jump_buffer = 0;
                 player.coyote_buffer = 0;

@@ -11,8 +11,7 @@ use crate::{
         gravity::Gravity,
         mover::Mover,
         position::Position,
-    },
-    TILE_SIZE,
+    }, game_state::TILE_SIZE,
 };
 
 pub struct MovementSystem;

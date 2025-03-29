@@ -31,7 +31,8 @@ impl Content {
         let mut sprites = HashMap::new();
         let mut tilesets = HashMap::new();
 
-        let assets = fs::read_dir("src/assets/atlas/").unwrap();
+
+        let assets = fs::read_dir("game/src/assets/atlas/").unwrap();
         for asset in assets {
             let path = asset.unwrap().path();
             if let Some(extension) = path.extension() {
@@ -77,7 +78,7 @@ impl Content {
             }
         }
 
-        let assets = fs::read_dir("src/assets/").unwrap();
+        let assets = fs::read_dir("game/src/assets/").unwrap();
         for asset in assets {
             let path = asset.unwrap().path();
             if let Some(extension) = path.extension() {
@@ -143,12 +144,12 @@ impl Content {
 
         // TODO: Load all audio in folder
         let mut tracks = HashMap::new();
-        let audio = AudioTrack::new("src/assets/audio/song.ogg").unwrap();
+        let audio = AudioTrack::new("game/src/assets/audio/song.ogg").unwrap();
         tracks.insert("music-1", audio);
-        let audio = AudioTrack::new("src/assets/audio/jump.ogg").unwrap();
+        let audio = AudioTrack::new("game/src/assets/audio/jump.ogg").unwrap();
         tracks.insert("jump", audio);
         Content {
-            ldkt: Project::new("src/assets/map.ldtk"),
+            ldkt: Project::new("game/src/assets/map.ldtk"),
             tilesets,
             textures,
             sprites,

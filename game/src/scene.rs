@@ -9,7 +9,7 @@ use crate::{
         room::Room,
         sprite::Sprite,
     },
-    content, GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE,
+    content, game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE} 
 };
 
 /**

@@ -494,7 +494,7 @@ impl Batch {
             self.matrix_stack.push(matrix);
         } else {
             let current: &glm::Mat4 = self.matrix_stack.last().unwrap();
-            self.matrix_stack.push(matrix * current);
+            self.matrix_stack.push(current * matrix);
         }
     }
 
@@ -539,6 +539,7 @@ impl Batch {
             });
         }
     }
+
 
     fn push_quad(
         &mut self,

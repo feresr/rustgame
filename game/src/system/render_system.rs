@@ -11,10 +11,10 @@ use engine::{
         texture::{Texture, TextureFormat, TextureSampler},
     },
 };
+use glm::pi;
 
 use crate::{
-    components::{light::Light, player::Player, position::Position, room::Room, sprite::Sprite},
-    GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH,
+    components::{light::Light, player::Player, position::Position, room::Room, sprite::Sprite}, game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
 };
 
 use super::light_system;
@@ -65,7 +65,7 @@ pub struct RenderSystem {
     albedo: Texture,
     normal: Texture,
     target: Target,
-    material: RefCell<Material>,
+    material: Material,
 }
 
 impl RenderSystem {
@@ -92,7 +92,7 @@ impl RenderSystem {
             albedo: target.attachments[0].clone(),
             normal: target.attachments[1].clone(),
             target,
-            material: RefCell::new(material),
+            material: material,
         }
     }
 
@@ -100,7 +100,7 @@ impl RenderSystem {
         &self.albedo
     }
 
-    pub fn render(&self, world: &World, batch: &mut Batch) {
+    pub fn render(&mut self, world: &World, batch: &mut Batch) {
         self.target.clear((0f32, 0f32, 0f32, 0f32));
         batch.clear();
 
@@ -116,7 +116,7 @@ impl RenderSystem {
                 positions[i * 2 + 1] = position.y as f32 - room.rect.y;
             }
 
-            let mut material = self.material.borrow_mut();
+            let material = &mut self.material;
             material.set_texture("u_color_texture", &room.albedo_texture.unwrap());
             material.set_texture("u_normal_texture", &room.normal_texture.unwrap());
             material.set_vector2f("u_light_position[0]", &positions);
@@ -130,12 +130,23 @@ impl RenderSystem {
             let sprite = sprite_entity.get::<Sprite>();
             let position = sprite_entity.get::<Position>();
 
-            let subtexture = sprite.subtexture();
             let pivot = sprite.pivot();
-            rect.x = (position.x - pivot.0 as i32) as f32;
-            rect.y = (position.y - pivot.1 as i32) as f32;
+            batch.push_matrix(glm::translate(
+                &glm::identity(),
+                &glm::vec3((position.x as i32) as f32, (position.y as i32) as f32, 0f32),
+            ));
+            batch.push_matrix(glm::scale(
+                &glm::identity(),
+                &glm::vec3((sprite.scale_x) as f32, (sprite.scale_y) as f32, 1f32),
+            ));
+
+            let subtexture = sprite.subtexture();
+            rect.x = -pivot.0;
+            rect.y = -pivot.1;
             rect.w = subtexture.source.w as f32;
             rect.h = subtexture.source.h as f32;
+
+            // batch.circle(pivot, 15f32, 4, (1f32, 1f32, 1f32, 1f32));
 
             if sprite.flip_x {
                 rect.x += rect.w;
@@ -147,6 +158,9 @@ impl RenderSystem {
             }
 
             batch.sprite(&rect, subtexture, (1f32, 1f32, 1f32, 1f32));
+
+            batch.pop_matrix();
+            batch.pop_matrix();
         }
         // Only in debug
         // Collider::render(&world, batch);

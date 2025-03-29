@@ -23,7 +23,7 @@ impl Tileset {
     pub fn from_ldtk(definition: TilesetDefinition) -> Self {
         let path = definition.rel_path.expect("Tileset is missing image path");
         // TODO
-        let path = format!("src/assets/{}", &path);
+        let path = format!("game/src/assets/{}", &path);
         let texture = Texture::from_path(&path);
         let normal = Texture::from_path(&path.replace(".png", "-normal.png"));
         Self {
@@ -48,6 +48,8 @@ pub struct Sprite {
     animations: &'static HashMap<String, Animation>,
     current_animation: &'static Animation,
     next_animation: &'static Animation,
+    pub scale_x : f32,
+    pub scale_y : f32,
     pub flip_x: bool,
     pub flip_y: bool,
     pub playing: bool,
@@ -121,6 +123,8 @@ impl Sprite {
             next_animation: animations.get(first_key).unwrap(),
             current_frame: 0,
             frame_counter: 0,
+            scale_x: 1f32,
+            scale_y: 1f32,
             flip_x: false,
             flip_y: false,
             playing: true,

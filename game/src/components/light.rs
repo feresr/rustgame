@@ -2,11 +2,23 @@ use engine::ecs::{Component, World, WorldOp};
 
 use super::button::Button;
 
-pub struct Light {}
+pub struct Light {
+    pub offset_x: f32,
+    pub offset_y: f32,
+}
 
 impl Light {
+    pub fn withOffset(x: f32, y: f32) -> Self {
+        return Light {
+            offset_x: x,
+            offset_y: y,
+        };
+    }
     pub fn new() -> Self {
-        Light {}
+        Light {
+            offset_x: 0f32,
+            offset_y: 0f32,
+        }
     }
 }
 impl Component for Light {}
@@ -49,7 +61,7 @@ impl LightSwitch {
 
         turn_on
             .iter()
-            .for_each(|id| world.entity_mut(*id).assign(Light {}));
+            .for_each(|id| world.entity_mut(*id).assign(Light::new()));
         turn_off.iter().for_each(|id| {
             world.entity_mut(*id).unassign::<Light>();
         })

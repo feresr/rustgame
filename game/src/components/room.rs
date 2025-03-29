@@ -1,4 +1,4 @@
-use crate::{content::content, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE};
+use crate::{content::content, game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE}};
 use engine::{
     ecs::component::Component,
     graphics::{

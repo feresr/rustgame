@@ -11,8 +11,9 @@ pub struct AudioPlayer {
     music: AudioDevice<Mixer>,
     sound: AudioDevice<Mixer>,
 }
+
 impl AudioPlayer {
-    pub fn new(audio_subsystem: AudioSubsystem) -> Self {
+    pub fn new(audio_subsystem: &AudioSubsystem) -> Self {
         let spec = AudioSpecDesired {
             freq: Some(44100),
             channels: Some(2),
