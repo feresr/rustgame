@@ -17,6 +17,7 @@ use crate::{
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
 };
 
+// This shader takes in color + normal (room) textures and multiples them
 pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             in vec2 TexCoord;\n
             in vec4 a_color;\n
@@ -27,6 +28,7 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
             uniform sampler2D u_normal_texture;\n
 
             uniform vec2 u_light_position[8];\n
+            uniform int light_count;\n
 
             uniform ivec2 u_resolution;\n
 
@@ -41,7 +43,7 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
 
                 normal = normalize(normal * 2.0 - 1.0); \n
                 normal = normal * vec3(1.0, -1.0, 1.0); \n
-                for (int i = 0; i < 5; i++) { \n
+                for (int i = 0; i < light_count; i++) { \n
                     // dist grows too much if the light is closer to gl_FragCoord\n
                     float dist = distance(u_light_position[i].xy , gl_FragCoord.xy); \n
                     dist = mix(4.0, 0.0, clamp(dist / 100.0, 0.2, 1.0));
@@ -106,13 +108,18 @@ impl RenderSystem {
 
         // Normalize light positions
         let mut light_positions: [f32; 10] = [0.0f32; 10];
-        for (i, light_entity) in world.all_with::<Light>().enumerate() {
+        let lights_in_world = world.all_with::<Light>();
+        let mut light_count = 0;
+        for (i, light_entity) in lights_in_world.enumerate() {
             let light_position = light_entity.get::<Position>();
             light_positions[i * 2] = light_position.x as f32 - room.rect.x;
             light_positions[i * 2 + 1] = light_position.y as f32 - room.rect.y;
+            light_count += 1;
         }
         self.material
             .set_vector2f("u_light_position[0]", &light_positions);
+        self.material
+            .set_valuei("light_count", light_count as i32);
         // Render lights
         batch.push_material(&self.material);
         batch.rect(&room.rect, (1.0, 1.0, 1.0, 1.0));

@@ -4,8 +4,7 @@ extern crate nalgebra_glm as glm;
 extern crate sdl2;
 
 use audio::AudioPlayer;
-use common::Keyboard;
-use imgui::Ui;
+use common::check_gl_errors;
 
 pub mod audio;
 pub mod ecs;
@@ -23,6 +22,7 @@ pub struct Config {
     pub window_height: u32,
 }
 
+// Static does not call drop, so we drop this on fn de_init()
 pub static mut AUDIO: Option<AudioPlayer> = None;
 
 pub fn audio() -> &'static mut AudioPlayer {
@@ -32,11 +32,9 @@ pub fn audio() -> &'static mut AudioPlayer {
 pub fn init(video_subsystem: &VideoSubsystem, audio_subsystem: &AudioSubsystem) {
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
 
+    let audio_player = AudioPlayer::new(audio_subsystem);
     unsafe {
-        if AUDIO.is_none() {
-            let audio_player = AudioPlayer::new(audio_subsystem);
-            AUDIO = Some(audio_player)
-        }
+        AUDIO = Some(audio_player);
     }
 
     unsafe {
@@ -52,12 +50,11 @@ pub fn init(video_subsystem: &VideoSubsystem, audio_subsystem: &AudioSubsystem) 
     }
 }
 
+pub fn deinit() {
+    // Audio is static mut — they don't call DROP
+    unsafe { AUDIO = None }
+}
+
 pub fn update() {
-    unsafe {
-        let mut error: u32 = gl::GetError();
-        while error != gl::NO_ERROR {
-            println!("GL error - {}", error);
-            error = gl::GetError();
-        }
-    }
+    check_gl_errors!("GL error engine::update");
 }

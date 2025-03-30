@@ -164,6 +164,14 @@ impl Material {
         }
     }
 
+    pub fn set_valuei(&self, name: &str, value: i32) {
+        if let Some(uniform) = self.find_uniform(name) {
+            self.shader.set();
+            unsafe {
+                gl::Uniform1i(uniform.location, value);
+            }
+        }
+    }
     pub fn set_value2i(&self, name: &str, value: (i32, i32)) {
         if let Some(uniform) = self.find_uniform(name) {
             self.shader.set();

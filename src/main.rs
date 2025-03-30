@@ -43,14 +43,8 @@ fn check_for_updates_non_blocking(rx: &Receiver<Result<notify::Event, Error>>) -
 }
 
 fn main() {
-    let lib_path = get_lib_path();
-    let mut game = GameLib::load(&lib_path).unwrap();
-
-    let (tx, rx) = channel();
-    let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
-    watcher
-        .watch(&lib_path, RecursiveMode::NonRecursive)
-        .unwrap();
+    // Create sdl_first, it should be the last thing that gets dropped
+    let sdl_context: Sdl = sdl2::init().unwrap();
 
     let mut game_memory = GameMemory {
         initialized: false,
@@ -60,10 +54,20 @@ fn main() {
     // TODO
     env::set_var("RUST_BACKTRACE", "1");
 
-    // Start engine
+    // Load Game lib 
+    let lib_path = get_lib_path();
+    let mut game = GameLib::load(&lib_path).unwrap();
+
+    // Watch for game lib updates
+    // TODO: debug only
+    let (tx, rx) = channel();
+    let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+    watcher
+        .watch(&lib_path, RecursiveMode::NonRecursive)
+        .unwrap();
+
     let config = (game.get_config)();
     let window_size = (config.window_width, config.window_height);
-    let sdl_context: Sdl = sdl2::init().unwrap();
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
     let audio_subsystem: AudioSubsystem = sdl_context.audio().unwrap();
 
@@ -79,7 +83,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let drawable_size = window.drawable_size();
+    // let drawable_size = window.drawable_size();
     // let mut screen = Target::screen(drawable_size.0 as i32, drawable_size.1 as i32);
 
     let _ctx = window.gl_create_context().unwrap();
@@ -199,5 +203,5 @@ fn main() {
             // sleep
         }
     }
-    (game.clear_game)(&mut game_memory);
+    (game.clear_game_mem)(&mut game_memory);
 }

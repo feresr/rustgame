@@ -9,18 +9,15 @@ use crate::{
         room::Room,
         sprite::Sprite,
     },
-    content, game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE} 
+    content,
+    game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE},
 };
 
 /**
  * A scene can represent a Pause screen, or a Room in the game, or even a full screen UI Overlay.
  * Scenes can be stacked (PauseScene on top of a PlayScene)
  *
- * Each scenes has its own world.
- * I've considered a shared world that gets cleared when the Scene needs to be swaped.
- * But some entities need to survive between Scene (Player entity)
- * Moving the player entity from world->world is easier than "clear everything except Player entity"
- * Some scenes have nothing to do with the game (Pause scene)
+ * All scenes share a common World — Scenes keep track of their own entities ids so that they can be cleared on cleanup
  */
 
 pub trait Scene {
@@ -85,7 +82,6 @@ impl Scene for GameScene {
                             x: level.world_x as i32 + map_entity.px[0] as i32,
                             y: level.world_y as i32 + map_entity.px[1] as i32,
                         });
-                        dbg!(&map_entity.identifier);
                         entity.assign(Sprite::new(
                             &content().sprites[map_entity.identifier.as_str()],
                         ));

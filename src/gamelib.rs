@@ -1,23 +1,28 @@
 use std::{ffi::CString, path::PathBuf};
 
 use common::{GameConfig, GameMemory, Keyboard};
-use sdl2::{sys::{SDL_LoadFunction, SDL_LoadObject, SDL_UnloadObject}, AudioSubsystem, VideoSubsystem};
+use sdl2::{
+    sys::{SDL_LoadFunction, SDL_LoadObject, SDL_UnloadObject},
+    AudioSubsystem, VideoSubsystem,
+};
 
 pub type GetConfigFn = extern "C" fn() -> GameConfig;
 pub type UpdateGameFunc = extern "C" fn(game_mmory: &mut GameMemory, keyboard: &Keyboard);
-pub type ClearGameFn = extern "C" fn(game_mmory: &mut GameMemory);
+pub type ClearGameMemFn = extern "C" fn(game_mmory: &mut GameMemory);
 pub type InitGameFunc = extern "C" fn(
     video_subsystem: &VideoSubsystem,
     audio_subsystem: &AudioSubsystem,
     game_memory: &mut GameMemory,
 );
+pub type DeInitGameFunc = extern "C" fn();
 
 pub struct GameLib {
     pub handle: *mut core::ffi::c_void,
     pub get_config: GetConfigFn,
     pub update: UpdateGameFunc,
     pub init: InitGameFunc,
-    pub clear_game: ClearGameFn,
+    pub clear_game_mem: ClearGameMemFn,
+    pub de_init: DeInitGameFunc,
 }
 
 impl GameLib {
@@ -58,11 +63,20 @@ impl GameLib {
             std::mem::transmute(symbol)
         };
         let func_name = CString::new("clear_game").map_err(|e| e.to_string())?;
-        let clear_game: ClearGameFn = unsafe {
+        let clear_game: ClearGameMemFn = unsafe {
             let symbol = SDL_LoadFunction(handle, func_name.as_ptr());
             if symbol.is_null() {
                 SDL_UnloadObject(handle);
-                return Err("Failed to load init function".to_string());
+                return Err("Failed to load clear_game function".to_string());
+            }
+            std::mem::transmute(symbol)
+        };
+        let func_name = CString::new("de_init").map_err(|e| e.to_string())?;
+        let de_init: DeInitGameFunc = unsafe {
+            let symbol = SDL_LoadFunction(handle, func_name.as_ptr());
+            if symbol.is_null() {
+                SDL_UnloadObject(handle);
+                return Err("Failed to load de_init function".to_string());
             }
             std::mem::transmute(symbol)
         };
@@ -72,15 +86,18 @@ impl GameLib {
             get_config,
             update,
             init,
-            clear_game,
+            clear_game_mem: clear_game,
+            de_init,
         })
     }
 }
 
 impl Drop for GameLib {
     fn drop(&mut self) {
-        println!("dropping");
+        println!("calling de init for game lib");
         if !self.handle.is_null() {
+            println!("invoked");
+            (self.de_init)();
             unsafe { SDL_UnloadObject(self.handle) };
         }
     }

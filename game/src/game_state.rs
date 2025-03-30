@@ -87,8 +87,10 @@ impl GameState {
             Material::with_sampler(crt_shader, TextureSampler::nearest());
         let sampler = TextureSampler::nearest();
         post_processing_material.set_sampler("u_color_texture", &sampler);
+        // The render system gives a albedo * normal mult color texture (which takes into consideration light)
         post_processing_material.set_texture("u_color_texture", render_system.color());
         post_processing_material.set_sampler("u_light_texture", &sampler);
+        // The light system gives a black and white stencil for drawing the light cirlces (and hard shadows)
         post_processing_material.set_texture("u_light_texture", light_system.color());
         // engine::audio().play_music(&content().tracks["music-1"]);
 
@@ -108,6 +110,22 @@ impl GameState {
             screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
             material: post_processing_material,
         }
+    }
+
+    // This is so that we can see shader updates when re-loading the game lib
+    pub fn refresh(&mut self) {
+        let crt_shader =
+            graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, CRT_FRAGMENT_SOURCE);
+        let mut post_processing_material =
+            Material::with_sampler(crt_shader, TextureSampler::nearest());
+        let sampler = TextureSampler::nearest();
+        post_processing_material.set_sampler("u_color_texture", &sampler);
+        // The render system gives a albedo * normal mult color texture (which takes into consideration light)
+        post_processing_material.set_texture("u_color_texture", self.render_system.color());
+        post_processing_material.set_sampler("u_light_texture", &sampler);
+        // The light system gives a black and white stencil for drawing the light cirlces (and hard shadows)
+        post_processing_material.set_texture("u_light_texture", self.light_system.color());
+        self.material = post_processing_material;
     }
 
     pub fn update(&mut self, keyboard: &Keyboard) -> bool {

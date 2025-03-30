@@ -6,7 +6,6 @@ use crate::{
     },
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
 };
-use common::check_gl_errors;
 use engine::{
     ecs::{World, WorldOp},
     graphics::{

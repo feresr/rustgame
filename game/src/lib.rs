@@ -11,31 +11,9 @@ use game_state::{GameState, SCREEN_HEIGHT, SCREEN_WIDTH};
 use sdl2::{AudioSubsystem, VideoSubsystem};
 
 use common::{GameConfig, GameMemory, Keyboard};
-use components::{
-    button::Button,
-    light::{Light, LightSwitch},
-    position::Position,
-};
+use components::position::Position;
 use content::content;
-use engine::{
-    ecs::World,
-    graphics::{
-        self,
-        batch::*,
-        blend::{self},
-        common::*,
-        material::Material,
-        target::*,
-        texture::*,
-    },
-};
-use imgui::Ui;
-use scene::Scene;
 use std::{env, mem::size_of};
-use system::{
-    animation_system::AnimationSystem, light_system::LightSystem, movement_system::MovementSystem,
-    player_system::PlayerSystem, render_system::RenderSystem, scene_system::SceneSystem,
-};
 
 #[no_mangle]
 pub extern "C" fn init(
@@ -57,6 +35,10 @@ pub extern "C" fn init(
             storage_ptr.write(GameState::new()); // Directly write Game into storage
         }
         game_memory.initialized = true;
+    } else {
+        let game: &mut GameState =
+            unsafe { &mut *(game_memory.storage.as_mut_ptr() as *mut GameState) };
+        game.refresh();
     }
 }
 
@@ -69,18 +51,26 @@ pub extern "C" fn get_config() -> GameConfig {
 }
 
 #[no_mangle]
-pub extern "C" fn clear_game(game_memory: &mut GameMemory) {
-    let game_ptr = game_memory.storage.as_mut_ptr() as *mut GameState;
-    unsafe {
-        std::ptr::drop_in_place(game_ptr); // Drop Game manually
-    }
-    game_memory.initialized = false;
-}
-
-#[no_mangle]
 pub extern "C" fn update_game(game_memory: &mut GameMemory, keyboard: &Keyboard) {
     let game: &mut GameState =
         unsafe { &mut *(game_memory.storage.as_mut_ptr() as *mut GameState) };
     game.update(keyboard);
     game.render();
+}
+
+#[no_mangle]
+pub extern "C" fn de_init() {
+    // Called when the game lib is about to be dropped or reloaded
+    // This does not delete the game memory — it only clears things in the game library itself
+    // Mainly the static audio lib
+    engine::deinit()
+}
+
+#[no_mangle]
+pub extern "C" fn clear_game(game_memory: &mut GameMemory) {
+    let game_ptr: *mut GameState = game_memory.storage.as_mut_ptr() as *mut GameState;
+    unsafe {
+        std::ptr::drop_in_place(game_ptr); // Drop Game manually
+    }
+    game_memory.initialized = false;
 }

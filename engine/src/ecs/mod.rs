@@ -2,10 +2,8 @@ pub mod component;
 
 use std::any::{Any, TypeId};
 use std::cell::{RefCell, RefMut};
-use std::collections::binary_heap::Iter;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ops::Index;
 use std::rc::Rc;
 
 pub use component::{Component, ComponentStorage, ComponentWrapper};
@@ -147,7 +145,6 @@ impl WorldOp for World {
     }
 
     fn find_component<T: Component + 'static>(&self, entity: u32) -> Option<RefMut<'_, T>> {
-        // TODo imrp
         let type_id = TypeId::of::<T>();
         if let Some(storage) = self.components.get(&type_id) {
             if let Some(storage) = storage.as_any().downcast_ref::<ComponentStorage<T>>() {
