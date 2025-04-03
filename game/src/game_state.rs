@@ -15,9 +15,10 @@ use imgui::Ui;
 
 use crate::{
     components::{button::Button, light::LightSwitch},
+    content::Content,
     scene::Scene,
     system::{
-        animation_system::AnimationSystem, light_system::LightSystem,
+        animation_system::AnimationSystem, editor::Editor, light_system::LightSystem,
         movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
         scene_system::SceneSystem,
     },
@@ -37,23 +38,30 @@ pub const CRT_FRAGMENT_SOURCE: &str = include_str!("crt_shader.fs");
 
 #[repr(C)]
 pub struct GameState {
-    gbuffer: Target, // low-res target
+    low_res_target: Target, // low-res target
     world: World,
     batch: Batch,
     movement_system: MovementSystem,
     render_system: RenderSystem,
     player_system: PlayerSystem,
-    scene_system: SceneSystem,
-    animation_system: AnimationSystem,
+    pub scene_system: SceneSystem,
     light_system: LightSystem,
     screen_ortho: glm::Mat4,
     screen_rect: RectF,
     screen_target: Target,
     material: Material,
+    show_editor: bool,
+    editor: Editor,
+    pub content: Content,
 }
 
 impl GameState {
-    pub fn new() -> Self {
+    pub fn init_systems(&mut self) {
+        self.player_system.init(&mut self.world);
+        self.scene_system.scene.init(&mut self.world);
+    }
+
+    pub fn new(content: Content) -> Self {
         let screen_ortho = glm::ortho(
             0.0,
             SCREEN_WIDTH as f32,
@@ -71,15 +79,11 @@ impl GameState {
 
         let mut world = World::new();
         let player_system = PlayerSystem;
-        player_system.init(&mut world);
 
         let mut scene_system = SceneSystem::new();
-        scene_system.scene.init(&mut world);
 
         let light_system = LightSystem::new();
         let render_system = RenderSystem::new();
-
-        let animation_system = AnimationSystem;
 
         let crt_shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, CRT_FRAGMENT_SOURCE);
@@ -97,18 +101,20 @@ impl GameState {
         let batch = graphics::batch::Batch::default();
         Self {
             screen_ortho,
-            gbuffer,
+            low_res_target: gbuffer,
             world,
             batch,
             movement_system: MovementSystem,
             render_system,
             player_system,
             scene_system,
-            animation_system,
             light_system,
             screen_target: Target::screen(SCREEN_WIDTH as i32 * 2, SCREEN_HEIGHT as i32 * 2),
             screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
             material: post_processing_material,
+            show_editor: false,
+            editor: Editor::default(),
+            content,
         }
     }
 
@@ -129,21 +135,30 @@ impl GameState {
     }
 
     pub fn update(&mut self, keyboard: &Keyboard) -> bool {
-        self.player_system.update(&mut self.world, keyboard);
-        self.movement_system.update(&mut self.world);
-        self.scene_system.update(&mut self.world);
-        Button::update(&mut self.world);
-        LightSwitch::update(&mut self.world);
+        if keyboard.pressed.contains(&engine::Keycode::Tab) {
+            self.show_editor = !self.show_editor;
+        }
+
+        if !self.show_editor {
+            // Make sure we are in the right screen
+            self.scene_system.update(&mut self.world, keyboard);
+            // Control / update player
+            self.player_system.update(&mut self.world, keyboard);
+            // Actually move stuff
+            self.movement_system.update(&mut self.world);
+            Button::update(&mut self.world);
+            LightSwitch::update(&mut self.world);
+        }
         return true;
     }
 
     pub fn render(&mut self) {
         engine::update();
+        // Render into low-res target
         {
-            // Render into low-res target (gbuffer)
-            self.gbuffer.clear((0.1f32, 0.1f32, 0.24f32, 1.0f32));
+            self.low_res_target.clear((0.1f32, 0.1f32, 0.24f32, 1.0f32));
             self.batch.set_sampler(&TextureSampler::nearest());
-            self.animation_system.tick(&self.world);
+            AnimationSystem::tick(&self.world);
 
             self.batch.set_blend(blend::NORMAL);
             self.render_system.render(&self.world, &mut self.batch);
@@ -164,7 +179,7 @@ impl GameState {
                 (1f32, 1f32, 1f32, 1.0f32),
             );
             self.batch.render(
-                &self.gbuffer,
+                &self.low_res_target,
                 &glm::ortho(
                     0f32,
                     GAME_PIXEL_WIDTH as f32,
@@ -178,15 +193,18 @@ impl GameState {
 
             self.batch.clear();
         }
+
+        // Render low-res target onto the screen
         {
-            // Render low-res target onto the screen
             self.batch.set_sampler(&TextureSampler::nearest());
             self.batch.tex(
                 &self.screen_rect,
-                self.gbuffer.color(),
+                self.low_res_target.color(),
                 (1.0f32, 1.0f32, 1.0f32, 1f32),
             );
-            // TODO
+            if self.show_editor {
+                self.editor.render(&mut self.batch);
+            }
             self.batch.render(&self.screen_target, &self.screen_ortho);
         }
     }

@@ -7,38 +7,62 @@ mod system;
 
 extern crate engine;
 extern crate nalgebra_glm as glm;
+use content::Content;
 use game_state::{GameState, SCREEN_HEIGHT, SCREEN_WIDTH};
+use scene::{GameScene, Scene};
 use sdl2::{AudioSubsystem, VideoSubsystem};
 
 use common::{GameConfig, GameMemory, Keyboard};
-use components::position::Position;
-use content::content;
+use components::{position::Position, room::Room};
 use std::{env, mem::size_of};
+
+// Pointer to the game memory (allocated in the main process — not in the dll)
+static mut MEMORY_PTR: *mut GameMemory = std::ptr::null_mut();
+
+// Globally accessible utils
+fn game_state() -> &'static mut GameState {
+    return unsafe { &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState) };
+}
+fn content() -> &'static mut Content {
+    return &mut game_state().content;
+}
+fn current_scene() -> &'static mut GameScene {
+    return &mut game_state().scene_system.scene;
+}
+fn current_room() -> &'static mut Room {
+    let scene = current_scene();
+    content()
+        .map
+        .get(scene.room_x as usize, scene.room_y as usize)
+}
 
 #[no_mangle]
 pub extern "C" fn init(
     video_subsystem: &VideoSubsystem,
     audio_subsystem: &AudioSubsystem,
-    game_memory: &mut GameMemory,
+    game_memory_ptr: *mut GameMemory,
 ) {
-    env::set_var("RUST_BACKTRACE", "1");
-    engine::init(&video_subsystem, &audio_subsystem);
-    if !game_memory.initialized {
-        let game_size = size_of::<GameState>(); // ~1232 bytes
-        let mem = game_memory.storage.len();
-        assert!(
-            game_size <= mem,
-            "Game is too large for game_memory storage"
-        );
-        unsafe {
-            let storage_ptr = game_memory.storage.as_mut_ptr() as *mut GameState;
-            storage_ptr.write(GameState::new()); // Directly write Game into storage
+    unsafe {
+        env::set_var("RUST_BACKTRACE", "1");
+        MEMORY_PTR = game_memory_ptr; // get a pointer to the game memory
+        engine::init(&video_subsystem, &audio_subsystem);
+        if !(*MEMORY_PTR).initialized {
+            let game_size = size_of::<GameState>(); // ~1232 bytes
+            let available_memory = (*MEMORY_PTR).storage.len();
+            assert!(
+                game_size <= available_memory,
+                "Game is too large for game_memory storage. Game size: {}, available mem: {}",
+                game_size,
+                available_memory
+            );
+            let storage_ptr = (*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState;
+            storage_ptr.write(GameState::new(Content::load())); // Directly write Game into storage
+            (*MEMORY_PTR).initialized = true;
+            game_state().init_systems();
+        } else {
+            let game: &mut GameState = &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState);
+            game.refresh();
         }
-        game_memory.initialized = true;
-    } else {
-        let game: &mut GameState =
-            unsafe { &mut *(game_memory.storage.as_mut_ptr() as *mut GameState) };
-        game.refresh();
     }
 }
 
@@ -50,10 +74,11 @@ pub extern "C" fn get_config() -> GameConfig {
     };
 }
 
+// TODO: pass a pointer to the keyboard instead — make it globally accessible throught the game
+// instead of passing it around to every single function
 #[no_mangle]
-pub extern "C" fn update_game(game_memory: &mut GameMemory, keyboard: &Keyboard) {
-    let game: &mut GameState =
-        unsafe { &mut *(game_memory.storage.as_mut_ptr() as *mut GameState) };
+pub extern "C" fn update_game(keyboard: &Keyboard) {
+    let game = game_state();
     game.update(keyboard);
     game.render();
 }
@@ -61,6 +86,10 @@ pub extern "C" fn update_game(game_memory: &mut GameMemory, keyboard: &Keyboard)
 #[no_mangle]
 pub extern "C" fn de_init() {
     // Called when the game lib is about to be dropped or reloaded
+    unsafe {
+        // This is a bit pointless sience the lib is getting destroyed but let's do it anyways
+        MEMORY_PTR = std::ptr::null_mut();
+    }
     // This does not delete the game memory — it only clears things in the game library itself
     // Mainly the static audio lib
     engine::deinit()

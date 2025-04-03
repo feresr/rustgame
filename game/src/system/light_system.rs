@@ -4,6 +4,7 @@ use crate::{
         position::Position,
         room::{Room, Tile},
     },
+    content, current_room,
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
 };
 use engine::{
@@ -50,7 +51,7 @@ impl LightSystem {
     }
 
     pub fn color(&self) -> Rc<Texture> {
-        return self.target.attachments[0].clone()
+        return self.target.attachments[0].clone();
     }
 
     pub fn render(&mut self, world: &World, batch: &mut Batch) {
@@ -59,9 +60,8 @@ impl LightSystem {
         let base_color = (0.0, 0.0, 0.0, 1.0);
         let light_color = (1.00, 1.00, 1.00, 1.0);
 
-        let room_entity = world.all_with::<Room>().next().expect("No Room present");
-        let room = room_entity.get::<Room>();
-        let room_position = room_entity.get::<Position>();
+        let room = current_room();
+        let room_position = Position::new(room.rect.x as i32, room.rect.y as i32);
 
         let projection_distance: f32 = 140.0 + 5.0f32 * f32::sin(self.time.0 as f32 / 60f32);
 

@@ -6,10 +6,10 @@ use crate::{
         collider::{Collider, ColliderType},
         light::{Light, LightSwitch},
         position::Position,
-        room::Room,
+        room::{LayerType, Room},
         sprite::Sprite,
     },
-    content,
+    content, current_room,
     game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE},
 };
 
@@ -19,23 +19,23 @@ use crate::{
  *
  * All scenes share a common World — Scenes keep track of their own entities ids so that they can be cleared on cleanup
  */
-
 pub trait Scene {
     fn init(&mut self, _world: &mut impl WorldOp) {}
     fn destroy(&mut self, _world: &mut impl WorldOp) {}
 }
 
 pub struct GameScene {
-    pub room_index: u32,
+    pub room_x: i32,
+    pub room_y: i32,
     entities: Vec<u32>,
-    pub camera: glm::Mat4,
 }
+
 impl GameScene {
-    pub fn with_map(index: u32) -> Self {
+    pub fn with_room(x: i32, y: i32) -> Self {
         GameScene {
-            room_index: index,
+            room_x: x,
+            room_y: y,
             entities: Vec::new(),
-            camera: glm::Mat4::identity(),
         }
     }
 }
@@ -43,18 +43,21 @@ impl GameScene {
 impl Scene for GameScene {
     fn init(&mut self, world: &mut impl WorldOp) {
         let mut room_entity = world.add_entity();
-        let ldtk = &content().ldkt;
-        let level = ldtk
-            .levels
-            .get(self.room_index as usize)
-            .expect("No level present in ldtk");
 
-        let room = Room::from_level(level);
-        self.camera = room.world_ortho;
-
-        room_entity.assign(Position::new(level.world_x as i32, level.world_y as i32));
+        let room = current_room();
+        room_entity.assign(Position::new(
+            room.world_position.x as i32,
+            room.world_position.y as i32,
+        ));
         let mut collisions = vec![false; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
-        for tile in room.layers.first().unwrap().tiles.iter() {
+
+        // Todo: make accessing each layer kind a bit easier
+        let tile_layer = room
+            .layers
+            .iter()
+            .find(|layer| layer.kind == LayerType::Tiles)
+            .expect("Map must have at least one tile layer (even if empty)");
+        for tile in tile_layer.tiles.iter() {
             let x = (tile.x as f32 / TILE_SIZE as f32) as u32;
             let y = (tile.y as f32 / TILE_SIZE as f32) as u32;
             collisions[(x + y * GAME_TILE_WIDTH as u32) as usize] = true;
@@ -69,18 +72,18 @@ impl Scene for GameScene {
             },
             true,
         ));
-        room_entity.assign(room);
+
         self.entities.push(room_entity.id);
 
         // Entities
-        for layer in level.layer_instances.as_ref().unwrap() {
-            match layer.layer_instance_type.as_str() {
-                "Entities" => {
-                    for map_entity in layer.entity_instances.iter() {
+        for layer in room.layers.iter().as_ref() {
+            match layer.kind {
+                crate::components::room::LayerType::Entities => {
+                    for map_entity in layer.entities.iter() {
                         let mut entity = world.add_entity();
                         entity.assign(Position {
-                            x: level.world_x as i32 + map_entity.px[0] as i32,
-                            y: level.world_y as i32 + map_entity.px[1] as i32,
+                            x: room.world_position.x as i32 + map_entity.px,
+                            y: room.world_position.y as i32 + map_entity.py,
                         });
                         entity.assign(Sprite::new(
                             &content().sprites[map_entity.identifier.as_str()],
@@ -93,12 +96,13 @@ impl Scene for GameScene {
                             "Button" => {
                                 dbg!("creating btn");
                                 let name = map_entity
-                                    .field_instances
+                                    .custom_fields
                                     .iter()
-                                    .find(|f| f.identifier == "name")
-                                    .unwrap();
+                                    .find(|f| f.as_str() == "name")
+                                    .unwrap()
+                                    .clone();
                                 entity.assign(Button {
-                                    name: name.value.as_ref().unwrap().as_str().unwrap(),
+                                    name: name,
                                     pressed: false,
                                 });
                                 entity.assign(Collider::new(
@@ -115,17 +119,6 @@ impl Scene for GameScene {
                             }
                             _ => {}
                         }
-                        // for field in map_entity.field_instances.iter() {
-                        //     match field.identifier.as_str() {
-                        //         "light" => {
-                        //             entity.assign(Light {});
-                        //         }
-                        //         "button" => {
-                        //             Button::new(player, 0, 0, world);
-                        //         }
-                        //         _ => {}
-                        //     }
-                        // }
                         self.entities.push(entity.id);
                     }
                 }

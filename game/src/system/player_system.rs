@@ -16,7 +16,8 @@ use crate::{
         position::Position,
         sprite::Sprite,
     },
-    content::content, game_state::GAME_PIXEL_HEIGHT,
+    content,
+    game_state::GAME_PIXEL_HEIGHT,
 };
 
 pub struct PlayerSystem;

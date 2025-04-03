@@ -8,7 +8,7 @@ use crate::content;
 use super::{collider::Collider, position::Position, sprite::Sprite};
 
 pub struct Button {
-    pub name: &'static str,
+    pub name: String,
     pub pressed: bool,
 }
 
@@ -16,7 +16,7 @@ impl Button {
     pub fn new(name: &'static str, x: i32, y: i32, world: &mut impl WorldOp) -> u32 {
         let mut entity = world.add_entity();
         entity.assign(Button {
-            name,
+            name : name.to_string(),
             pressed: false,
         });
         entity.assign(Position { x, y });
