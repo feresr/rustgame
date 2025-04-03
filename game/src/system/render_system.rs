@@ -13,8 +13,9 @@ use engine::{
 };
 
 use crate::{
-    components::{light::Light, position::Position, room::Room, sprite::Sprite},
-    game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
+    components::{light::Light, position::Position, sprite::Sprite},
+    current_room,
+    game_state::{self, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
 };
 
 // This shader takes in color + normal (room) textures and multiples them
@@ -92,19 +93,10 @@ impl RenderSystem {
         batch.clear();
 
         // Pre-render room if required
-        let room_entity = world.first::<Room>().expect("No room entity present");
-        let mut room = room_entity.get::<Room>();
-        if let None = room.albedo_texture {
-            room.prerender();
-            self.material.set_texture(
-                "u_color_texture",
-                room.albedo_texture.as_ref().unwrap().clone(),
-            );
-            self.material.set_texture(
-                "u_normal_texture",
-                room.normal_texture.as_ref().unwrap().clone(),
-            );
-        }
+        let room = current_room();
+        room.prerender(batch);
+        self.material.set_texture("u_color_texture", room.albedo());
+        self.material.set_texture("u_normal_texture", room.normal());
 
         // Normalize light positions
         let mut light_positions: [f32; 10] = [0.0f32; 10];
@@ -118,8 +110,7 @@ impl RenderSystem {
         }
         self.material
             .set_vector2f("u_light_position[0]", &light_positions);
-        self.material
-            .set_valuei("light_count", light_count as i32);
+        self.material.set_valuei("light_count", light_count as i32);
         // Render lights
         batch.push_material(&self.material);
         batch.rect(&room.rect, (1.0, 1.0, 1.0, 1.0));

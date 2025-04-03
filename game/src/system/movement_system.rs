@@ -22,7 +22,7 @@ impl MovementSystem {
             collider_entity.get::<Collider>().collisions.clear();
         });
 
-        // For everything tha moves...
+        // For everything that moves...
         for mover_entity in world.all_with::<Mover>() {
             let mut mover = mover_entity.get::<Mover>();
             let gravity = mover_entity.has::<Gravity>();

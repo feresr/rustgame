@@ -12,6 +12,7 @@ use ldtk_rust::Project;
 use crate::{
     aseprite::{self, Aseprite},
     components::sprite::{Animation, Frame, Tileset},
+    system::scene_system::Map,
 };
 
 #[allow(dead_code)]
@@ -21,11 +22,12 @@ pub struct Content {
     // animation sets
     pub sprites: HashMap<String, HashMap<String, Animation>>,
     pub tracks: HashMap<&'static str, AudioTrack>,
-    pub ldkt: Project,
+    ldkt: Project,
+    pub map: Map,
 }
 
 impl Content {
-    pub fn new() -> Self {
+    pub fn load() -> Self {
         // TODO: Async?
         let mut textures = HashMap::new();
         let mut sprites = HashMap::new();
@@ -147,23 +149,14 @@ impl Content {
         tracks.insert("music-1", audio);
         let audio = AudioTrack::new("game/src/assets/audio/jump.ogg").unwrap();
         tracks.insert("jump", audio);
+        let project = Project::new("game/src/assets/map.ldtk");
         Content {
-            ldkt: Project::new("game/src/assets/map.ldtk"),
+            map: Map::new(&project),
+            ldkt: project,
             tilesets,
             textures,
             sprites,
             tracks,
         }
-    }
-}
-
-static mut CONTENT: Option<Content> = None;
-
-pub fn content() -> &'static Content {
-    unsafe {
-        if CONTENT.is_none() {
-            CONTENT = Some(Content::new());
-        }
-        CONTENT.as_ref().unwrap()
     }
 }

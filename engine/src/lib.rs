@@ -23,6 +23,7 @@ pub struct Config {
 }
 
 // Static does not call drop, so we drop this on fn de_init()
+// I should keep this in game state?
 pub static mut AUDIO: Option<AudioPlayer> = None;
 
 pub fn audio() -> &'static mut AudioPlayer {

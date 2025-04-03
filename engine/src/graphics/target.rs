@@ -16,14 +16,6 @@ pub struct Target {
     pub attachments: Vec<Rc<Texture>>,
 }
 impl Target {
-    pub fn empty() -> Self {
-        Target {
-            id: 0,
-            width: 0,
-            height: 0,
-            attachments: vec![],
-        }
-    }
     pub fn screen(w: i32, h: i32) -> Self {
         Target {
             id: 0,

@@ -46,15 +46,12 @@ fn main() {
     // Create sdl_first, it should be the last thing that gets dropped
     let sdl_context: Sdl = sdl2::init().unwrap();
 
-    let mut game_memory = GameMemory {
-        initialized: false,
-        storage: [0; 1024 * 2], // 2 Kb
-    };
+    let mut game_memory = GameMemory::default();
 
     // TODO
     env::set_var("RUST_BACKTRACE", "1");
 
-    // Load Game lib 
+    // Load Game lib
     let lib_path = get_lib_path();
     let mut game = GameLib::load(&lib_path).unwrap();
 
@@ -152,6 +149,8 @@ fn main() {
                     keycode: Some(kc), ..
                 } => {
                     if !keyboard.held.contains(&kc) {
+                        print!("key pressed kc");
+                        dbg!(&kc);
                         keyboard.pressed.insert(kc.to_owned());
                     }
                 }
@@ -173,7 +172,7 @@ fn main() {
         // platform.prepare_frame(imgui.io_mut(), &window, &events.mouse_state());
 
         // Update
-        (game.update)(&mut game_memory, &keyboard);
+        (game.update)(&keyboard);
 
         // Imgui
         // let frame_rate = imgui.io().framerate;

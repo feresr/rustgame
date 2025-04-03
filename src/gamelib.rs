@@ -7,12 +7,12 @@ use sdl2::{
 };
 
 pub type GetConfigFn = extern "C" fn() -> GameConfig;
-pub type UpdateGameFunc = extern "C" fn(game_mmory: &mut GameMemory, keyboard: &Keyboard);
+pub type UpdateGameFunc = extern "C" fn(keyboard: &Keyboard);
 pub type ClearGameMemFn = extern "C" fn(game_mmory: &mut GameMemory);
 pub type InitGameFunc = extern "C" fn(
     video_subsystem: &VideoSubsystem,
     audio_subsystem: &AudioSubsystem,
-    game_memory: &mut GameMemory,
+    game_memory: *mut GameMemory,
 );
 pub type DeInitGameFunc = extern "C" fn();
 

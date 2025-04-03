@@ -15,10 +15,22 @@ macro_rules! check_gl_errors {
     };
 }
 
+// 4 Kb
+const GAME_MEMORY: usize = 1024 * 10;
+
 #[repr(C)]
 pub struct GameMemory {
     pub initialized: bool,
-    pub storage: [u8; 1024 * 2], // 2 Kb
+    pub storage: [u8; GAME_MEMORY],
+}
+
+impl Default for GameMemory {
+    fn default() -> Self {
+        Self {
+            initialized: false,
+            storage: [0; GAME_MEMORY],
+        }
+    }
 }
 
 #[repr(C)]
