@@ -1,7 +1,6 @@
 use super::Updateable;
-use imgui::Ui;
 use std::{
-    any::{type_name, Any, TypeId},
+    any::{Any, TypeId},
     cell::{RefCell, RefMut},
     collections::HashMap,
 };
@@ -57,14 +56,6 @@ impl<T: Component + 'static> Updateable for ComponentStorage<T> {
                 self.entity_map.insert(last_entity_id, index);
             }
         }
-    }
-
-    fn debug(&self, ui: &Ui) {
-        ui.text(format!(
-            "{} # {:?}",
-            type_name::<T>(),
-            self.data.iter().count()
-        ));
     }
 }
 impl<T: Component> ComponentStorage<T> {

@@ -24,7 +24,7 @@ impl Drop for Mesh {
 
 impl Mesh {
     pub fn new() -> Self {
-        dbg!("expensive call! Creating new mesh");
+        dbg!("Expensive call! Creating new mesh");
         let mut vao = 0;
         let mut buffers: [u32; 2] = [0, 0];
         unsafe {

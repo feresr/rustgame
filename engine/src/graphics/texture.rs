@@ -17,7 +17,7 @@ pub struct Texture {
     pub format: TextureFormat, // todo: add [TextureFormat]?
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubTexture {
     pub texture: Rc<Texture>,
     pub source: RectF,

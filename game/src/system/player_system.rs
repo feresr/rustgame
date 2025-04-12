@@ -27,7 +27,7 @@ impl PlayerSystem {
         player.assign(Player::default());
         player.assign(Mover::default());
         player.assign(Sprite::new(&content().sprites["player"]));
-        player.assign(Light::withOffset(0f32, -8f32));
+        player.assign(Light::with_offset(0f32, -8f32));
         player.assign(Collider::new(
             ColliderType::Rect {
                 rect: RectF {
@@ -55,6 +55,7 @@ impl PlayerSystem {
         let position = player_entity.get::<Position>();
         let collider = player_entity.get::<Collider>();
         let mut player = player_entity.get::<Player>();
+
 
         sprite.scale_x = approach(sprite.scale_x, 1.0f32, 0.10);
         sprite.scale_y = approach(sprite.scale_y, 1.0f32, 0.10);

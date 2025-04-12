@@ -16,7 +16,7 @@ macro_rules! check_gl_errors {
 }
 
 // 4 Kb
-const GAME_MEMORY: usize = 1024 * 10;
+const GAME_MEMORY: usize = 1024 * 8;
 
 #[repr(C)]
 pub struct GameMemory {

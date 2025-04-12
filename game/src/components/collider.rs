@@ -1,5 +1,5 @@
 use engine::{
-    ecs::{Component, Entity, World, WorldOp},
+    ecs::{Component, World, WorldOp},
     graphics::{
         batch::Batch,
         common::{PointF, RectF},
@@ -53,12 +53,13 @@ impl Collider {
 }
 impl Component for Collider {}
 impl Collider {
+    #[allow(dead_code)]
     pub fn render(world: &World, batch: &mut Batch) {
         for collider in world.all_with::<Collider>() {
             let position = collider.get::<Position>();
             let collider = collider.get::<Collider>();
             match &collider.collider_type {
-                ColliderType::Circle { radius } => {}
+                ColliderType::Circle { radius: _ } => {}
                 ColliderType::Rect { rect } => {
                     dbg!(position.y);
                     dbg!(rect.y);
@@ -73,10 +74,10 @@ impl Collider {
                     );
                 }
                 ColliderType::Grid {
-                    columns,
-                    rows,
-                    tile_size,
-                    cells,
+                    columns: _,
+                    rows: _,
+                    tile_size: _,
+                    cells: _,
                 } => {}
             }
         }

@@ -89,7 +89,7 @@ impl Shader {
             gl::DeleteShader(fragment_shader);
         }
 
-        // get uniforms
+        // Get uniforms
         let mut uniforms: Vec<Uniform> = Vec::new();
         unsafe {
             let mut active_uniforms: gl::types::GLint = 0;
@@ -99,7 +99,6 @@ impl Shader {
                 &mut active_uniforms as *mut gl::types::GLint,
             );
 
-            println!("program uniform count : {}", active_uniforms);
             const MAX_NAME_LENGTH: i32 = 128;
             let mut name: [gl::types::GLchar; MAX_NAME_LENGTH as usize] =
                 [0; MAX_NAME_LENGTH as usize];

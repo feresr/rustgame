@@ -6,7 +6,7 @@ use crate::{
         collider::{Collider, ColliderType},
         light::{Light, LightSwitch},
         position::Position,
-        room::{LayerType, Room},
+        room::LayerType,
         sprite::Sprite,
     },
     content, current_room,
@@ -94,13 +94,7 @@ impl Scene for GameScene {
                                 entity.assign(LightSwitch::new("b3"))
                             }
                             "Button" => {
-                                dbg!("creating btn");
-                                let name = map_entity
-                                    .custom_fields
-                                    .iter()
-                                    .find(|f| f.as_str() == "name")
-                                    .unwrap()
-                                    .clone();
+                                let name = map_entity.custom_fields.first().unwrap().clone();
                                 entity.assign(Button {
                                     name: name,
                                     pressed: false,

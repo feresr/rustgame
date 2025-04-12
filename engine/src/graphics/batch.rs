@@ -2,8 +2,6 @@ extern crate gl;
 
 use common::check_gl_errors;
 use gl::types::GLenum;
-use imgui::TreeNodeFlags;
-use imgui::Ui;
 use std::f32::consts::TAU;
 use std::rc::Rc;
 
@@ -119,6 +117,16 @@ impl Batch {
         self.current_batch().stencil = stencil;
     }
 
+    /**
+     * Just like render, but it uses the Target dimensions to consturct a projection matrix, which is we want most times, which is we want most times.
+     */
+    pub fn simple_render(&mut self, target: &Target) {
+        self.render(target, &target.projection);
+    }
+    /**
+     * Projection matrix: Transforms vertices from view space to clip space,
+     * Normalized Device Coordinates (NDC) — a cube from -1 to 1 on all axes. So yes, we "squish" the 3D scene into this cube.
+     */
     pub fn render(&mut self, target: &Target, projection: &glm::Mat4) {
         if self.batches.is_empty() {
             // nothing to draw
@@ -133,7 +141,9 @@ impl Batch {
         for batch in self.batches.iter_mut() {
             // TODO: upload a u_time uniform?
             if batch.material.has_uniform("u_texture") {
-                batch.material.set_texture("u_texture", batch.texture.clone());
+                batch
+                    .material
+                    .set_texture("u_texture", batch.texture.clone());
                 batch.material.set_sampler("u_texture", &batch.sampler);
             }
             if batch.material.has_uniform("u_matrix") {
@@ -413,10 +423,10 @@ impl Batch {
     }
 
     pub fn tex(&mut self, rect: &RectF, texture: Rc<Texture>, color: (f32, f32, f32, f32)) {
-        let current = self.current_batch();
-        if current.texture == texture || current.elements == 0 {
+        let draw_batch = self.current_batch();
+        if draw_batch.texture == texture || draw_batch.elements == 0 {
             // reuse existing batch
-            current.texture = texture;
+            draw_batch.texture = texture;
         } else {
             // create a new batch
             self.push_batch();
@@ -602,38 +612,5 @@ impl Batch {
             self.batches.push(value);
         }
         return self.batches.last_mut().unwrap();
-    }
-}
-
-// ---- IMGUI ---- //
-
-pub(crate) trait ImGuiable {
-    fn render_imgui(&self, img_gui: &Ui);
-}
-
-impl ImGuiable for Batch {
-    fn render_imgui(&self, imgui: &Ui) {
-        let header = imgui.collapsing_header("Draw calls", TreeNodeFlags::DEFAULT_OPEN);
-        if header {
-            for (index, batch) in self.batches.iter().enumerate() {
-                if batch.elements == 0 {
-                    continue;
-                }
-                let header = imgui.collapsing_header(index.to_string(), TreeNodeFlags::FRAMED);
-                if header {
-                    imgui.text(format!("elements: {}", batch.elements));
-                    imgui.text(format!("offset: {}", batch.offset));
-                    imgui.text(format!("texture: {}", batch.texture.id));
-                    imgui.text(format!("sampler: {}", batch.sampler.filter));
-                    imgui.text(format!("material: {:?}", batch.material));
-                }
-            }
-        }
-        let header = imgui.collapsing_header("VERTEX", TreeNodeFlags::FRAMED);
-        if header {
-            imgui.text(format!("vertices: {:?}", self.vertices.len()));
-            imgui.separator();
-            imgui.text(format!("indices: {:?}", self.indices.len()));
-        }
     }
 }

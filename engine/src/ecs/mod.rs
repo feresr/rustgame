@@ -7,7 +7,6 @@ use std::fmt::Debug;
 use std::rc::Rc;
 
 pub use component::{Component, ComponentStorage, ComponentWrapper};
-use imgui::Ui;
 use rand::Rng;
 
 pub type Resource = Rc<RefCell<Box<dyn Any>>>;
@@ -42,7 +41,6 @@ trait Updateable {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
-    fn debug(&self, ui: &Ui);
     fn remove_component(&mut self, entity_id: u32);
 }
 
@@ -101,12 +99,6 @@ impl World {
             }
         }
         return None;
-    }
-
-    pub fn debug(&self, ui: &Ui) {
-        for (_, storage) in self.components.iter() {
-            storage.debug(ui);
-        }
     }
 }
 

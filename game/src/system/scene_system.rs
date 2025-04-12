@@ -1,13 +1,12 @@
 use common::Keyboard;
 use engine::{
     ecs::{World, WorldOp},
-    graphics::batch::Batch,
+    graphics::{batch::Batch, target::Target},
 };
 use ldtk_rust::Project;
 
 use crate::{
     components::{player::Player, position::Position, room::Room},
-    content, current_room,
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
     scene::{GameScene, Scene},
 };
@@ -18,28 +17,18 @@ use crate::{
  */
 pub struct SceneSystem {
     pub initialised: bool,
-    pub camera: glm::Mat4,
     pub scene: GameScene,
 }
 impl SceneSystem {
     pub fn new() -> Self {
-        let (x, y) = (0, 1);
-        let camera = glm::ortho(
-            (x * GAME_PIXEL_WIDTH) as f32,
-            (x * GAME_PIXEL_WIDTH + GAME_PIXEL_WIDTH) as f32,
-            (y * GAME_PIXEL_HEIGHT) as f32,
-            (y * GAME_PIXEL_HEIGHT + GAME_PIXEL_HEIGHT) as f32,
-            0.0f32,
-            2f32,
-        );
+        let (x, y) = (0, 0);
         SceneSystem {
             initialised: false,
-            camera: camera,
             scene: GameScene::with_room(x as i32, y as i32),
         }
     }
 
-    pub fn update(&mut self, world: &mut World, keyboard: &Keyboard) {
+    pub fn update(&mut self, world: &mut World, _: &Keyboard) {
         if !self.initialised {
             // TODO remove this
             self.scene.init(world);
@@ -60,15 +49,6 @@ impl SceneSystem {
             self.scene.destroy(world);
             self.scene = new_scene;
             self.scene.init(world);
-
-            self.camera = glm::ortho(
-                (room_x * GAME_PIXEL_WIDTH) as f32,
-                (room_x * GAME_PIXEL_WIDTH + GAME_PIXEL_WIDTH) as f32,
-                (room_y * GAME_PIXEL_HEIGHT) as f32,
-                (room_y * GAME_PIXEL_HEIGHT + GAME_PIXEL_HEIGHT) as f32,
-                0.0f32,
-                2f32,
-            );
         }
     }
 }
@@ -76,7 +56,7 @@ impl SceneSystem {
 pub struct Map {
     width: usize,
     height: usize,
-    rooms: Vec<Option<Room>>,
+    pub rooms: Vec<Option<Room>>,
 }
 impl Map {
     pub fn new(ldtk: &Project) -> Self {
@@ -91,8 +71,6 @@ impl Map {
             let room = Room::from_level(level);
             let x = level.world_x / GAME_PIXEL_WIDTH as i64;
             let y = level.world_y / GAME_PIXEL_HEIGHT as i64;
-            dbg!(x);
-            dbg!(y);
             let index = (x + (y * map_width as i64)) as usize;
             rooms[index] = Some(room);
         }
@@ -109,5 +87,36 @@ impl Map {
         self.rooms[x + (y * self.width)]
             .as_mut()
             .expect("Missing room")
+    }
+
+    pub fn prerender(&mut self, batch: &mut Batch, color_target: &Target, normal_target: &Target) {
+        for (_, room) in self.rooms.iter_mut().enumerate() {
+            if let Some(room) = room.as_mut() {
+                batch.push_matrix(glm::translation(&glm::vec3(
+                    room.world_position.x,
+                    room.world_position.y,
+                    0.0,
+                )));
+                room.prerender_colors(batch);
+                batch.pop_matrix();
+
+                room.set_color_texture(color_target.color());
+            }
+            batch.simple_render(&color_target);
+        }
+
+        for (_, room) in self.rooms.iter_mut().enumerate() {
+            if let Some(room) = room.as_mut() {
+                batch.push_matrix(glm::translation(&glm::vec3(
+                    room.world_position.x,
+                    room.world_position.y,
+                    0.0,
+                )));
+                room.prerender_normals(batch);
+                batch.pop_matrix();
+                room.set_normal_texture(normal_target.color());
+            }
+            batch.simple_render(&normal_target);
+        }
     }
 }

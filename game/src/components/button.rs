@@ -1,11 +1,10 @@
 use engine::{
     ecs::{Component, World, WorldOp},
-    graphics::common::RectF,
 };
 
 use crate::content;
 
-use super::{collider::Collider, position::Position, sprite::Sprite};
+use super::{collider::Collider, sprite::Sprite};
 
 pub struct Button {
     pub name: String,
@@ -13,27 +12,11 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new(name: &'static str, x: i32, y: i32, world: &mut impl WorldOp) -> u32 {
-        let mut entity = world.add_entity();
-        entity.assign(Button {
-            name : name.to_string(),
-            pressed: false,
-        });
-        entity.assign(Position { x, y });
-        entity.assign(Collider::new(
-            super::collider::ColliderType::Rect {
-                rect: RectF::with_size(20f32, 22f32),
-            },
-            false,
-        ));
-        entity.assign(Sprite::new(&content().sprites["Button"]));
-        entity.id
-    }
-
     pub fn is_pressed(world: &World, name: &str) -> bool {
-        let button = world
-            .all_with::<Button>()
-            .find(|entity| entity.get::<Button>().name == name);
+        let button = world.all_with::<Button>().find(|entity| {
+            let b = entity.get::<Button>();
+            return b.name == name;
+        });
         if let Some(b) = button {
             return b.get::<Button>().pressed;
         }

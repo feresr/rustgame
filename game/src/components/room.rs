@@ -1,25 +1,24 @@
-use std::rc::Rc;
+use std::{rc::Rc};
 
 use crate::{
     content,
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
 };
 use engine::{
-    ecs::{component::Component, Entity},
+    ecs::component::Component,
     graphics::{
-        batch::{self, Batch},
+        batch::Batch,
         common::RectF,
-        target::Target,
-        texture::{SubTexture, Texture, TextureFormat},
+        texture::{SubTexture, Texture},
     },
 };
 use ldtk_rust::Level;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Tile {
-    pub x: u32,
+    pub x: u32, // pixel coordinates in the layer
     pub y: u32,
-    pub src_x: i64,
+    pub src_x: i64, // pixel coordinates in the tileset
     pub src_y: i64,
     pub kind: u32,
 }
@@ -49,30 +48,28 @@ pub struct Room {
     pub layers: Vec<Layer>,
     pub rect: RectF,
     // This is essentially the camera in world space, move out of here?
-    pub world_ortho: glm::Mat4,
-    albedo_texture: Option<Rc<Texture>>,
-    normal_texture: Option<Rc<Texture>>,
+    pub camera_ortho: glm::Mat4,
+    albedo_texture: Option<SubTexture>,
+    normal_texture: Option<SubTexture>,
 }
 impl Room {
     /**
      * Returs the normal texture for this map, it will render it needed
      */
-    pub fn normal(&self) -> Rc<Texture> {
-        return self
-            .normal_texture
+    pub fn normal(&self) -> SubTexture {
+        self.normal_texture
             .as_ref()
             .expect("missing normal, did you forget to call pre-render()?")
-            .clone();
+            .clone()
     }
     /**
      * Returs the color texture for this map, it will render it needed
      */
-    pub fn albedo(&self) -> Rc<Texture> {
-        return self
-            .albedo_texture
+    pub fn albedo(&self) -> SubTexture {
+        self.albedo_texture
             .as_ref()
             .expect("missing albedo, did you forget to call pre-render()?")
-            .clone();
+            .clone()
     }
 
     pub fn from_level(level: &Level) -> Self {
@@ -102,15 +99,22 @@ impl Room {
                     let map_entities: Vec<MapEntity> = layer
                         .entity_instances
                         .iter()
-                        .map(|entity_instance| MapEntity {
-                            identifier: entity_instance.identifier.clone(),
-                            px: entity_instance.px[0] as i32,
-                            py: entity_instance.px[1] as i32,
-                            custom_fields: entity_instance
-                                .field_instances
-                                .iter()
-                                .map(|f| f.identifier.clone())
-                                .collect(),
+                        .map(|entity_instance| {
+                            let mut custom_fields: Vec<String> = vec![];
+                            for instance in entity_instance.field_instances.iter() {
+                                if let Some(v) = instance.value.as_ref() {
+                                    if v.is_string() {
+                                        let v = v.as_str().unwrap();
+                                        custom_fields.push(String::from(v));
+                                    }
+                                }
+                            }
+                            return MapEntity {
+                                identifier: entity_instance.identifier.clone(),
+                                px: entity_instance.px[0] as i32,
+                                py: entity_instance.px[1] as i32,
+                                custom_fields,
+                            };
                         })
                         .collect();
                     layers.push(Layer {
@@ -146,41 +150,48 @@ impl Room {
             rect,
             albedo_texture: None,
             normal_texture: None,
-            world_ortho: glm::ortho(
+            camera_ortho: glm::ortho(
                 level.world_x as f32,
                 level.world_x as f32 + GAME_PIXEL_WIDTH as f32,
-                level.world_y as f32,
                 level.world_y as f32 + GAME_PIXEL_HEIGHT as f32,
+                level.world_y as f32,
                 -1.0,
                 1.0,
             ),
         }
     }
 
-    pub fn prerender(&mut self, batch: &mut Batch) {
-        if self.albedo_texture.is_some() & self.normal_texture.is_some() {
-            // Already rendered
-            return;
+    pub fn prerender_normals(&mut self, batch: &mut Batch) {
+        for layer in self.layers.iter().rev() {
+            if let LayerType::Entities = layer.kind {
+                continue;
+            }
+            let tileset = content().tilesets.get(&layer.tileset_id).unwrap();
+            for tile in layer.tiles.iter() {
+                let tile_rect = RectF {
+                    x: tile.x as f32,
+                    y: tile.y as f32,
+                    w: TILE_SIZE as f32,
+                    h: TILE_SIZE as f32,
+                };
+                batch.sprite(
+                    &tile_rect,
+                    &SubTexture::new(
+                        Rc::clone(&tileset.normal),
+                        RectF {
+                            x: tile.src_x as f32,
+                            y: tile.src_y as f32,
+                            w: tileset.tile_size as f32,
+                            h: tileset.tile_size as f32,
+                        },
+                    ),
+                    (1f32, 1f32, 1f32, 1f32),
+                );
+            }
         }
+    }
 
-        // Colors
-        let attachments = [TextureFormat::RGBA];
-        let target = Target::new(
-            GAME_PIXEL_WIDTH as i32,
-            GAME_PIXEL_HEIGHT as i32,
-            &attachments,
-        );
-        target.clear((1.0f32, 0.0f32, 1.0f32, 0f32));
-
-        let ortho = glm::ortho(
-            0.0,
-            GAME_PIXEL_WIDTH as f32,
-            0 as f32,
-            GAME_PIXEL_HEIGHT as f32,
-            -1.0,
-            1.0,
-        );
-
+    pub fn prerender_colors(&mut self, batch: &mut Batch) {
         // Render room
         for layer in self.layers.iter().rev() {
             if let LayerType::Entities = layer.kind {
@@ -208,53 +219,14 @@ impl Room {
                     (1f32, 1f32, 1f32, 1f32),
                 );
             }
-            batch.render(&target, &ortho);
         }
+    }
 
-        self.albedo_texture = Some(target.color());
-        batch.clear();
-
-        // NORMALS
-        let attachments = [TextureFormat::RGBA];
-        let target = Target::new(
-            GAME_PIXEL_WIDTH as i32,
-            GAME_PIXEL_HEIGHT as i32,
-            &attachments,
-        );
-        target.clear((0.5f32, 0.5f32, 1.0f32, 0f32));
-        // Creates a new batch (we don't want to clear the current content of the game batch - we need to actually draw these)
-
-        for layer in self.layers.iter().rev() {
-            if let LayerType::Entities = layer.kind {
-                continue;
-            }
-            let tileset = content().tilesets.get(&layer.tileset_id).unwrap();
-            for tile in layer.tiles.iter() {
-                let tile_rect = RectF {
-                    x: tile.x as f32,
-                    y: tile.y as f32,
-                    w: TILE_SIZE as f32,
-                    h: TILE_SIZE as f32,
-                };
-                batch.sprite(
-                    &tile_rect,
-                    &SubTexture::new(
-                        Rc::clone(&tileset.normal),
-                        RectF {
-                            x: tile.src_x as f32,
-                            y: tile.src_y as f32,
-                            w: tileset.tile_size as f32,
-                            h: tileset.tile_size as f32,
-                        },
-                    ),
-                    (1f32, 1f32, 1f32, 1f32),
-                );
-            }
-            batch.render(&target, &ortho);
-        }
-
-        self.normal_texture = Some(target.color());
-        batch.clear();
+    pub fn set_color_texture(&mut self, color: Rc<Texture>) {
+        self.albedo_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));
+    }
+    pub fn set_normal_texture(&mut self, color: Rc<Texture>) {
+        self.normal_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));
     }
 }
 impl Component for Room {

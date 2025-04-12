@@ -8,7 +8,7 @@ pub struct Light {
 }
 
 impl Light {
-    pub fn withOffset(x: f32, y: f32) -> Self {
+    pub fn with_offset(x: f32, y: f32) -> Self {
         return Light {
             offset_x: x,
             offset_y: y,
@@ -25,7 +25,7 @@ impl Component for Light {}
 
 pub struct LightSwitch {
     pub button_name: &'static str,
-    switch_state: bool,
+    turned_on: bool,
     old_button_state: bool,
 }
 impl Component for LightSwitch {}
@@ -34,27 +34,29 @@ impl LightSwitch {
     pub fn new(button_name: &'static str) -> Self {
         LightSwitch {
             button_name,
-            switch_state: false,
+            turned_on: false,
             old_button_state: false,
         }
     }
     pub fn update(world: &mut World) {
         let mut turn_on: Vec<u32> = Vec::new();
         let mut turn_off: Vec<u32> = Vec::new();
-        for entity in world.all_with::<LightSwitch>() {
-            let mut ls = entity.get::<LightSwitch>();
+        for light_switch_entity in world.all_with::<LightSwitch>() {
+            let mut ls = light_switch_entity.get::<LightSwitch>();
             let is_pressed = Button::is_pressed(world, ls.button_name);
             if is_pressed && !ls.old_button_state {
-                ls.switch_state = !ls.switch_state;
+                ls.turned_on = !ls.turned_on;
             }
             ls.old_button_state = is_pressed;
-            if ls.switch_state {
-                if let None = entity.has::<Light>() {
-                    turn_on.push(entity.id);
+            if ls.turned_on {
+                dbg!("turned on");
+                if let None = light_switch_entity.has::<Light>() {
+                    dbg!("turning light");
+                    turn_on.push(light_switch_entity.id);
                 }
             } else {
-                if let Some(f) = entity.has::<Light>() {
-                    turn_off.push(entity.id);
+                if light_switch_entity.has::<Light>().is_some() {
+                    turn_off.push(light_switch_entity.id);
                 }
             }
         }

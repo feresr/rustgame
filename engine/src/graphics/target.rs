@@ -7,13 +7,14 @@ use common::check_gl_errors;
 use super::texture::Texture;
 use super::texture::TextureFormat;
 
-#[derive(Debug, Hash)]
+#[derive(Debug)]
 pub struct Target {
     pub id: u32,
     pub width: i32,
     pub height: i32,
     // Target draws to these
     pub attachments: Vec<Rc<Texture>>,
+    pub projection: glm::Mat4,
 }
 impl Target {
     pub fn screen(w: i32, h: i32) -> Self {
@@ -22,6 +23,7 @@ impl Target {
             width: w,
             height: h,
             attachments: vec![],
+            projection: glm::ortho(0f32, w as f32, 0f32, h as f32, -1f32, 1f32),
         }
     }
     pub fn color(&self) -> Rc<Texture> {
@@ -50,6 +52,7 @@ impl Target {
             width,
             height,
             attachments: Vec::new(),
+            projection: glm::ortho(0f32, width as f32, 0f32, height as f32, -1f32, 1f32),
         };
 
         unsafe {

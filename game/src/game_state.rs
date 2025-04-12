@@ -2,26 +2,20 @@ use common::Keyboard;
 use engine::{
     ecs::World,
     graphics::{
-        self,
-        batch::Batch,
-        blend,
-        common::RectF,
-        material::Material,
-        target::Target,
-        texture::{TextureFormat, TextureSampler},
+        self, batch::Batch, blend, common::RectF, material::Material, texture::TextureSampler,
     },
 };
-use imgui::Ui;
 
 use crate::{
     components::{button::Button, light::LightSwitch},
-    content::Content,
+    content,
     scene::Scene,
     system::{
         animation_system::AnimationSystem, editor::Editor, light_system::LightSystem,
         movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
         scene_system::SceneSystem,
     },
+    target_manager::TargetManager,
 };
 
 pub const SCREEN_WIDTH: usize = GAME_PIXEL_WIDTH * 4;
@@ -38,7 +32,6 @@ pub const CRT_FRAGMENT_SOURCE: &str = include_str!("crt_shader.fs");
 
 #[repr(C)]
 pub struct GameState {
-    low_res_target: Target, // low-res target
     world: World,
     batch: Batch,
     movement_system: MovementSystem,
@@ -46,13 +39,11 @@ pub struct GameState {
     player_system: PlayerSystem,
     pub scene_system: SceneSystem,
     light_system: LightSystem,
-    screen_ortho: glm::Mat4,
     screen_rect: RectF,
-    screen_target: Target,
     material: Material,
     show_editor: bool,
     editor: Editor,
-    pub content: Content,
+    pub target_manager: TargetManager, // low-res target
 }
 
 impl GameState {
@@ -61,29 +52,16 @@ impl GameState {
         self.scene_system.scene.init(&mut self.world);
     }
 
-    pub fn new(content: Content) -> Self {
-        let screen_ortho = glm::ortho(
-            0.0,
-            SCREEN_WIDTH as f32,
-            SCREEN_HEIGHT as f32,
-            0f32,
-            0.0f32,
-            2f32,
-        );
-
-        let gbuffer = Target::new(
-            GAME_PIXEL_WIDTH as i32,
-            GAME_PIXEL_HEIGHT as i32,
-            &[TextureFormat::RGBA],
-        );
-
-        let mut world = World::new();
+    pub fn new() -> Self {
+        let world = World::new();
         let player_system = PlayerSystem;
 
-        let mut scene_system = SceneSystem::new();
+        let scene_system = SceneSystem::new();
 
         let light_system = LightSystem::new();
         let render_system = RenderSystem::new();
+
+        let target_manager = TargetManager::new();
 
         let crt_shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, CRT_FRAGMENT_SOURCE);
@@ -92,16 +70,23 @@ impl GameState {
         let sampler = TextureSampler::nearest();
         post_processing_material.set_sampler("u_color_texture", &sampler);
         // The render system gives a albedo * normal mult color texture (which takes into consideration light)
-        post_processing_material.set_texture("u_color_texture", render_system.color());
+        post_processing_material.set_texture("u_color_texture", target_manager.color.color());
         post_processing_material.set_sampler("u_light_texture", &sampler);
         // The light system gives a black and white stencil for drawing the light cirlces (and hard shadows)
-        post_processing_material.set_texture("u_light_texture", light_system.color());
+        post_processing_material.set_texture("u_light_texture", target_manager.lights.color());
         // engine::audio().play_music(&content().tracks["music-1"]);
 
-        let batch = graphics::batch::Batch::default();
+        let mut batch = graphics::batch::Batch::default();
+
+        // Render all maps colors and normals into a huge texture
+        let content = content();
+        content.map.prerender(
+            &mut batch,
+            &target_manager.maps_color,
+            &target_manager.maps_normal,
+        );
+
         Self {
-            screen_ortho,
-            low_res_target: gbuffer,
             world,
             batch,
             movement_system: MovementSystem,
@@ -109,12 +94,11 @@ impl GameState {
             player_system,
             scene_system,
             light_system,
-            screen_target: Target::screen(SCREEN_WIDTH as i32 * 2, SCREEN_HEIGHT as i32 * 2),
             screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
             material: post_processing_material,
             show_editor: false,
             editor: Editor::default(),
-            content,
+            target_manager,
         }
     }
 
@@ -127,10 +111,10 @@ impl GameState {
         let sampler = TextureSampler::nearest();
         post_processing_material.set_sampler("u_color_texture", &sampler);
         // The render system gives a albedo * normal mult color texture (which takes into consideration light)
-        post_processing_material.set_texture("u_color_texture", self.render_system.color());
+        post_processing_material.set_texture("u_color_texture", self.target_manager.color.color());
         post_processing_material.set_sampler("u_light_texture", &sampler);
         // The light system gives a black and white stencil for drawing the light cirlces (and hard shadows)
-        post_processing_material.set_texture("u_light_texture", self.light_system.color());
+        post_processing_material.set_texture("u_light_texture", self.target_manager.lights.color());
         self.material = post_processing_material;
     }
 
@@ -154,17 +138,25 @@ impl GameState {
 
     pub fn render(&mut self) {
         engine::update();
+
         // Render into low-res target
         {
-            self.low_res_target.clear((0.1f32, 0.1f32, 0.24f32, 1.0f32));
+            self.target_manager
+                .game
+                .clear((0.1f32, 0.1f32, 0.24f32, 1.0f32));
             self.batch.set_sampler(&TextureSampler::nearest());
             AnimationSystem::tick(&self.world);
 
             self.batch.set_blend(blend::NORMAL);
-            self.render_system.render(&self.world, &mut self.batch);
+            self.render_system
+                .render(&self.world, &mut self.batch, &self.target_manager.color);
             self.batch.clear();
 
-            self.light_system.render(&self.world, &mut self.batch);
+            self.light_system.render(
+                &self.world,
+                &mut self.batch,
+                &mut self.target_manager.lights,
+            );
 
             self.batch.clear();
 
@@ -178,17 +170,7 @@ impl GameState {
                 },
                 (1f32, 1f32, 1f32, 1.0f32),
             );
-            self.batch.render(
-                &self.low_res_target,
-                &glm::ortho(
-                    0f32,
-                    GAME_PIXEL_WIDTH as f32,
-                    0f32,
-                    GAME_PIXEL_HEIGHT as f32,
-                    0.0f32,
-                    0.2f32,
-                ),
-            );
+            self.batch.simple_render(&self.target_manager.game);
             self.batch.pop_material();
 
             self.batch.clear();
@@ -199,18 +181,14 @@ impl GameState {
             self.batch.set_sampler(&TextureSampler::nearest());
             self.batch.tex(
                 &self.screen_rect,
-                self.low_res_target.color(),
+                self.target_manager.game.color(),
                 (1.0f32, 1.0f32, 1.0f32, 1f32),
             );
             if self.show_editor {
-                self.editor.render(&mut self.batch);
+                self.editor.render(&mut self.batch, &self.target_manager);
             }
-            self.batch.render(&self.screen_target, &self.screen_ortho);
-        }
-    }
 
-    #[allow(dead_code)]
-    fn debug(&self, imgui: &Ui) {
-        self.world.debug(imgui);
+            self.batch.simple_render(&self.target_manager.screen);
+        }
     }
 }

@@ -1,4 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
 
 use engine::{
     ecs::{World, WorldOp},
@@ -8,14 +7,13 @@ use engine::{
         common::RectF,
         material::Material,
         target::Target,
-        texture::{Texture, TextureFormat, TextureSampler},
+        texture::TextureSampler,
     },
 };
 
 use crate::{
     components::{light::Light, position::Position, sprite::Sprite},
     current_room,
-    game_state::{self, GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
 };
 
 // This shader takes in color + normal (room) textures and multiples them
@@ -63,40 +61,29 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
 
 #[allow(dead_code)]
 pub struct RenderSystem {
-    target: Target,
     material: Material,
 }
 
 impl RenderSystem {
     pub fn new() -> Self {
-        let target = Target::new(
-            GAME_PIXEL_WIDTH as i32,
-            GAME_PIXEL_HEIGHT as i32,
-            &[TextureFormat::RGBA],
-        );
-
         let shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
         let mut material = Material::with_sampler(shader, TextureSampler::nearest());
         let sampler = TextureSampler::nearest();
         material.set_sampler("u_color_texture", &sampler);
         material.set_sampler("u_normal_texture", &sampler);
-        RenderSystem { target, material }
+        RenderSystem { material }
     }
 
-    pub fn color(&self) -> Rc<Texture> {
-        self.target.attachments[0].clone()
-    }
-
-    pub fn render(&mut self, world: &World, batch: &mut Batch) {
-        self.target.clear((0f32, 0f32, 0f32, 0f32));
+    pub fn render(&mut self, world: &World, batch: &mut Batch, target: &Target) {
+        target.clear((0f32, 0f32, 0f32, 0f32));
         batch.clear();
 
-        // Pre-render room if required
         let room = current_room();
-        room.prerender(batch);
-        self.material.set_texture("u_color_texture", room.albedo());
-        self.material.set_texture("u_normal_texture", room.normal());
+        self.material
+            .set_texture("u_color_texture", room.albedo().texture);
+        self.material
+            .set_texture("u_normal_texture", room.normal().texture);
 
         // Normalize light positions
         let mut light_positions: [f32; 10] = [0.0f32; 10];
@@ -111,9 +98,10 @@ impl RenderSystem {
         self.material
             .set_vector2f("u_light_position[0]", &light_positions);
         self.material.set_valuei("light_count", light_count as i32);
+
         // Render lights
         batch.push_material(&self.material);
-        batch.rect(&room.rect, (1.0, 1.0, 1.0, 1.0));
+        batch.sprite(&room.rect, &room.albedo(), (1.0, 1.0, 1.0, 1.0));
         batch.pop_material();
 
         // Lastly, render Sprites
@@ -156,7 +144,7 @@ impl RenderSystem {
         // Collider::render(&world, batch);
 
         // let ortho = &room.world_ortho;
-        batch.render(&self.target, &room.world_ortho);
+        batch.render(target, &room.camera_ortho);
         batch.clear();
     }
 }

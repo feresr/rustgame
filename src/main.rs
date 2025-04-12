@@ -74,7 +74,7 @@ fn main() {
 
     let window = video_subsystem
         .window("Window", window_size.0, window_size.1)
-        .allow_highdpi()
+        // .allow_highdpi() TODO bring this back?
         .opengl()
         // .borderless()
         .build()
@@ -130,7 +130,7 @@ fn main() {
                 } => {
                     match win_event {
                         sdl2::event::WindowEvent::Resized(_w, _hh) => {
-                            let drawable_size = window.drawable_size();
+                            let _drawable_size = window.drawable_size();
                             // screen = Target::screen(drawable_size.0 as i32, drawable_size.1 as i32);
                         }
                         _ => {

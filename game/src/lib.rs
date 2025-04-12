@@ -4,12 +4,13 @@ mod content;
 mod game_state;
 mod scene;
 mod system;
+mod target_manager;
 
 extern crate engine;
 extern crate nalgebra_glm as glm;
 use content::Content;
 use game_state::{GameState, SCREEN_HEIGHT, SCREEN_WIDTH};
-use scene::{GameScene, Scene};
+use scene::GameScene;
 use sdl2::{AudioSubsystem, VideoSubsystem};
 
 use common::{GameConfig, GameMemory, Keyboard};
@@ -20,11 +21,15 @@ use std::{env, mem::size_of};
 static mut MEMORY_PTR: *mut GameMemory = std::ptr::null_mut();
 
 // Globally accessible utils
-fn game_state() -> &'static mut GameState {
+pub fn game_state() -> &'static mut GameState {
     return unsafe { &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState) };
 }
-fn content() -> &'static mut Content {
-    return &mut game_state().content;
+pub fn content() -> &'static mut Content {
+    return unsafe {
+        let storage_ptr = (*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState;
+        let content = storage_ptr.add(size_of::<GameState>()) as *mut Content;
+        &mut (*content)
+    };
 }
 fn current_scene() -> &'static mut GameScene {
     return &mut game_state().scene_system.scene;
@@ -55,8 +60,15 @@ pub extern "C" fn init(
                 game_size,
                 available_memory
             );
+
             let storage_ptr = (*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState;
-            storage_ptr.write(GameState::new(Content::load())); // Directly write Game into storage
+
+            dbg!(size_of::<GameState>());
+            let content_ptr = storage_ptr.add(size_of::<GameState>()) as *mut Content;
+
+            content_ptr.write(Content::load());
+            storage_ptr.write(GameState::new()); // Directly write Game into storage
+
             (*MEMORY_PTR).initialized = true;
             game_state().init_systems();
         } else {
