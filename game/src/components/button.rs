@@ -2,7 +2,7 @@ use engine::{
     ecs::{Component, World, WorldOp},
 };
 
-use crate::content;
+use crate::content::{self, Content};
 
 use super::{collider::Collider, sprite::Sprite};
 
@@ -30,10 +30,10 @@ impl Button {
             let mut button_sprite = button_entity.get::<Sprite>();
             button.pressed = !button_collider.collisions.is_empty();
             if button.pressed {
-                let s = &content().sprites[&String::from("ButtonPressed")];
+                let s = &Content::sprite(&String::from("ButtonPressed"));
                 button_sprite.update_animation(s);
             } else {
-                let s = &content().sprites[&String::from("Button")];
+                let s = &Content::sprite(&String::from("Button"));
                 button_sprite.update_animation(s);
             }
         }

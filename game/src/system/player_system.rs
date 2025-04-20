@@ -16,8 +16,7 @@ use crate::{
         position::Position,
         sprite::Sprite,
     },
-    content,
-    game_state::GAME_PIXEL_HEIGHT,
+    content::{self, Content},
 };
 
 pub struct PlayerSystem;
@@ -26,7 +25,7 @@ impl PlayerSystem {
         let mut player = world.add_entity();
         player.assign(Player::default());
         player.assign(Mover::default());
-        player.assign(Sprite::new(&content().sprites["player"]));
+        player.assign(Sprite::new(&Content::sprite("player")));
         player.assign(Light::with_offset(0f32, -8f32));
         player.assign(Collider::new(
             ColliderType::Rect {
@@ -39,14 +38,11 @@ impl PlayerSystem {
             },
             true,
         ));
-        player.assign(Position::new(
-            72 as i32,
-            GAME_PIXEL_HEIGHT as i32 + 24 as i32,
-        ));
+        player.assign(Position::new( 24 , 24 ));
         player.assign(Gravity { value: 0.3f32 });
     }
 
-    pub fn update(&self, world: &mut World, keyboard: &Keyboard) {
+    pub fn update(&self, world: &mut World) {
         let player_entity = world.first::<Player>().expect("Player not found");
 
         let id = player_entity.id;
@@ -84,10 +80,10 @@ impl PlayerSystem {
         player.was_in_air = player.in_air;
 
         if Button::is_pressed(world, "b1") {
-            engine::audio().play_sound(&content().tracks["jump"]);
+            engine::audio().play_sound(&Content::get().tracks["jump"]);
         }
 
-        if keyboard.pressed.contains(&engine::Keycode::Up) || player.jump_buffer > 0 {
+        if Keyboard::pressed(engine::Keycode::Up) || player.jump_buffer > 0 {
             if !player.in_air || player.coyote_buffer > 0 {
                 // engine::audio().play_sound(&content().tracks["jump"]);
                 sprite.play("jump");
@@ -113,14 +109,14 @@ impl PlayerSystem {
 
         player.update();
         if !player.is_attacking() {
-            if keyboard.held.contains(&engine::Keycode::Left) {
+            if Keyboard::held(&engine::Keycode::Left) {
                 mover.speed.x -= WALK_SPEED;
                 sprite.flip_x = true;
                 if !player.in_air {
                     sprite.play("run");
                 }
             }
-            if keyboard.held.contains(&engine::Keycode::Right) {
+            if Keyboard::held(&engine::Keycode::Right) {
                 mover.speed.x += WALK_SPEED;
                 sprite.flip_x = false;
                 if !player.in_air {
@@ -128,7 +124,7 @@ impl PlayerSystem {
                 }
             }
         }
-        if keyboard.held.contains(&engine::Keycode::Space) {
+        if Keyboard::held(&engine::Keycode::Space) {
             player.attack();
         }
         if player.is_attacking() {

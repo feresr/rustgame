@@ -1,7 +1,7 @@
-use std::{rc::Rc};
+use std::rc::Rc;
 
 use crate::{
-    content,
+    content::{self, Content},
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
 };
 use engine::{
@@ -26,7 +26,7 @@ pub struct Tile {
 #[derive(PartialEq, Debug)] // Ensure PartialEq is derived for comparison
 
 pub enum LayerType {
-    Tiles,
+    Tiles(String), // Background and foreground
     Entities,
 }
 pub struct MapEntity {
@@ -51,6 +51,7 @@ pub struct Room {
     pub camera_ortho: glm::Mat4,
     albedo_texture: Option<SubTexture>,
     normal_texture: Option<SubTexture>,
+    outline_texture: Option<SubTexture>,
 }
 impl Room {
     /**
@@ -72,6 +73,13 @@ impl Room {
             .clone()
     }
 
+    pub fn outline(&self) -> SubTexture {
+        self.outline_texture
+            .as_ref()
+            .expect("missing outline, did you forget to call pre-render()?")
+            .clone()
+    }
+
     pub fn from_level(level: &Level) -> Self {
         let mut layers: Vec<Layer> = Vec::new();
         for layer in level.layer_instances.as_ref().unwrap() {
@@ -89,7 +97,7 @@ impl Room {
                         })
                         .collect();
                     layers.push(Layer {
-                        kind: LayerType::Tiles,
+                        kind: LayerType::Tiles(layer.identifier.to_owned()),
                         tileset_id: layer.tileset_def_uid.expect("Missing tileset id"),
                         tiles,
                         entities: vec![],
@@ -150,11 +158,12 @@ impl Room {
             rect,
             albedo_texture: None,
             normal_texture: None,
+            outline_texture: None,
             camera_ortho: glm::ortho(
                 level.world_x as f32,
                 level.world_x as f32 + GAME_PIXEL_WIDTH as f32,
-                level.world_y as f32 + GAME_PIXEL_HEIGHT as f32,
                 level.world_y as f32,
+                level.world_y as f32 + GAME_PIXEL_HEIGHT as f32,
                 -1.0,
                 1.0,
             ),
@@ -166,7 +175,7 @@ impl Room {
             if let LayerType::Entities = layer.kind {
                 continue;
             }
-            let tileset = content().tilesets.get(&layer.tileset_id).unwrap();
+            let tileset = Content::get().tilesets.get(&layer.tileset_id).unwrap();
             for tile in layer.tiles.iter() {
                 let tile_rect = RectF {
                     x: tile.x as f32,
@@ -197,7 +206,7 @@ impl Room {
             if let LayerType::Entities = layer.kind {
                 continue;
             }
-            let tileset = content().tilesets.get(&layer.tileset_id).unwrap();
+            let tileset = Content::get().tilesets.get(&layer.tileset_id).unwrap();
             for tile in layer.tiles.iter() {
                 let tile_rect = RectF {
                     x: tile.x as f32,
@@ -222,8 +231,43 @@ impl Room {
         }
     }
 
+    pub fn prerender_outlines(&mut self, batch: &mut Batch) {
+        // Render room
+        for layer in self.layers.iter().rev() {
+            if let LayerType::Tiles(kind) = &layer.kind {
+                if kind == "Solid" {
+                    let tileset = Content::get().tilesets.get(&layer.tileset_id).unwrap();
+                    for tile in layer.tiles.iter() {
+                        let tile_rect = RectF {
+                            x: tile.x as f32,
+                            y: tile.y as f32,
+                            w: TILE_SIZE as f32,
+                            h: TILE_SIZE as f32,
+                        };
+                        batch.sprite(
+                            &tile_rect,
+                            &SubTexture::new(
+                                Rc::clone(&tileset.normal),
+                                RectF {
+                                    x: tile.src_x as f32,
+                                    y: tile.src_y as f32,
+                                    w: tileset.tile_size as f32,
+                                    h: tileset.tile_size as f32,
+                                },
+                            ),
+                            (1f32, 1f32, 1f32, 1f32),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     pub fn set_color_texture(&mut self, color: Rc<Texture>) {
         self.albedo_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));
+    }
+    pub fn set_outline_texture(&mut self, color: Rc<Texture>) {
+        self.outline_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));
     }
     pub fn set_normal_texture(&mut self, color: Rc<Texture>) {
         self.normal_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));

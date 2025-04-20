@@ -9,7 +9,7 @@ use crate::{
         room::LayerType,
         sprite::Sprite,
     },
-    content, current_room,
+    content::{self, Content}, current_room,
     game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE},
 };
 
@@ -55,7 +55,7 @@ impl Scene for GameScene {
         let tile_layer = room
             .layers
             .iter()
-            .find(|layer| layer.kind == LayerType::Tiles)
+            .find(|layer| matches!(layer.kind, LayerType::Tiles(_)))
             .expect("Map must have at least one tile layer (even if empty)");
         for tile in tile_layer.tiles.iter() {
             let x = (tile.x as f32 / TILE_SIZE as f32) as u32;
@@ -86,7 +86,7 @@ impl Scene for GameScene {
                             y: room.world_position.y as i32 + map_entity.py,
                         });
                         entity.assign(Sprite::new(
-                            &content().sprites[map_entity.identifier.as_str()],
+                            &Content::sprite(map_entity.identifier.as_str()),
                         ));
                         match map_entity.identifier.as_str() {
                             id if id.starts_with("Light") => {

@@ -19,9 +19,9 @@ use super::VERTEX_SHADER_SOURCE;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Stencil {
-    pub stencil_val: u32, // Optional stencil value for masking
-    pub stencil_func: GLenum,
-    pub stencil_op: GLenum,
+    pub stencil_val: u32, // Optional stencil value for masking, this is NOT what get's written into the buffer
+    pub stencil_func: GLenum, // comparison logic  gl::StencilFunc(gl::EQUAL, 1, 0xFF);  “Only draw where stencil_buffer == 1”.
+    pub stencil_op: GLenum,   // how to update the scencil
     pub color_mask: u8,
     pub stencil_mask: u8,
 }
@@ -31,14 +31,48 @@ impl Stencil {
     }
 
     // writes to the color buffer (uses the stencil)
-    pub fn mask(val: u32) -> Option<Stencil> {
-        // Only pass the test if the stencil value is EQ to 1
+    pub fn mask_leq(val: u32) -> Option<Stencil> {
+        // Only pass the test if the stencil value is EQ to val
+        Some(Stencil {
+            stencil_val: val,
+            stencil_func: gl::LEQUAL,
+            stencil_op: gl::KEEP, // don't modify the stencil
+            color_mask: gl::TRUE, // write the color buffer
+            stencil_mask: 0x00,
+        })
+    }
+    // writes to the color buffer (uses the stencil)
+    pub fn mask_eq(val: u32) -> Option<Stencil> {
+        // Only pass the test if the stencil value is EQ to val
         Some(Stencil {
             stencil_val: val,
             stencil_func: gl::EQUAL,
             stencil_op: gl::KEEP, // don't modify the stencil
             color_mask: gl::TRUE, // write the color buffer
             stencil_mask: 0x00,
+        })
+    }
+    // writes to the stencil (leves color alone)
+    pub fn decr() -> Option<Stencil> {
+        // TODO: find a way to make this warn about target without stencil texture
+        // Alwasys pass the test, and replace the stencil value with val
+        Some(Stencil {
+            stencil_val: 0,
+            stencil_func: gl::ALWAYS, // always modify the stencil
+            stencil_op: gl::DECR,     // substract to the scencil
+            color_mask: gl::FALSE,    // don't write a color
+            stencil_mask: 0xFF,
+        })
+    }
+    pub fn increment() -> Option<Stencil> {
+        // TODO: find a way to make this warn about target without stencil texture
+        // Alwasys pass the test, and replace the stencil value with val
+        Some(Stencil {
+            stencil_val: 0,
+            stencil_func: gl::ALWAYS, // always modify the stencil
+            stencil_op: gl::INCR,     // add to the scencil
+            color_mask: gl::FALSE,    // don't write a color
+            stencil_mask: 0xFF,
         })
     }
     // writes to the stencil (leves color alone)
@@ -120,14 +154,14 @@ impl Batch {
     /**
      * Just like render, but it uses the Target dimensions to consturct a projection matrix, which is we want most times, which is we want most times.
      */
-    pub fn simple_render(&mut self, target: &Target) {
-        self.render(target, &target.projection);
+    pub fn render(&mut self, target: &Target) {
+        self.render_with_projection(target, &target.projection);
     }
     /**
      * Projection matrix: Transforms vertices from view space to clip space,
      * Normalized Device Coordinates (NDC) — a cube from -1 to 1 on all axes. So yes, we "squish" the 3D scene into this cube.
      */
-    pub fn render(&mut self, target: &Target, projection: &glm::Mat4) {
+    pub fn render_with_projection(&mut self, target: &Target, projection: &glm::Mat4) {
         if self.batches.is_empty() {
             // nothing to draw
             return;
@@ -403,6 +437,7 @@ impl Batch {
         let y = subtexture.source.y / subtexture.texture.height as f32;
         let w = (subtexture.source.w) / subtexture.texture.width as f32;
         let h = (subtexture.source.h) / subtexture.texture.height as f32;
+        
         self.push_quad(
             (rect.x + rect.w, rect.y, 0.0),
             (rect.x + rect.w, rect.y + rect.h, 0.0),

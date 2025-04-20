@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fs, rc::Rc};
+use std::{collections::HashMap, fs,rc::Rc};
 
+use std::{env, mem::size_of};
 use engine::{
     audio::AudioTrack,
     graphics::{
@@ -10,9 +11,7 @@ use engine::{
 use ldtk_rust::Project;
 
 use crate::{
-    aseprite::{self, Aseprite},
-    components::sprite::{Animation, Frame, Tileset},
-    system::scene_system::Map,
+    aseprite::{self, Aseprite}, components::sprite::{Animation, Frame, Tileset}, game_state::GameState, system::scene_system::Map, MEMORY_PTR
 };
 
 #[allow(dead_code)]
@@ -20,14 +19,27 @@ pub struct Content {
     pub tilesets: HashMap<i64, Tileset>,
     pub textures: HashMap<String, Rc<Texture>>,
     // animation sets
-    pub sprites: HashMap<String, HashMap<String, Animation>>,
+    sprites: HashMap<String, HashMap<String, Animation>>,
     pub tracks: HashMap<&'static str, AudioTrack>,
     ldkt: Project,
     pub map: Map,
 }
 
 impl Content {
-    pub fn load() -> Self {
+    
+    pub fn get() -> &'static mut Content {
+        return unsafe {
+            let storage_ptr = (*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState;
+            let content = storage_ptr.add(size_of::<GameState>()) as *mut Content;
+            &mut (*content)
+        };
+    }
+    
+    pub fn sprite(name: &str) -> &'static HashMap<String, Animation> {
+        &Content::get().sprites[name]
+    }
+    
+    pub fn load(content_ptr: *mut Content){
         // TODO: Async?
         let mut textures = HashMap::new();
         let mut sprites = HashMap::new();
@@ -150,13 +162,22 @@ impl Content {
         let audio = AudioTrack::new("game/src/assets/audio/jump.ogg").unwrap();
         tracks.insert("jump", audio);
         let project = Project::new("game/src/assets/map.ldtk");
-        Content {
+        
+        let content = Content {
             map: Map::new(&project),
             ldkt: project,
             tilesets,
             textures,
             sprites,
             tracks,
+        };
+        
+        unsafe {
+            content_ptr.write(content);
         }
+    }
+    
+    pub fn map() -> &'static mut Map {
+        &mut Content::get().map
     }
 }

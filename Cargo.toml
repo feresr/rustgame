@@ -10,3 +10,4 @@ edition = "2021"
 common = { path = "./common" }
 notify = "5"
 sdl2 = "0.34.0"
+once_cell = "1.13.0"

@@ -1,7 +1,13 @@
-use common::Keyboard;
 use engine::{
     ecs::{World, WorldOp},
-    graphics::{batch::Batch, target::Target},
+    graphics::{
+        self,
+        batch::Batch,
+        common::RectF,
+        material::Material,
+        target::Target,
+        texture::{Texture, TextureFormat},
+    },
 };
 use ldtk_rust::Project;
 
@@ -9,7 +15,10 @@ use crate::{
     components::{player::Player, position::Position, room::Room},
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
     scene::{GameScene, Scene},
+    target_manager,
 };
+
+pub const OUTLINE_SHADER: &str = include_str!("outline.fs");
 
 /**
  * Determines what Room the player is currently in.
@@ -28,7 +37,7 @@ impl SceneSystem {
         }
     }
 
-    pub fn update(&mut self, world: &mut World, _: &Keyboard) {
+    pub fn update(&mut self, world: &mut World) {
         if !self.initialised {
             // TODO remove this
             self.scene.init(world);
@@ -64,6 +73,7 @@ impl Map {
         let map_height = 2; // ldtk.world_grid_height.unwrap() as usize;
         let room_count = map_width * map_height;
 
+        dbg!(room_count);
         let mut rooms = Vec::with_capacity(room_count);
         rooms.resize_with(room_count, || None);
 
@@ -89,7 +99,17 @@ impl Map {
             .expect("Missing room")
     }
 
-    pub fn prerender(&mut self, batch: &mut Batch, color_target: &Target, normal_target: &Target) {
+    pub fn prerender(
+        &mut self,
+        batch: &mut Batch,
+        color_target: &Target,
+        normal_target: &Target,
+        outline_target: &Target,
+    ) {
+        color_target.clear((0f32, 0f32, 0f32, 0f32));
+        normal_target.clear((0f32, 0f32, 0f32, 0f32));
+        outline_target.clear((0f32, 0f32, 0f32, 0f32));
+
         for (_, room) in self.rooms.iter_mut().enumerate() {
             if let Some(room) = room.as_mut() {
                 batch.push_matrix(glm::translation(&glm::vec3(
@@ -102,7 +122,7 @@ impl Map {
 
                 room.set_color_texture(color_target.color());
             }
-            batch.simple_render(&color_target);
+            batch.render(&color_target);
         }
 
         for (_, room) in self.rooms.iter_mut().enumerate() {
@@ -116,7 +136,48 @@ impl Map {
                 batch.pop_matrix();
                 room.set_normal_texture(normal_target.color());
             }
-            batch.simple_render(&normal_target);
+            batch.render(&normal_target);
         }
+
+        // Write outlined normals
+
+        batch.clear();
+
+        // Write solid block in to this temp target
+        let temp = Target::new(
+            color_target.width,
+            color_target.height,
+            &[TextureFormat::RGBA],
+        );
+        for (_, room) in self.rooms.iter_mut().enumerate() {
+            if let Some(room) = room.as_mut() {
+                batch.push_matrix(glm::translation(&glm::vec3(
+                    room.world_position.x,
+                    room.world_position.y,
+                    0.0,
+                )));
+                room.prerender_outlines(batch);
+                batch.pop_matrix();
+                room.set_outline_texture(outline_target.color());
+            }
+            batch.render(&temp);
+        }
+        batch.clear();
+        let outline_shader =
+            graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, OUTLINE_SHADER);
+        let material = Material::new(outline_shader);
+        material.set_vector2f(
+            "u_texelSize",
+            &[
+                1.0f32 / color_target.width as f32,
+                1.0f32 / color_target.height as f32,
+            ],
+        );
+        batch.push_material(&material);
+        let rect = RectF::with_size(color_target.width as f32, color_target.height as f32);
+        batch.tex(&rect, temp.color(), (1f32, 1f32, 1f32, 1f32));
+        batch.render(outline_target);
+        batch.pop_material();
+        batch.clear();
     }
 }

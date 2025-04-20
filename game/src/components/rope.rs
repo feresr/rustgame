@@ -6,7 +6,7 @@ use engine::{
 
 use crate::{
     components::collider::{Collider, ColliderType},
-    content,
+    content::{self, Content},
 };
 
 use super::{gravity::Gravity, mover::Mover, position::Position, sprite::Sprite};
@@ -30,7 +30,7 @@ impl PointMass {
         let mut entity = world.add_entity();
         let id = entity.id;
         entity.assign(Position::new(position.x as i32, position.y as i32));
-        entity.assign(Sprite::new(&content().sprites["rope"]));
+        entity.assign(Sprite::new(&Content::sprite("rope")));
         entity.assign(Gravity { value: gravity });
         entity.assign(Mover {
             speed: glm::vec2(0.2, 0.0),

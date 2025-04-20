@@ -1,4 +1,6 @@
 
+use std::f32::consts::TAU;
+
 use engine::{
     ecs::{World, WorldOp},
     graphics::{
@@ -12,7 +14,7 @@ use engine::{
 };
 
 use crate::{
-    components::{light::Light, position::Position, sprite::Sprite},
+    components::{collider::Collider, light::Light, position::Position, sprite::Sprite},
     current_room,
 };
 
@@ -33,15 +35,14 @@ pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
 
             void main()\n
             {\n
-
                 vec4 color = texture(u_color_texture, TexCoord); \n
                 vec3 normal = texture(u_normal_texture, TexCoord).xyz; \n
-
+                normal = normal * 2.0 - 1.0; \n
+                normal = normal * vec3(1.0, -1.0, 1.0); \n
+                
                 // Start with a base color \n
                 vec4 highlights = color;\n
 
-                normal = normalize(normal * 2.0 - 1.0); \n
-                normal = normal * vec3(1.0, -1.0, 1.0); \n
                 for (int i = 0; i < light_count; i++) { \n
                     // dist grows too much if the light is closer to gl_FragCoord\n
                     float dist = distance(u_light_position[i].xy , gl_FragCoord.xy); \n
@@ -140,11 +141,14 @@ impl RenderSystem {
             batch.pop_matrix();
             batch.pop_matrix();
         }
+        
         // Only in debug
         // Collider::render(&world, batch);
 
+        batch.circle((20f32, 20f32), 12f32, 25, (1f32, 1f32, 0f32, 1f32));
         // let ortho = &room.world_ortho;
-        batch.render(target, &room.camera_ortho);
+        batch.render_with_projection(target, &room.camera_ortho);
+        // batch.render(target);
         batch.clear();
     }
 }

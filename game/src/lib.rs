@@ -11,34 +11,26 @@ extern crate nalgebra_glm as glm;
 use content::Content;
 use game_state::{GameState, SCREEN_HEIGHT, SCREEN_WIDTH};
 use scene::GameScene;
-use sdl2::{AudioSubsystem, VideoSubsystem};
+use sdl2::{libc::{kevent, PF_KEY}, AudioSubsystem, VideoSubsystem};
 
-use common::{GameConfig, GameMemory, Keyboard};
+use common::{GameConfig, GameMemory, Keyboard, Mouse};
 use components::{position::Position, room::Room};
 use std::{env, mem::size_of};
 
 // Pointer to the game memory (allocated in the main process — not in the dll)
+// "static" is scoped to this dll instance. when hot-reloading a new dll this must be re-set
 static mut MEMORY_PTR: *mut GameMemory = std::ptr::null_mut();
 
 // Globally accessible utils
 pub fn game_state() -> &'static mut GameState {
     return unsafe { &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState) };
 }
-pub fn content() -> &'static mut Content {
-    return unsafe {
-        let storage_ptr = (*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState;
-        let content = storage_ptr.add(size_of::<GameState>()) as *mut Content;
-        &mut (*content)
-    };
-}
 fn current_scene() -> &'static mut GameScene {
     return &mut game_state().scene_system.scene;
 }
 fn current_room() -> &'static mut Room {
     let scene = current_scene();
-    content()
-        .map
-        .get(scene.room_x as usize, scene.room_y as usize)
+    Content::map().get(scene.room_x as usize, scene.room_y as usize)
 }
 
 #[no_mangle]
@@ -50,7 +42,10 @@ pub extern "C" fn init(
     unsafe {
         env::set_var("RUST_BACKTRACE", "1");
         MEMORY_PTR = game_memory_ptr; // get a pointer to the game memory
+        Keyboard::init(&mut (*MEMORY_PTR).keyboard);
+        Mouse::init(&mut (*MEMORY_PTR).mouse);
         engine::init(&video_subsystem, &audio_subsystem);
+        
         if !(*MEMORY_PTR).initialized {
             let game_size = size_of::<GameState>(); // ~1232 bytes
             let available_memory = (*MEMORY_PTR).storage.len();
@@ -61,12 +56,11 @@ pub extern "C" fn init(
                 available_memory
             );
 
+            // storage is initialized with GameState and Content [ [GameState] [Content] ]
             let storage_ptr = (*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState;
-
-            dbg!(size_of::<GameState>());
             let content_ptr = storage_ptr.add(size_of::<GameState>()) as *mut Content;
 
-            content_ptr.write(Content::load());
+            Content::load(content_ptr);
             storage_ptr.write(GameState::new()); // Directly write Game into storage
 
             (*MEMORY_PTR).initialized = true;
@@ -89,9 +83,9 @@ pub extern "C" fn get_config() -> GameConfig {
 // TODO: pass a pointer to the keyboard instead — make it globally accessible throught the game
 // instead of passing it around to every single function
 #[no_mangle]
-pub extern "C" fn update_game(keyboard: &Keyboard) {
+pub extern "C" fn update_game() {
     let game = game_state();
-    game.update(keyboard);
+    game.update();
     game.render();
 }
 

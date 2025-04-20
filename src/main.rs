@@ -1,14 +1,17 @@
 mod gamelib;
 
-use common::{GameMemory, Keyboard};
+use common::{GameMemory, Keyboard, Mouse};
 use gamelib::GameLib;
 use notify::{Config, Error, RecommendedWatcher, RecursiveMode, Watcher};
+use once_cell::unsync::Lazy;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::libc::kill;
 use sdl2::video::GLProfile;
 use sdl2::{AudioSubsystem, Sdl, VideoSubsystem};
 use std::collections::HashSet;
 use std::env;
+use std::f64::consts::PI;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
@@ -105,6 +108,9 @@ fn main() {
 
     let mut events = sdl_context.event_pump().unwrap();
 
+    Keyboard::init(&mut game_memory.keyboard);
+    Mouse::init(&mut game_memory.mouse);
+
     (game.init)(&video_subsystem, &audio_subsystem, &mut game_memory);
     'game_loop: loop {
         // Reload game if needed
@@ -114,9 +120,10 @@ fn main() {
         }
 
         let start = Instant::now();
-        let mut keyboard = Keyboard::default();
 
-        keyboard.pressed.clear();
+        Keyboard::clear_pressed();
+        Mouse::clear();
+
         for ref event in events.poll_iter() {
             // platform.handle_event(&mut imgui, event);
             // if platform.ignore_event(&event) {
@@ -148,16 +155,39 @@ fn main() {
                 Event::KeyDown {
                     keycode: Some(kc), ..
                 } => {
-                    if !keyboard.held.contains(&kc) {
-                        print!("key pressed kc");
-                        dbg!(&kc);
-                        keyboard.pressed.insert(kc.to_owned());
+                    if !Keyboard::held(kc) {
+                        Keyboard::press(kc.clone());
                     }
                 }
                 Event::KeyUp {
                     keycode: Some(kc), ..
+                } => Keyboard::release(&kc),
+                Event::MouseButtonDown { mouse_btn, .. } => match mouse_btn {
+                    sdl2::mouse::MouseButton::Left => {
+                        Mouse::press_left();
+                    }
+                    sdl2::mouse::MouseButton::Right => {
+                        Mouse::press_right();
+                    }
+                    _ => {}
+                },
+                Event::MouseButtonUp { mouse_btn, .. } => match mouse_btn {
+                    sdl2::mouse::MouseButton::Left => {
+                        Mouse::release_left();
+                    }
+                    sdl2::mouse::MouseButton::Right => {
+                        Mouse::release_right();
+                    }
+                    _ => {}
+                },
+                Event::MouseWheel { x, y, .. } => {
+                    Mouse::set_wheel(*x, *y);
+                }
+                Event::MouseMotion {
+                    x, y, xrel, yrel, ..
                 } => {
-                    keyboard.pressed.remove(&kc);
+                    let wheight = window_size.1 as i32;
+                    Mouse::set_position(*x, wheight - *y, *xrel, *yrel * -1);
                 }
                 _ => {}
             }
@@ -167,12 +197,25 @@ fn main() {
             .pressed_scancodes()
             .filter_map(Keycode::from_scancode)
             .collect();
-        keyboard.held = keys;
 
-        // platform.prepare_frame(imgui.io_mut(), &window, &events.mouse_state());
+        for button in events.mouse_state().pressed_mouse_buttons() {
+            match button {
+                sdl2::mouse::MouseButton::Left => {
+                    Mouse::hold_left();
+                }
+                sdl2::mouse::MouseButton::Right => {
+                    Mouse::hold_right();
+                }
+                _ => {}
+            }
+        }
+
+        Keyboard::hold(keys);
+
+        // platform.prepare_farame(imgui.io_mut(), &window, &events.mouse_state());
 
         // Update
-        (game.update)(&keyboard);
+        (game.update)();
 
         // Imgui
         // let frame_rate = imgui.io().framerate;

@@ -5,7 +5,7 @@ in vec4 a_type;
 
 layout(location = 0) out vec4 FragColor;
 
-uniform sampler2D u_color_texture;
+uniform sampler2D u_texture;
 uniform sampler2D u_light_texture;
 
 uniform float u_light_radius;
@@ -14,7 +14,7 @@ uniform ivec2 u_resolution;
 
 void main()
 {
-    vec4 color = texture(u_color_texture, TexCoord); 
+    vec4 color = texture(u_texture, TexCoord); 
     vec4 light = texture(u_light_texture, TexCoord); 
 
     color = color * (light.x * 0.9 + 0.50);

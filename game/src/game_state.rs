@@ -5,17 +5,14 @@ use engine::{
         self, batch::Batch, blend, common::RectF, material::Material, texture::TextureSampler,
     },
 };
+use sdl2::hint::set;
 
 use crate::{
-    components::{button::Button, light::LightSwitch},
-    content,
-    scene::Scene,
-    system::{
+    components::{button::Button, light::LightSwitch}, content::{self, Content},  scene::Scene, system::{
         animation_system::AnimationSystem, editor::Editor, light_system::LightSystem,
         movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
         scene_system::SceneSystem,
-    },
-    target_manager::TargetManager,
+    }, target_manager::TargetManager
 };
 
 pub const SCREEN_WIDTH: usize = GAME_PIXEL_WIDTH * 4;
@@ -40,7 +37,7 @@ pub struct GameState {
     pub scene_system: SceneSystem,
     light_system: LightSystem,
     screen_rect: RectF,
-    material: Material,
+    post_processing_material: Material,
     show_editor: bool,
     editor: Editor,
     pub target_manager: TargetManager, // low-res target
@@ -68,9 +65,9 @@ impl GameState {
         let mut post_processing_material =
             Material::with_sampler(crt_shader, TextureSampler::nearest());
         let sampler = TextureSampler::nearest();
-        post_processing_material.set_sampler("u_color_texture", &sampler);
+        // post_processing_material.set_sampler("u_color_texture", &sampler);
         // The render system gives a albedo * normal mult color texture (which takes into consideration light)
-        post_processing_material.set_texture("u_color_texture", target_manager.color.color());
+        // post_processing_material.set_texture("u_color_texture", target_manager.color.color());
         post_processing_material.set_sampler("u_light_texture", &sampler);
         // The light system gives a black and white stencil for drawing the light cirlces (and hard shadows)
         post_processing_material.set_texture("u_light_texture", target_manager.lights.color());
@@ -79,11 +76,11 @@ impl GameState {
         let mut batch = graphics::batch::Batch::default();
 
         // Render all maps colors and normals into a huge texture
-        let content = content();
-        content.map.prerender(
+        Content::map().prerender(
             &mut batch,
             &target_manager.maps_color,
             &target_manager.maps_normal,
+            &target_manager.maps_outline,
         );
 
         Self {
@@ -95,7 +92,7 @@ impl GameState {
             scene_system,
             light_system,
             screen_rect: RectF::with_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32),
-            material: post_processing_material,
+            post_processing_material,
             show_editor: false,
             editor: Editor::default(),
             target_manager,
@@ -104,34 +101,42 @@ impl GameState {
 
     // This is so that we can see shader updates when re-loading the game lib
     pub fn refresh(&mut self) {
+        Content::map().prerender(
+            &mut self.batch,
+            &self.target_manager.maps_color,
+            &self.target_manager.maps_normal,
+            &self.target_manager.maps_outline,
+        );
+        self.target_manager.screen.clear((0f32, 0f32, 0f32, 0f32));
         let crt_shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, CRT_FRAGMENT_SOURCE);
-        let mut post_processing_material =
-            Material::with_sampler(crt_shader, TextureSampler::nearest());
+        let mut post_processing_material = Material::with_sampler(crt_shader, TextureSampler::nearest());
         let sampler = TextureSampler::nearest();
-        post_processing_material.set_sampler("u_color_texture", &sampler);
+        // post_processing_material.set_sampler("u_texture", &sampler);
         // The render system gives a albedo * normal mult color texture (which takes into consideration light)
-        post_processing_material.set_texture("u_color_texture", self.target_manager.color.color());
+        // post_processing_material.set_texture("u_texture", self.target_manager.color.color());
         post_processing_material.set_sampler("u_light_texture", &sampler);
         // The light system gives a black and white stencil for drawing the light cirlces (and hard shadows)
         post_processing_material.set_texture("u_light_texture", self.target_manager.lights.color());
-        self.material = post_processing_material;
+        self.post_processing_material = post_processing_material;
     }
 
-    pub fn update(&mut self, keyboard: &Keyboard) -> bool {
-        if keyboard.pressed.contains(&engine::Keycode::Tab) {
+    pub fn update(&mut self) -> bool {
+        if Keyboard::pressed(engine::Keycode::Tab) {
             self.show_editor = !self.show_editor;
         }
 
         if !self.show_editor {
             // Make sure we are in the right screen
-            self.scene_system.update(&mut self.world, keyboard);
+            self.scene_system.update(&mut self.world);
             // Control / update player
-            self.player_system.update(&mut self.world, keyboard);
+            self.player_system.update(&mut self.world);
             // Actually move stuff
             self.movement_system.update(&mut self.world);
             Button::update(&mut self.world);
             LightSwitch::update(&mut self.world);
+        } else {
+            self.editor.update();
         }
         return true;
     }
@@ -160,35 +165,30 @@ impl GameState {
 
             self.batch.clear();
 
-            self.batch.push_material(&self.material);
-            self.batch.rect(
-                &RectF {
-                    x: 0f32,
-                    y: 0f32,
-                    w: GAME_PIXEL_WIDTH as f32,
-                    h: GAME_PIXEL_HEIGHT as f32,
-                },
-                (1f32, 1f32, 1f32, 1.0f32),
-            );
-            self.batch.simple_render(&self.target_manager.game);
+            // Render the 'color' + 'lighting' into the final 'game' frame target 
+            self.batch.push_material(&self.post_processing_material);
+            self.batch.tex(&RectF::with_size(GAME_PIXEL_WIDTH as f32, GAME_PIXEL_HEIGHT as f32), self.target_manager.color.color(), (1.0f32, 1.0f32, 1.0f32, 1f32));
+            self.batch.render(&self.target_manager.game);
             self.batch.pop_material();
 
             self.batch.clear();
         }
 
-        // Render low-res target onto the screen
+        // Finally, render low-res target onto the screen
         {
             self.batch.set_sampler(&TextureSampler::nearest());
-            self.batch.tex(
-                &self.screen_rect,
-                self.target_manager.game.color(),
-                (1.0f32, 1.0f32, 1.0f32, 1f32),
-            );
             if self.show_editor {
                 self.editor.render(&mut self.batch, &self.target_manager);
+            } else {
+                self.batch.tex(
+                    &self.screen_rect,
+                    self.target_manager.game.color(),
+                    (1.0f32, 1.0f32, 1.0f32, 1f32),
+                );
             }
 
-            self.batch.simple_render(&self.target_manager.screen);
+            self.target_manager.screen.clear((0f32, 0f32, 0f32, 1f32));
+            self.batch.render(&self.target_manager.screen);
         }
     }
 }

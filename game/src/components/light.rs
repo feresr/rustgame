@@ -49,9 +49,7 @@ impl LightSwitch {
             }
             ls.old_button_state = is_pressed;
             if ls.turned_on {
-                dbg!("turned on");
                 if let None = light_switch_entity.has::<Light>() {
-                    dbg!("turning light");
                     turn_on.push(light_switch_entity.id);
                 }
             } else {
