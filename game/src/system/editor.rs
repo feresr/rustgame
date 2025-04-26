@@ -69,7 +69,6 @@ impl Editor {
             }
         } else {
             // Move
-            let rel = Mouse::position_rel();
             self.selection
                 .as_mut()
                 .unwrap()

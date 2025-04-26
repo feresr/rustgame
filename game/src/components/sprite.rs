@@ -71,7 +71,7 @@ impl Sprite {
     }
 
     pub fn pivot(&self) -> (f32, f32) {
-        let frame = self
+        let frame : &Frame = self
             .current_animation
             .frames
             .get(self.current_frame)

@@ -1,4 +1,3 @@
-mod aseprite;
 mod components;
 mod content;
 mod game_state;

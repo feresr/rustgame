@@ -1,3 +1,4 @@
+use aseprite::Aseprite;
 use engine::{
     ecs::{World, WorldOp},
     graphics::{
@@ -12,10 +13,7 @@ use engine::{
 use ldtk_rust::Project;
 
 use crate::{
-    components::{player::Player, position::Position, room::Room},
-    game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
-    scene::{GameScene, Scene},
-    target_manager,
+    components::{player::Player, position::Position, room::Room}, game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH}, scene::{GameScene, Scene}, target_manager
 };
 
 pub const OUTLINE_SHADER: &str = include_str!("outline.fs");
@@ -68,6 +66,43 @@ pub struct Map {
     pub rooms: Vec<Option<Room>>,
 }
 impl Map {
+    pub fn from_ase(ase : &Aseprite) -> Self {
+        for frame in ase.frames.iter() {
+           let map_widht = 1; // frame.width; 
+           let map_height = 1; //frame.height; 
+        }
+        let map_width = 1; // ldtk.world_grid_width.unwrap() as usize;
+        let map_height = 1; // ldtk.world_grid_height.unwrap() as usize;
+        let room_count = map_width * map_height;
+        
+        let mut rooms = Vec::with_capacity(room_count);
+        rooms.resize_with(room_count, || None);
+        
+        let frame = ase.frames.first().unwrap();
+        dbg!(frame);
+        
+        // let room = Room::from_level(level);
+        // let x = level.world_x / GAME_PIXEL_WIDTH as i64;
+        // let y = level.world_y / GAME_PIXEL_HEIGHT as i64;
+        // let index = (x + (y * map_width as i64)) as usize;
+        // rooms[index] = Some(room);
+        
+        
+        Self {
+            width: map_width,
+            height: map_height,
+            rooms,
+        }
+    }
+    
+    pub fn empty() ->Self {
+        Self {
+            width: 0,
+            height: 0,
+            rooms: Vec::new(),
+        }
+    }
+    
     pub fn new(ldtk: &Project) -> Self {
         let map_width = 2; // ldtk.world_grid_width.unwrap() as usize;
         let map_height = 2; // ldtk.world_grid_height.unwrap() as usize;
