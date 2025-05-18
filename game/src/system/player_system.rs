@@ -25,7 +25,7 @@ impl PlayerSystem {
         let mut player = world.add_entity();
         player.assign(Player::default());
         player.assign(Mover::default());
-        player.assign(Sprite::new(&Content::sprite("player")));
+        player.assign(Sprite::new(&Content::sprite("output")));
         player.assign(Light::with_offset(0f32, -8f32));
         player.assign(Collider::new(
             ColliderType::Rect {
@@ -63,7 +63,7 @@ impl PlayerSystem {
         player.in_air = !collider.check_all(
             id,
             &position,
-            PointF { x: 0.0, y: 1f32 },
+            PointF { x: 0.0, y: -1f32 },
             &player_entity.world,
         );
 
@@ -89,11 +89,10 @@ impl PlayerSystem {
                 sprite.play("jump");
                 sprite.scale_x = 0.6f32;
                 sprite.scale_y = 2.0f32;
-                mover.speed.y = -JUMP_SPEED;
+                mover.speed.y = JUMP_SPEED;
                 player.jump_buffer = 0;
                 player.coyote_buffer = 0;
                 player.was_in_air = true;
-                println!("set coyote buffer: {}", player.coyote_buffer);
             } else {
                 if player.jump_buffer == 0 {
                     player.jump_buffer = JUMP_BUFFER_TIME;

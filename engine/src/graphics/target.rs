@@ -27,12 +27,12 @@ impl Target {
         }
     }
     pub fn color(&self) -> Rc<Texture> {
-        return self
+        self
             .attachments
             .iter()
             .find(|f| f.format != TextureFormat::DepthStencil)
             .map(|a| a.clone())
-            .expect("Target has no color texture attachment");
+            .expect("Target has no color texture attachment")
     }
 }
 

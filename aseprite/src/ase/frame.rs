@@ -1,6 +1,12 @@
 use std::{fs, io::Read};
 
-use crate::{chunks::{cel::Cel, color_profile::ColorProfile, layer::Layer, palette::Palette, slice::Slice, tag::Tags}, read, BYTE, DWORD, WORD};
+use crate::{
+    ase::chunks::{
+        cel::Cel, color_profile::ColorProfile, layer::Layer, palette::Palette, slice::Slice,
+        tag::Tags,
+    },
+    read, BYTE, DWORD, WORD,
+};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -11,12 +17,12 @@ pub struct Frame {
     pub duration: WORD,           // 2
     pub zero: [BYTE; 2],          // 2
     pub chunk_count: DWORD,       // 4
-    pub cels : Vec<Cel>,
-    pub palettes : Vec<Palette>,
-    pub layers : Vec<Layer>,
-    pub tags : Option<Tags>,
-    pub color_profile : Option<ColorProfile>,
-    pub slices : Vec<Slice>,
+    pub cels: Vec<Cel>,
+    pub palettes: Vec<Palette>,
+    pub layers: Vec<Layer>,
+    pub tags: Option<Tags>,
+    pub color_profile: Option<ColorProfile>,
+    pub slices: Vec<Slice>,
 }
 
 impl Frame {

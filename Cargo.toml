@@ -1,5 +1,5 @@
 [workspace]
-members=["game", "engine", "aseprite"]
+members=["game", "engine", "aseprite" ]
 
 [package]
 name = "runtime"
@@ -11,3 +11,9 @@ common = { path = "./common" }
 notify = "5"
 sdl2 = "0.34.0"
 once_cell = "1.13.0"
+
+imgui = "0.11.0" # ImGui primitives
+imgui-sdl2-support = "0.11.0" # A backend platform that handles window/input device events.
+imgui-opengl-renderer = "0.12.0" # Draw ImGui
+
+# imgui-sdl2 = "0.15.1" #input handling - alternative (unofficial from imgui-rs)

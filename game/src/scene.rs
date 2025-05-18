@@ -52,15 +52,12 @@ impl Scene for GameScene {
         let mut collisions = vec![false; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
 
         // Todo: make accessing each layer kind a bit easier
-        let tile_layer = room
-            .layers
-            .iter()
-            .find(|layer| matches!(layer.kind, LayerType::Tiles(_)))
-            .expect("Map must have at least one tile layer (even if empty)");
-        for tile in tile_layer.tiles.iter() {
-            let x = (tile.x as f32 / TILE_SIZE as f32) as u32;
-            let y = (tile.y as f32 / TILE_SIZE as f32) as u32;
-            collisions[(x + y * GAME_TILE_WIDTH as u32) as usize] = true;
+        if let Some(layer) = room.layers.iter().find(|layer| matches!(layer.kind, LayerType::Tiles(_))) {
+            for (x, y, tile) in layer.solid_tiles() {
+                let x = (x as f32 / TILE_SIZE as f32) as u32;
+                let y = (y as f32 / TILE_SIZE as f32) as u32;
+                collisions[(x + y * GAME_TILE_WIDTH as u32) as usize] = true;
+            }
         }
         // make this a factory to create the room
         room_entity.assign(Collider::new(
@@ -85,9 +82,9 @@ impl Scene for GameScene {
                             x: room.world_position.x as i32 + map_entity.px,
                             y: room.world_position.y as i32 + map_entity.py,
                         });
-                        entity.assign(Sprite::new(
-                            &Content::sprite(map_entity.identifier.as_str()),
-                        ));
+                        // entity.assign(Sprite::new(
+                        //     &Content::sprite(map_entity.identifier.as_str()),
+                        // ));
                         match map_entity.identifier.as_str() {
                             id if id.starts_with("Light") => {
                                 entity.assign(Light::new());

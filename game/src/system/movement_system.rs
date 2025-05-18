@@ -29,9 +29,9 @@ impl MovementSystem {
             if let Some(g) = gravity {
                 if mover.speed.y < 0.0 {
                     // falling down
-                    mover.speed.y += g.value * 1.0f32;
+                    mover.speed.y -= g.value * 1.0f32;
                 } else {
-                    mover.speed.y += g.value * 1.4f32
+                    mover.speed.y -= g.value * 1.4f32
                 }
             }
 

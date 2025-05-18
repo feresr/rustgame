@@ -1,14 +1,9 @@
-
 use std::f32::consts::TAU;
 
 use engine::{
     ecs::{World, WorldOp},
     graphics::{
-        self,
-        batch::Batch,
-        common::RectF,
-        material::Material,
-        target::Target,
+        self, batch::Batch, common::RectF, material::Material, target::Target,
         texture::TextureSampler,
     },
 };
@@ -141,9 +136,9 @@ impl RenderSystem {
             batch.pop_matrix();
             batch.pop_matrix();
         }
-        
+
         // Only in debug
-        // Collider::render(&world, batch);
+        Collider::render(&world, batch);
 
         batch.circle((20f32, 20f32), 12f32, 25, (1f32, 1f32, 0f32, 1f32));
         // let ortho = &room.world_ortho;

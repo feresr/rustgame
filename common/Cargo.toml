@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 sdl2 = "0.34.0"
-once_cell = "1.10.0"
+imgui = "0.11.0"
 
 [lib]
 crate-type = ["rlib"] # Regular Rust library

@@ -92,30 +92,26 @@ impl LightSystem {
                 .iter()
                 .filter(|l| matches!(&l.kind, LayerType::Tiles(_)))
             {
-                if let LayerType::Tiles(kind) = &layer.kind {
-                    if kind == "Solid" {
-                        for tile in layer.tiles.iter() {
-                            let tile_position = glm::vec2(
-                                room_position.x as f32 + tile.x as f32,
-                                room_position.y as f32 + tile.y as f32,
-                            );
-                            // draw_shadow, only if tile is close enough to the light
-                            if glm::distance(&tile_position, &light_position) < projection_distance {
-                                self.draw_shadow(
-                                    // todo pass tile_position here
-                                    batch,
-                                    light_position,
-                                    projection_distance,
-                                    room_position.to_owned(),
-                                    tile,
-                                );
-                            }
-                        }
+                for (x, y, tile) in layer.solid_tiles() {
+                    let tile_position = glm::vec2(
+                        room_position.x as f32 + x as f32,
+                        room_position.y as f32 + y as f32,
+                    );
+                    // draw_shadow, only if tile is close enough to the light
+                    if glm::distance(&tile_position, &light_position) < projection_distance {
+                        self.draw_shadow(
+                            tile_position,
+                            batch,
+                            light_position,
+                            projection_distance,
+                            room_position.to_owned(),
+                            tile,
+                        );
                     }
                 }
             }
 
-            { 
+            {
                 // Draw all outlines
                 batch.set_stencil(Stencil::decr());
                 self.normal_material
@@ -130,9 +126,9 @@ impl LightSystem {
                 );
                 batch.set_stencil(Stencil::disable());
                 batch.pop_material();
-                
+
                 // Remove outlines pointing away from the light
-                // 
+                //
             }
 
             // Draw a circle (stencil set up above wont' let us paint where shadows are — which is what we want)
@@ -157,6 +153,7 @@ impl LightSystem {
 
     fn draw_shadow(
         &self,
+        tile_position : glm::Vec2,
         batch: &mut Batch,
         light_position: glm::Vec2,
         projection_distance: f32,
@@ -166,10 +163,10 @@ impl LightSystem {
         let base_color = (0.0, 0.0, 0.0, 1.0);
         let light_color = (1.00, 1.00, 1.00, 1.0);
 
-        let tile_position = glm::vec2(
-            room_position.x as f32 + tile.x as f32,
-            room_position.y as f32 + tile.y as f32,
-        );
+        // let tile_position = glm::vec2(
+        //     room_position.x as f32 + tile.x as f32,
+        //     room_position.y as f32 + tile.y as f32,
+        // );
 
         let tile_light_distance = glm::distance(&tile_position, &light_position);
         if tile_light_distance > projection_distance {

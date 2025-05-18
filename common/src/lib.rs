@@ -1,5 +1,8 @@
 use sdl2::{keyboard::Keycode, libc::kevent};
 use std::collections::HashSet;
+use std::io::empty;
+use imgui::{Context, SuspendedContext, Ui};
+use imgui::sys::ImGuiContext;
 
 #[macro_export]
 macro_rules! check_gl_errors {
@@ -18,19 +21,23 @@ macro_rules! check_gl_errors {
 // 4 Kb
 const GAME_MEMORY: usize = 1024 * 8;
 
+
+
 #[repr(C)]
 pub struct GameMemory {
     pub initialized: bool,
-    pub keyboard : Keyboard,
-    pub mouse : Mouse,
+    pub keyboard: Keyboard,
+    pub mouse: Mouse,
+    pub debug: Debug,
     pub storage: [u8; GAME_MEMORY],
 }
 
-impl Default for GameMemory {
-    fn default() -> Self {
+impl GameMemory {
+    pub fn default() -> Self {
         Self {
             initialized: false,
             keyboard: Keyboard::default(),
+            debug: Debug::default(),
             mouse: Mouse::default(),
             storage: [0; GAME_MEMORY],
         }
@@ -43,12 +50,79 @@ pub struct GameConfig {
     pub window_height: u32,
 }
 
-
-// There is two versions of the static keyboard struct
+// There is two versions of the static MOUSE/KEYBOARD struct
 // once in the runtime and once in the game dll (statics are not shared!)
 static mut KEYBOARD: *mut Keyboard = std::ptr::null_mut();
 static mut MOUSE: *mut Mouse = std::ptr::null_mut();
 
+static mut DEBUG: *mut Debug = std::ptr::null_mut();
+
+enum UiElement {
+    Text(String),
+    Separator,
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct DebugWindow {
+   title : String,
+   items : Vec<UiElement>,
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct Debug {
+    pub windows : Vec<DebugWindow>,
+}
+impl Debug {
+    pub fn init(debug: *mut Debug) {
+        unsafe {
+            DEBUG = debug;
+        }
+    }
+    pub fn get() -> &'static mut Debug {
+        unsafe { &mut *DEBUG }
+    }
+    pub fn window(name : &str) {
+        Self::get().windows.push(DebugWindow {
+            title : name.to_string(),
+            items : Vec::new(),
+        });
+    }
+    pub fn display(item : &str) {
+        let window = Self::get().windows.last_mut().unwrap();
+        window.items.push(UiElement::Text(item.to_string()));
+    }
+    pub fn separator() {
+        let window = Self::get().windows.last_mut().unwrap();
+        window.items.push(UiElement::Separator);
+    }
+    pub fn is_empty() -> bool {
+        Self::get().windows.is_empty()
+    }
+    pub fn clear() {
+        Self::get().windows.clear();
+    }
+    pub fn render(imgui: &mut Context) {
+        let ui = imgui.frame();
+        for window in Self::get().windows.iter_mut() {
+            ui.window(window.title.as_str())
+                .size([300.0, 100.0], imgui::Condition::FirstUseEver)
+                .build(|| {
+                    for item in window.items.iter() {
+                        match item {
+                            UiElement::Text(text) => {
+                                ui.text(text.as_str());
+                            }
+                            UiElement::Separator => {
+                                ui.separator();
+                            }
+                        }
+                    }
+                });
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Default)]
@@ -56,46 +130,45 @@ pub struct Mouse {
     pub position: (i32, i32),
     pub wheel: (i32, i32),
     pub position_rel: (i32, i32),
-    pub left : bool,
-    pub right : bool,
-    pub left_held : bool,
-    pub right_held : bool,
+    pub left: bool,
+    pub right: bool,
+    pub left_held: bool,
+    pub right_held: bool,
 }
 
 impl Mouse {
-    // Both the game gll and the runtime need to call init 
+    // Both the game dll and the runtime need to call init
     // The Keyboard struct lives in the runtime
-    pub fn init(mouse : *mut Mouse) {
+    pub fn init(mouse: *mut Mouse) {
         unsafe {
-            MOUSE = mouse; 
+            MOUSE = mouse;
         }
     }
     fn get() -> &'static mut Mouse {
-        unsafe { &mut *MOUSE } 
+        unsafe { &mut *MOUSE }
     }
-    
+
     // Setters
     pub fn release_left() {
-        Self::get().left = false; 
+        Self::get().left = false;
     }
     pub fn press_left() {
         Self::get().left = true;
     }
     pub fn hold_left() {
-        dbg!("hold left");
-        Self::get().left_held = true; 
+        Self::get().left_held = true;
     }
-    
+
     pub fn press_right() {
         Self::get().right = true;
     }
     pub fn release_right() {
-        Self::get().right = false; 
+        Self::get().right = false;
     }
     pub fn hold_right() {
-       Self::get().right_held = true; 
+        Self::get().right_held = true;
     }
-    
+
     // Getters
     pub fn left_pressed() -> bool {
         Self::get().left
@@ -109,7 +182,7 @@ impl Mouse {
     pub fn right_held() -> bool {
         Self::get().right_held
     }
-    
+
     pub fn position() -> (i32, i32) {
         Self::get().position
     }
@@ -122,10 +195,11 @@ impl Mouse {
     pub fn wheel() -> (i32, i32) {
         Self::get().wheel
     }
-    
+
     pub fn set_position(x: i32, y: i32, xrel: i32, yrel: i32) {
         Self::get().position = (x, y);
-        Self::get().position_rel = (xrel, yrel);
+        Self::get().position_rel.0 += xrel;
+        Self::get().position_rel.1 += yrel;
     }
     pub fn clear() {
         Self::get().position_rel = (0, 0);
@@ -144,41 +218,40 @@ pub struct Keyboard {
 }
 
 impl Keyboard {
-    
-    // Both the game gll and the runtime need to call init 
+    // Both the game dll and the runtime need to call init
     // The Keyboard struct lives in the runtime
-    pub fn init(keyboard : *mut Keyboard) {
+    pub fn init(keyboard: *mut Keyboard) {
         unsafe {
-            KEYBOARD = keyboard; 
+            KEYBOARD = keyboard;
         }
     }
-    
+
     fn get() -> &'static mut Keyboard {
-        unsafe { &mut *KEYBOARD } 
+        unsafe { &mut *KEYBOARD }
     }
-    
+
     pub fn clear_pressed() {
         Self::get().pressed.clear();
     }
-    
+
     pub fn release(key: &Keycode) {
         Self::get().pressed.remove(key);
     }
-   pub fn press(key: Keycode) {
-       Self::get().pressed.insert(key);
-   }
-   
-   pub fn pressed(key: Keycode) -> bool {
-       Self::get().pressed.contains(&key)
-   }
+    pub fn press(key: Keycode) {
+        Self::get().pressed.insert(key);
+    }
 
-   pub fn hold(keys: HashSet<Keycode>) {
-       Self::get().held.clear();
-       Self::get().held = keys;
-   }
-   pub fn held(key: &Keycode) -> bool {
-       Self::get().held.contains(key)
-   }
+    pub fn pressed(key: Keycode) -> bool {
+        Self::get().pressed.contains(&key)
+    }
+
+    pub fn hold(keys: HashSet<Keycode>) {
+        Self::get().held.clear();
+        Self::get().held = keys;
+    }
+    pub fn held(key: &Keycode) -> bool {
+        Self::get().held.contains(key)
+    }
 }
 
 impl Default for Keyboard {

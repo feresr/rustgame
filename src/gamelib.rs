@@ -1,5 +1,5 @@
 use std::{ffi::CString, path::PathBuf};
-
+use imgui::{SuspendedContext, Ui};
 use common::{GameConfig, GameMemory};
 use sdl2::{
     sys::{SDL_LoadFunction, SDL_LoadObject, SDL_UnloadObject},
@@ -7,7 +7,7 @@ use sdl2::{
 };
 
 pub type GetConfigFn = extern "C" fn() -> GameConfig;
-pub type UpdateGameFunc = extern "C" fn();
+pub type UpdateGameFunc = extern "C" fn() -> ();
 pub type ClearGameMemFn = extern "C" fn(game_mmory: &mut GameMemory);
 pub type InitGameFunc = extern "C" fn(
     video_subsystem: &VideoSubsystem,

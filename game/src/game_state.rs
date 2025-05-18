@@ -1,19 +1,18 @@
-use common::Keyboard;
+use imgui::{Context, SuspendedContext};
+use imgui::sys::igGetCurrentContext;
+use common::{Debug, Keyboard};
 use engine::{
     ecs::World,
     graphics::{
         self, batch::Batch, blend, common::RectF, material::Material, texture::TextureSampler,
     },
 };
-use sdl2::hint::set;
 
-use crate::{
-    components::{button::Button, light::LightSwitch}, content::{self, Content},  scene::Scene, system::{
-        animation_system::AnimationSystem, editor::Editor, light_system::LightSystem,
-        movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
-        scene_system::SceneSystem,
-    }, target_manager::TargetManager
-};
+use crate::{components::{button::Button, light::LightSwitch}, content::Content, scene::Scene, system::{
+    animation_system::AnimationSystem, editor::Editor, light_system::LightSystem,
+    movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
+    scene_system::SceneSystem,
+}, target_manager::TargetManager};
 
 pub const SCREEN_WIDTH: usize = GAME_PIXEL_WIDTH * 4;
 pub const SCREEN_HEIGHT: usize = GAME_PIXEL_HEIGHT * 4;
@@ -110,7 +109,8 @@ impl GameState {
         self.target_manager.screen.clear((0f32, 0f32, 0f32, 0f32));
         let crt_shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, CRT_FRAGMENT_SOURCE);
-        let mut post_processing_material = Material::with_sampler(crt_shader, TextureSampler::nearest());
+        let mut post_processing_material =
+            Material::with_sampler(crt_shader, TextureSampler::nearest());
         let sampler = TextureSampler::nearest();
         // post_processing_material.set_sampler("u_texture", &sampler);
         // The render system gives a albedo * normal mult color texture (which takes into consideration light)
@@ -123,8 +123,11 @@ impl GameState {
 
     pub fn update(&mut self) -> bool {
         if Keyboard::pressed(engine::Keycode::Tab) {
+            dbg!("show editor pressed");
             self.show_editor = !self.show_editor;
         }
+        Debug::window("Game");
+        Debug::display(&format!("Showing editor {} ", self.show_editor));
 
         if !self.show_editor {
             // Make sure we are in the right screen
@@ -138,10 +141,10 @@ impl GameState {
         } else {
             self.editor.update();
         }
-        return true;
+        true
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self)  {
         engine::update();
 
         // Render into low-res target
@@ -165,9 +168,13 @@ impl GameState {
 
             self.batch.clear();
 
-            // Render the 'color' + 'lighting' into the final 'game' frame target 
+            // Render the 'color' + 'lighting' into the final 'game' frame target
             self.batch.push_material(&self.post_processing_material);
-            self.batch.tex(&RectF::with_size(GAME_PIXEL_WIDTH as f32, GAME_PIXEL_HEIGHT as f32), self.target_manager.color.color(), (1.0f32, 1.0f32, 1.0f32, 1f32));
+            self.batch.tex(
+                &RectF::with_size(GAME_PIXEL_WIDTH as f32, GAME_PIXEL_HEIGHT as f32),
+                self.target_manager.color.color(),
+                (1.0f32, 1.0f32, 1.0f32, 1f32),
+            );
             self.batch.render(&self.target_manager.game);
             self.batch.pop_material();
 

@@ -1,19 +1,16 @@
-use aseprite::Aseprite;
 use engine::{
     ecs::{World, WorldOp},
     graphics::{
-        self,
-        batch::Batch,
-        common::RectF,
-        material::Material,
-        target::Target,
-        texture::{Texture, TextureFormat},
+        self, batch::Batch, common::RectF, material::Material, target::Target,
+        texture::TextureFormat,
     },
 };
 use ldtk_rust::Project;
 
 use crate::{
-    components::{player::Player, position::Position, room::Room}, game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH}, scene::{GameScene, Scene}, target_manager
+    components::{player::Player, position::Position, room::Room},
+    game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH},
+    scene::{GameScene, Scene},
 };
 
 pub const OUTLINE_SHADER: &str = include_str!("outline.fs");
@@ -63,61 +60,30 @@ impl SceneSystem {
 pub struct Map {
     width: usize,
     height: usize,
-    pub rooms: Vec<Option<Room>>,
+    pub rooms: Vec<Room>,
 }
 impl Map {
-    pub fn from_ase(ase : &Aseprite) -> Self {
-        for frame in ase.frames.iter() {
-           let map_widht = 1; // frame.width; 
-           let map_height = 1; //frame.height; 
-        }
-        let map_width = 1; // ldtk.world_grid_width.unwrap() as usize;
-        let map_height = 1; // ldtk.world_grid_height.unwrap() as usize;
-        let room_count = map_width * map_height;
-        
-        let mut rooms = Vec::with_capacity(room_count);
-        rooms.resize_with(room_count, || None);
-        
-        let frame = ase.frames.first().unwrap();
-        dbg!(frame);
-        
-        // let room = Room::from_level(level);
-        // let x = level.world_x / GAME_PIXEL_WIDTH as i64;
-        // let y = level.world_y / GAME_PIXEL_HEIGHT as i64;
-        // let index = (x + (y * map_width as i64)) as usize;
-        // rooms[index] = Some(room);
-        
-        
+    pub fn empty() -> Self {
         Self {
-            width: map_width,
-            height: map_height,
-            rooms,
+            width: 4,
+            height: 4,
+            rooms: (0..(4 * 4)).map(|i| Room::empty(i)).collect(),
         }
     }
-    
-    pub fn empty() ->Self {
-        Self {
-            width: 0,
-            height: 0,
-            rooms: Vec::new(),
-        }
-    }
-    
+
     pub fn new(ldtk: &Project) -> Self {
         let map_width = 2; // ldtk.world_grid_width.unwrap() as usize;
         let map_height = 2; // ldtk.world_grid_height.unwrap() as usize;
         let room_count = map_width * map_height;
 
-        dbg!(room_count);
         let mut rooms = Vec::with_capacity(room_count);
-        rooms.resize_with(room_count, || None);
 
         for level in ldtk.levels.iter() {
             let room = Room::from_level(level);
             let x = level.world_x / GAME_PIXEL_WIDTH as i64;
             let y = level.world_y / GAME_PIXEL_HEIGHT as i64;
             let index = (x + (y * map_width as i64)) as usize;
-            rooms[index] = Some(room);
+            rooms.push(room);
         }
         Map {
             width: map_width,
@@ -129,9 +95,7 @@ impl Map {
     pub fn get(&mut self, x: usize, y: usize) -> &mut Room {
         assert!(x < self.width, "x: {} < w: {}", x, self.width);
         assert!(y < self.height, "y: {} < h: {}", y, self.height);
-        self.rooms[x + (y * self.width)]
-            .as_mut()
-            .expect("Missing room")
+        &mut self.rooms[x + (y * self.width)]
     }
 
     pub fn prerender(
@@ -146,31 +110,27 @@ impl Map {
         outline_target.clear((0f32, 0f32, 0f32, 0f32));
 
         for (_, room) in self.rooms.iter_mut().enumerate() {
-            if let Some(room) = room.as_mut() {
-                batch.push_matrix(glm::translation(&glm::vec3(
-                    room.world_position.x,
-                    room.world_position.y,
-                    0.0,
-                )));
-                room.prerender_colors(batch);
-                batch.pop_matrix();
+            batch.push_matrix(glm::translation(&glm::vec3(
+                room.world_position.x,
+                room.world_position.y,
+                0.0,
+            )));
+            room.prerender_colors(batch);
+            batch.pop_matrix();
 
-                room.set_color_texture(color_target.color());
-            }
+            room.set_color_texture(color_target.color());
             batch.render(&color_target);
         }
 
         for (_, room) in self.rooms.iter_mut().enumerate() {
-            if let Some(room) = room.as_mut() {
-                batch.push_matrix(glm::translation(&glm::vec3(
-                    room.world_position.x,
-                    room.world_position.y,
-                    0.0,
-                )));
-                room.prerender_normals(batch);
-                batch.pop_matrix();
-                room.set_normal_texture(normal_target.color());
-            }
+            batch.push_matrix(glm::translation(&glm::vec3(
+                room.world_position.x,
+                room.world_position.y,
+                0.0,
+            )));
+            room.prerender_normals(batch);
+            batch.pop_matrix();
+            room.set_normal_texture(normal_target.color());
             batch.render(&normal_target);
         }
 
@@ -185,16 +145,14 @@ impl Map {
             &[TextureFormat::RGBA],
         );
         for (_, room) in self.rooms.iter_mut().enumerate() {
-            if let Some(room) = room.as_mut() {
-                batch.push_matrix(glm::translation(&glm::vec3(
-                    room.world_position.x,
-                    room.world_position.y,
-                    0.0,
-                )));
-                room.prerender_outlines(batch);
-                batch.pop_matrix();
-                room.set_outline_texture(outline_target.color());
-            }
+            batch.push_matrix(glm::translation(&glm::vec3(
+                room.world_position.x,
+                room.world_position.y,
+                0.0,
+            )));
+            room.prerender_outlines(batch);
+            batch.pop_matrix();
+            room.set_outline_texture(outline_target.color());
             batch.render(&temp);
         }
         batch.clear();

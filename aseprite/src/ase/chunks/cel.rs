@@ -1,4 +1,7 @@
-use std::{fs, io::Read};
+use std::{
+    fs,
+    io::{Read, Seek},
+};
 
 use flate2::read::{ZlibDecoder, ZlibEncoder};
 
@@ -14,15 +17,15 @@ pub struct Cel {
     pub kind: WORD,
     pub z_index: SHORT,
     pub reserved: [BYTE; 5],
-    pub image_data: Option<ImageData>,                 // For kind = 0 and 2
-    pub frame_position_link: Option<WORD>,             // Find kind 1
+    pub image_data: Option<ImageData>,     // For kind = 0 and 2
+    pub frame_position_link: Option<WORD>, // Find kind 1
     pub compressed_tilemap: Option<CompressedTileMap>, // Find kind 3
 }
 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct ImageData {
-    pub color_depth : WORD,
+    pub color_depth: WORD,
     pub width: WORD,
     pub height: WORD,
     pub data: Vec<BYTE>, // Could be compressed
@@ -51,8 +54,26 @@ pub struct CompressedTileMap {
     flip_x_bitmask: DWORD,
     flip_y_bitmask: DWORD,
     flip_diagonal_bitmask: DWORD,
-    reserved: [BYTE; 10],
     compressed_tiles: Vec<BYTE>,
+}
+
+impl CompressedTileMap {
+    fn new(file: &mut fs::File, remaining_size : u32) -> Self {
+        let tiles_width = read!(WORD, file);
+        let tiles_height = read!(WORD, file);
+        let bits_per_tile = read!(WORD, file);
+        let tile_id_bitmask = read!(DWORD, file);
+        let flip_x_bitmask = read!(DWORD, file);
+        let flip_y_bitmask = read!(DWORD, file);
+        let flip_diagonal_bitmask = read!(DWORD, file);
+
+        file.seek(std::io::SeekFrom::Current(10)).unwrap();
+
+        let mut pixels = vec![0u8; remaining_size as usize];
+        file.read_exact(&mut pixels).unwrap();
+
+        CompressedTileMap { tiles_width, tiles_height, bits_per_tile, tile_id_bitmask, flip_x_bitmask, flip_y_bitmask, flip_diagonal_bitmask, compressed_tiles : pixels }
+    }
 }
 
 impl Cel {
@@ -77,7 +98,7 @@ impl Cel {
         let mut reserved = [0u8; 5];
         remaining_size -= 5;
         file.read(&mut reserved).unwrap();
-        
+
         let image_data = if kind == 0 || kind == 2 {
             // Raw image data
             let w = read!(WORD, file);
@@ -86,26 +107,23 @@ impl Cel {
             remaining_size -= 2;
             let mut pixels = vec![0u8; remaining_size as usize];
             file.read_exact(&mut pixels).unwrap();
-            
+
             let is_zlib_compressed = kind == 2;
-            
-            // if kind == 2 {
-            //     // data is compressed using zlib
-            //     let mut uncompressed: Vec<BYTE> = Vec::new();
-            //     let mut decodder = ZlibDecoder::new(&pixels[..]);
-            //     decodder.read_to_end(&mut uncompressed).unwrap();
-            //     pixels = uncompressed;
-            // }
+
             Some(ImageData {
                 color_depth,
                 width: w,
                 height: h,
                 data: pixels,
-                is_zlib_compressed
+                is_zlib_compressed,
             })
         } else {
             None
         };
+
+        if kind == 3 {
+            CompressedTileMap::new(file, remaining_size);
+        }
 
         Cel {
             layer_index,

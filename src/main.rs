@@ -1,7 +1,12 @@
+#![allow(warnings)]
+
 mod gamelib;
 
-use common::{GameMemory, Keyboard, Mouse};
+use common::{Debug, GameMemory, Keyboard, Mouse};
 use gamelib::GameLib;
+use imgui::sys::{igGetCurrentContext, igSetAllocatorFunctions, igSetCurrentContext, ImGuiMemAllocFunc, ImGuiStorage_SetAllInt};
+use imgui::{Context, SuspendedContext};
+use imgui_sdl2_support::SdlPlatform;
 use notify::{Config, Error, RecommendedWatcher, RecursiveMode, Watcher};
 use once_cell::unsync::Lazy;
 use sdl2::event::Event;
@@ -49,8 +54,6 @@ fn main() {
     // Create sdl_first, it should be the last thing that gets dropped
     let sdl_context: Sdl = sdl2::init().unwrap();
 
-    let mut game_memory = GameMemory::default();
-
     // TODO
     env::set_var("RUST_BACKTRACE", "1");
 
@@ -66,7 +69,7 @@ fn main() {
         .watch(&lib_path, RecursiveMode::NonRecursive)
         .unwrap();
 
-    let config = (game.get_config)();
+    let mut config = (game.get_config)();
     let window_size = (config.window_width, config.window_height);
     let video_subsystem: VideoSubsystem = sdl_context.video().unwrap();
     let audio_subsystem: AudioSubsystem = sdl_context.audio().unwrap();
@@ -88,34 +91,36 @@ fn main() {
 
     let _ctx = window.gl_create_context().unwrap();
 
-    /* create context */
-    // let mut imgui = Context::create();
-    /* disable creation of files on disc */
-    // imgui.set_ini_filename(None);
-    // imgui.set_log_filename(None);
+    let mut imgui = Context::create();
+    imgui.set_ini_filename(None);
+    imgui.set_log_filename(None);
 
     /* setup platform and renderer, and fonts to imgui */
-    // imgui
-    //     .fonts()
-    //     .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
-    // let mut platform = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
-    // let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
-    //     video_subsystem.gl_get_proc_address(s) as _
-    // });
+    imgui
+        .fonts()
+        .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
+    let mut platform = SdlPlatform::init(&mut imgui);
+
+    let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
+        video_subsystem.gl_get_proc_address(s) as _
+    });
 
     debug_assert_eq!(gl_attr.context_profile(), GLProfile::Core);
     debug_assert_eq!(gl_attr.context_version(), (3, 3));
+
+    let mut game_memory = GameMemory::default();
 
     let mut events = sdl_context.event_pump().unwrap();
 
     Keyboard::init(&mut game_memory.keyboard);
     Mouse::init(&mut game_memory.mouse);
+    Debug::init(&mut game_memory.debug);
 
     (game.init)(&video_subsystem, &audio_subsystem, &mut game_memory);
     'game_loop: loop {
         // Reload game if needed
         if check_for_updates_non_blocking(&rx) {
-            game = gamelib::GameLib::load(&lib_path).unwrap();
+            game = GameLib::load(&lib_path).unwrap();
             (game.init)(&video_subsystem, &audio_subsystem, &mut game_memory);
         }
 
@@ -125,10 +130,9 @@ fn main() {
         Mouse::clear();
 
         for ref event in events.poll_iter() {
-            // platform.handle_event(&mut imgui, event);
-            // if platform.ignore_event(&event) {
-            //     continue;
-            // }
+            if (platform.handle_event(&mut imgui, event)) {
+               // continue;
+            }
             match event {
                 Event::Window {
                     timestamp: _,
@@ -212,34 +216,17 @@ fn main() {
 
         Keyboard::hold(keys);
 
-        // platform.prepare_farame(imgui.io_mut(), &window, &events.mouse_state());
-
-        // Update
         (game.update)();
+        // Update
+        platform.prepare_frame(&mut imgui, &window, &events);
 
-        // Imgui
-        // let frame_rate = imgui.io().framerate;
-        // let ui = imgui.frame();
-        // platform.prepare_render(&ui, &window);
-        // ui.window("Render calls")
-        //     .size([400.0, 600.0], imgui::Condition::Appearing)
-        //     .collapsed(true, imgui::Condition::Appearing)
-        //     .build(|| {
-        //         ui.text(format!(
-        //             "Frame took: {} milli-seconds",
-        //             start.elapsed().as_millis()
-        //         ));
-        //         ui.text(format!("Framerate: {} milli-seconds", frame_rate));
-
-        //         // if cfg!(debug_assertions) {
-        //         batch.render_imgui(ui);
-        //         game.debug(ui)
-        //         // }
-        //     });
-        // platform.prepare_render(&ui, &window);
-        // renderer.render(&mut imgui);
-        // println!("elapsed {:?}", start.elapsed());
+        if !Debug::is_empty() {
+            Debug::render(&mut imgui);
+            renderer.render(&mut imgui);
+        }
         window.gl_swap_window();
+        Debug::clear();
+
         let sleep_until = start + FRAME_DURATION;
         while Instant::now() < sleep_until {
             // sleep

@@ -152,7 +152,7 @@ impl Batch {
     }
 
     /**
-     * Just like render, but it uses the Target dimensions to consturct a projection matrix, which is we want most times, which is we want most times.
+     * Just like render, but it uses the Target dimensions to construct a projection matrix, which is we want most times.
      */
     pub fn render(&mut self, target: &Target) {
         self.render_with_projection(target, &target.projection);
@@ -437,7 +437,7 @@ impl Batch {
         let y = subtexture.source.y / subtexture.texture.height as f32;
         let w = (subtexture.source.w) / subtexture.texture.width as f32;
         let h = (subtexture.source.h) / subtexture.texture.height as f32;
-        
+
         self.push_quad(
             (rect.x + rect.w, rect.y, 0.0),
             (rect.x + rect.w, rect.y + rect.h, 0.0),

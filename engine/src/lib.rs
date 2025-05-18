@@ -1,4 +1,6 @@
+#![allow(warnings)]
 #![deny(elided_lifetimes_in_paths)]
+
 extern crate gl;
 extern crate nalgebra_glm as glm;
 extern crate sdl2;

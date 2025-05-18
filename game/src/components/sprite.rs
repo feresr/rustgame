@@ -5,6 +5,7 @@ use engine::{
 use ldtk_rust::TilesetDefinition;
 use std::{collections::HashMap, rc::Rc};
 
+#[derive(Debug)]
 pub struct Frame {
     pub image: SubTexture,
     pub duration: u32,

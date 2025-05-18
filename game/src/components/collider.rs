@@ -61,8 +61,6 @@ impl Collider {
             match &collider.collider_type {
                 ColliderType::Circle { radius: _ } => {}
                 ColliderType::Rect { rect } => {
-                    dbg!(position.y);
-                    dbg!(rect.y);
                     batch.rect(
                         &RectF {
                             x: position.x as f32 + rect.x,

@@ -1,3 +1,4 @@
+#![allow(warnings)]
 mod components;
 mod content;
 mod game_state;
@@ -10,11 +11,15 @@ extern crate nalgebra_glm as glm;
 use content::Content;
 use game_state::{GameState, SCREEN_HEIGHT, SCREEN_WIDTH};
 use scene::GameScene;
-use sdl2::{libc::{kevent, PF_KEY}, AudioSubsystem, VideoSubsystem};
+use sdl2::{
+    libc::{kevent, PF_KEY},
+    AudioSubsystem, VideoSubsystem,
+};
 
-use common::{GameConfig, GameMemory, Keyboard, Mouse};
+use common::{Debug, GameConfig, GameMemory, Keyboard, Mouse};
 use components::{position::Position, room::Room};
 use std::{env, mem::size_of};
+use imgui::{Context, SuspendedContext, Ui};
 
 // Pointer to the game memory (allocated in the main process — not in the dll)
 // "static" is scoped to this dll instance. when hot-reloading a new dll this must be re-set
@@ -22,10 +27,10 @@ static mut MEMORY_PTR: *mut GameMemory = std::ptr::null_mut();
 
 // Globally accessible utils
 pub fn game_state() -> &'static mut GameState {
-    return unsafe { &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState) };
+    unsafe { &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState) }
 }
 fn current_scene() -> &'static mut GameScene {
-    return &mut game_state().scene_system.scene;
+    &mut game_state().scene_system.scene
 }
 fn current_room() -> &'static mut Room {
     let scene = current_scene();
@@ -43,8 +48,9 @@ pub extern "C" fn init(
         MEMORY_PTR = game_memory_ptr; // get a pointer to the game memory
         Keyboard::init(&mut (*MEMORY_PTR).keyboard);
         Mouse::init(&mut (*MEMORY_PTR).mouse);
+        Debug::init(&mut (*MEMORY_PTR).debug);
         engine::init(&video_subsystem, &audio_subsystem);
-        
+
         if !(*MEMORY_PTR).initialized {
             let game_size = size_of::<GameState>(); // ~1232 bytes
             let available_memory = (*MEMORY_PTR).storage.len();
@@ -73,10 +79,10 @@ pub extern "C" fn init(
 
 #[no_mangle]
 pub extern "C" fn get_config() -> GameConfig {
-    return GameConfig {
+    GameConfig {
         window_width: SCREEN_WIDTH as u32,
         window_height: SCREEN_HEIGHT as u32,
-    };
+    }
 }
 
 // TODO: pass a pointer to the keyboard instead — make it globally accessible throught the game

@@ -63,7 +63,7 @@ This crate reads Aseprite files and converts them into a format that can be used
   
   File structure (old)
  
-  2 bytes for frame count
+  2 bytes for frame count (u32)
   for each frame:
     2 bytes for duration
     2 bytes for x
@@ -72,7 +72,8 @@ This crate reads Aseprite files and converts them into a format that can be used
     2 bytes for height
   2 bytes for number of slices
     for each slice:
-      a null terminated string for name
+      name_length (2 bytes)
+      string name
       2 bytes for x
       2 bytes for y
       2 bytes for width
@@ -81,7 +82,8 @@ This crate reads Aseprite files and converts them into a format that can be used
       2 bytes for pivot y (defaults to 0,0)
   2 bytes for number of tags
    for each tag:
-      a null terminated string for name
+      name_length (2 bytes)
+      string name
       2 bytes for 'from' frame
       2 bytes for 'to' frame
       
