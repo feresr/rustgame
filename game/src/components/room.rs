@@ -95,9 +95,8 @@ impl Tiles {
         &self.tiles[y * GAME_TILE_WIDTH + x]
     }
     pub fn get_mut(&mut self, x: usize, y: usize) -> &mut Tile {
-        dbg!(self.tiles.len());
-        dbg!(y * GAME_TILE_WIDTH + x);
-        &mut self.tiles[y * GAME_TILE_WIDTH + x]
+        let index = y * GAME_TILE_WIDTH + x;
+        &mut self.tiles[index]
     }
 }
 
@@ -385,8 +384,8 @@ impl Room {
                 .expect("No tileset found");
             for (x, y, tile) in layer.solid_tiles() {
                 let tile_rect = RectF {
-                    x: x as f32,
-                    y: y as f32,
+                    x: TILE_SIZE as f32 * x as f32,
+                    y: TILE_SIZE as f32 * y as f32,
                     w: TILE_SIZE as f32,
                     h: TILE_SIZE as f32,
                 };

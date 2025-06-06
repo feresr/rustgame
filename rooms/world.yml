@@ -216,22 +216,6 @@ rooms:
       - !Empty {}
       - !Empty {}
       - !Empty {}
-      - !Solid
-        src_x: 0
-        src_y: 0
-        kind: 0
-      - !Solid
-        src_x: 0
-        src_y: 0
-        kind: 0
-      - !Solid
-        src_x: 0
-        src_y: 0
-        kind: 0
-      - !Solid
-        src_x: 0
-        src_y: 0
-        kind: 0
       - !Empty {}
       - !Empty {}
       - !Empty {}
@@ -267,14 +251,6 @@ rooms:
       - !Empty {}
       - !Empty {}
       - !Empty {}
-      - !Solid
-        src_x: 0
-        src_y: 0
-        kind: 0
-      - !Solid
-        src_x: 0
-        src_y: 0
-        kind: 0
       - !Empty {}
       - !Empty {}
       - !Empty {}
@@ -313,10 +289,17 @@ rooms:
       - !Empty {}
       - !Empty {}
       - !Empty {}
-      - !Solid
-        src_x: 0
-        src_y: 0
-        kind: 0
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
       - !Empty {}
       - !Empty {}
       - !Empty {}
@@ -364,12 +347,68 @@ rooms:
         src_x: 0
         src_y: 0
         kind: 0
+      - !Solid
+        src_x: 0
+        src_y: 0
+        kind: 0
+      - !Solid
+        src_x: 0
+        src_y: 0
+        kind: 0
+      - !Solid
+        src_x: 0
+        src_y: 0
+        kind: 0
+      - !Solid
+        src_x: 0
+        src_y: 0
+        kind: 0
       - !Empty {}
       - !Empty {}
       - !Empty {}
       - !Empty {}
       - !Empty {}
       - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Solid
+        src_x: 0
+        src_y: 0
+        kind: 0
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Empty {}
+      - !Solid
+        src_x: 0
+        src_y: 0
+        kind: 0
       - !Empty {}
       - !Empty {}
       - !Empty {}
@@ -451,48 +490,6 @@ rooms:
         src_x: 0
         src_y: 0
         kind: 0
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
-      - !Empty {}
       - !Empty {}
       - !Empty {}
       - !Empty {}

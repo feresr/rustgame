@@ -119,9 +119,7 @@ impl Editor {
             });
             if Mouse::left_held() {
                 let first_layer = room.layers.first_mut().unwrap();
-                if let Tile::Solid { .. } =
-                    first_layer.tiles.get_mut(selected_tile_y, selected_tile_x)
-                {
+                if let Tile::Solid { .. } = first_layer.tiles.get_mut(selected_tile_x, selected_tile_y) {
                     // first_layer.tiles[selected_tile_y as usize][selected_tile_x as usize] = Tile::Empty {};
                 } else {
                     let tile = Tile::Solid {
@@ -131,7 +129,7 @@ impl Editor {
                     };
                     first_layer
                         .tiles
-                        .set(selected_tile_y, selected_tile_x, tile);
+                        .set(selected_tile_x, selected_tile_y, tile);
                 }
             }
         }

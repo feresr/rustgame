@@ -47,7 +47,6 @@ impl Sprite {
         let mut tags = Vec::new();
 
         let frame_count = read!(u32, file);
-        dbg!(frame_count);
         for _ in 0..frame_count {
             let duration = read!(u16, file);
             let x = read!(i16, file);
@@ -66,14 +65,11 @@ impl Sprite {
         }
 
         let slice_count = read!(u32, file);
-        dbg!(slice_count);
         for _ in 0..slice_count {
             let name_len = read!(u32, file);
             let mut name = vec![0u8; name_len as usize];
             file.read_exact(&mut name).unwrap();
             let name = String::from_utf8(name).unwrap();
-
-            dbg!(&name);
 
             let x = read!(i32, file);
             let y = read!(i32, file);
@@ -96,7 +92,6 @@ impl Sprite {
         }
 
         let tag_count = read!(u32, file);
-        dbg!(tag_count);
         for _ in 0..tag_count {
             let name_len = read!(u32, file);
             let mut name = vec![0u8; name_len as usize];
@@ -129,7 +124,6 @@ impl Sprite {
         for frame in aseprite.frames.iter() {
             for cel in &frame.cels {
                 output.write_all(&frame.duration.to_le_bytes()).unwrap();
-                dbg!(&frame.duration);
                 if let Some(image) = &mut aseprite.images.get(cel.image_index) {
                     let x = packing_x * aseprite.file.header.width;
                     let y = packing_y * aseprite.file.header.height;
