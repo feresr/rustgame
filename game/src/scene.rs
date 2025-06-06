@@ -44,7 +44,7 @@ impl Scene for GameScene {
     fn init(&mut self, world: &mut impl WorldOp) {
         let mut room_entity = world.add_entity();
 
-        let room = current_room();
+        let room = Content::map().get(self.room_x as usize, self.room_y as usize);
         room_entity.assign(Position::new(
             room.world_position.x as i32,
             room.world_position.y as i32,

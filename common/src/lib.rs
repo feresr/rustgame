@@ -1,8 +1,6 @@
-use sdl2::{keyboard::Keycode, libc::kevent};
+use imgui::Context;
+use sdl2::keyboard::Keycode;
 use std::collections::HashSet;
-use std::io::empty;
-use imgui::{Context, SuspendedContext, Ui};
-use imgui::sys::ImGuiContext;
 
 #[macro_export]
 macro_rules! check_gl_errors {
@@ -20,7 +18,6 @@ macro_rules! check_gl_errors {
 
 // 4 Kb
 const GAME_MEMORY: usize = 1024 * 8;
-
 
 
 #[repr(C)]
@@ -60,19 +57,21 @@ static mut DEBUG: *mut Debug = std::ptr::null_mut();
 enum UiElement {
     Text(String),
     Separator,
+    Button(fn()),
 }
 
 #[repr(C)]
 #[derive(Default)]
 pub struct DebugWindow {
-   title : String,
-   items : Vec<UiElement>,
+    title: String,
+    size : (f32, f32),
+    items: Vec<UiElement>,
 }
 
 #[repr(C)]
 #[derive(Default)]
 pub struct Debug {
-    pub windows : Vec<DebugWindow>,
+    pub windows: Vec<DebugWindow>,
 }
 impl Debug {
     pub fn init(debug: *mut Debug) {
@@ -83,13 +82,25 @@ impl Debug {
     pub fn get() -> &'static mut Debug {
         unsafe { &mut *DEBUG }
     }
-    pub fn window(name : &str) {
+    pub fn window(name: &str) {
         Self::get().windows.push(DebugWindow {
-            title : name.to_string(),
-            items : Vec::new(),
+            title: name.to_string(),
+            size: (300.0, 100.0),
+            items: Vec::new(),
         });
     }
-    pub fn display(item : &str) {
+    pub fn window_size(name: &str, width: f32, height: f32) {
+        Self::get().windows.push(DebugWindow {
+            title: name.to_string(),
+            size: (width, height),
+            items: Vec::new(),
+        });
+    }
+    pub fn button(f: fn()) {
+        let window = Self::get().windows.last_mut().unwrap();
+        window.items.push(UiElement::Button(f));
+    }
+    pub fn display(item: &str) {
         let window = Self::get().windows.last_mut().unwrap();
         window.items.push(UiElement::Text(item.to_string()));
     }
@@ -107,7 +118,7 @@ impl Debug {
         let ui = imgui.frame();
         for window in Self::get().windows.iter_mut() {
             ui.window(window.title.as_str())
-                .size([300.0, 100.0], imgui::Condition::FirstUseEver)
+                .size([window.size.0, window.size.1], imgui::Condition::FirstUseEver)
                 .build(|| {
                     for item in window.items.iter() {
                         match item {
@@ -116,6 +127,11 @@ impl Debug {
                             }
                             UiElement::Separator => {
                                 ui.separator();
+                            }
+                            UiElement::Button(f) => {
+                                if ui.color_button("Click me", [1.0, 0.0, 0.0, 1.0]) {
+                                    f()
+                                }
                             }
                         }
                     }

@@ -102,12 +102,8 @@ impl Sprite {
             let mut name = vec![0u8; name_len as usize];
             file.read_exact(&mut name).unwrap();
             let name = String::from_utf8(name).unwrap();
-            dbg!(&name);
-
             let from = read!(u16, file);
-            dbg!(from);
             let to = read!(u16, file);
-            dbg!(to);
             let tag = Tag { name, from, to };
             // Add the tag to the tags vector
             tags.push(tag);

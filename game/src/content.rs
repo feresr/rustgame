@@ -16,9 +16,9 @@ use crate::components::sprite::Frame;
 use crate::{
     components::sprite::{Animation, Tileset},
     game_state::GameState,
-    system::scene_system::Map,
     MEMORY_PTR,
 };
+use crate::map::Map;
 
 #[allow(dead_code)]
 pub struct Content {
@@ -155,7 +155,9 @@ impl Content {
                     for tileset_definition in ldtk.defs.tilesets {
                         let uid = tileset_definition.uid;
                         let tilset = Tileset::from_ldtk(tileset_definition);
+                        // tilesets.insert(uid, tilset);
                         tilesets.insert(0, tilset);
+                        break;
                     }
                 }
             }

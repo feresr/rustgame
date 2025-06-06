@@ -1,7 +1,4 @@
 use crate::game_state;
-use glm::Vec2;
-use imgui::{Condition, Ui};
-
 use common::{Debug, Keyboard, Mouse};
 use engine::{
     graphics::{
@@ -11,8 +8,8 @@ use engine::{
     Keycode,
 };
 
-use crate::components::room::Tile;
-use crate::game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH};
+use crate::components::room::{MapData, Tile};
+use crate::game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE};
 use crate::{
     components::room::Room,
     content::Content,
@@ -20,18 +17,8 @@ use crate::{
     target_manager::TargetManager,
 };
 
-static mut DEBUG: Option<DebugInfo> = None;
-
-#[derive(Debug, Default)]
-pub struct DebugInfo {
-    world_mouse: (i32, i32),
-    room_mouse: (i32, i32),
-    current_room_world_position: Vec2,
-    current_selected_tile: (i32, i32),
-}
-
 pub struct Editor {
-    selection: Option<&'static mut Room>,
+    hover_tile: Option<RectF>,
     debug_textures: bool,
     zoom: f32,
     offset: (f32, f32),
@@ -40,7 +27,7 @@ pub struct Editor {
 impl Default for Editor {
     fn default() -> Self {
         Self {
-            selection: None,
+            hover_tile: None,
             debug_textures: false,
             zoom: 1f32,
             offset: (0f32, 0f32),
@@ -61,103 +48,96 @@ impl Editor {
             mouse_rel.0 as f32 / self.zoom,
             mouse_rel.1 as f32 / self.zoom,
         );
-        unsafe {
-            if DEBUG.is_none() {
-                DEBUG = Some(DebugInfo::default());
-            }
-        }
-        let mut debug = unsafe { &mut DEBUG.as_mut().unwrap() };
-        debug.world_mouse = world_mouse;
 
-        let room = Content::map().rooms.iter().find(|room| {
+        Debug::window_size("Map editor", 340f32, 200f32);
+        Debug::display(&format!(
+            "Room count {}",
+            Content::map().rooms.len().to_string()
+        ));
+        Debug::separator();
+        Debug::display(&format!("Zoom level: {:.1}", self.zoom));
+        Debug::display(&format!(
+            "Pan: x:{:.1} y:{:.2}",
+            self.offset.0, self.offset.1
+        ));
+        Debug::separator();
+        Debug::display(&format!(
+            "Screen mouse: ({:.1},{:.1})",
+            mouse_pos.0, mouse_pos.1
+        ));
+        Debug::display(&format!(
+            "World mouse: ({:.1},{:.1})",
+            world_mouse.0, world_mouse.1
+        ));
+
+        if Keyboard::pressed(Keycode::S) {
+            let rooms = &Content::map().rooms;
+            MapData::save(10, 10, rooms);
+        }
+
+        let room = Content::map().rooms.iter_mut().find(|room| {
             room.rect
                 .contains(&PointF::new(world_mouse.0 as f32, world_mouse.1 as f32))
         });
         if room.is_some() {
             let room = room.unwrap();
-            let room_mouse = (
-                world_mouse.0 - room.world_position.x as i32,
-                world_mouse.1 - room.world_position.y as i32,
+            let room_mouse = Self::world_to_room(&room, (world_mouse.0, world_mouse.1));
+            Debug::display(&format!(
+                "Room mouse: ({:.1},{:.1})",
+                room_mouse.0, room_mouse.1
+            ));
+            Debug::separator();
+            Debug::display(&format!(
+                "Current room world position: ({:.1},{:.1})",
+                room.world_position[0], room.world_position[1]
+            ));
+
+            let selected_tile_x: usize =
+                ((room_mouse.0 as f32 / GAME_PIXEL_WIDTH as f32) * GAME_TILE_WIDTH as f32) as usize;
+            let selected_tile_y: usize = ((room_mouse.1 as f32 / GAME_PIXEL_HEIGHT as f32)
+                * GAME_TILE_HEIGHT as f32) as usize;
+
+            Debug::display(&format!(
+                "Selected tile: ({:.1},{:.1})",
+                selected_tile_x, selected_tile_y
+            ));
+
+            let hover_world_pos = Self::room_to_world(
+                &room,
+                (
+                    (selected_tile_x * TILE_SIZE) as i32,
+                    (selected_tile_y * TILE_SIZE) as i32,
+                ),
             );
-            debug.room_mouse = room_mouse;
-            debug.current_room_world_position = room.world_position.clone_owned();
-
-            let selected_tile_x =
-                (room_mouse.0 as f32 / GAME_PIXEL_WIDTH as f32) * GAME_TILE_WIDTH as f32;
-            let selected_tile_y =
-                (room_mouse.1 as f32 / GAME_PIXEL_HEIGHT as f32) * GAME_TILE_HEIGHT as f32;
-            debug.current_selected_tile = (selected_tile_x as i32, selected_tile_y as i32)
-        }
-
-        if Mouse::left_held() {
-            for room in Content::map().rooms.iter_mut() {
-                if room
-                    .rect
-                    .contains(&PointF::new(world_mouse.0 as f32, world_mouse.1 as f32))
+            let hover_screen_pos = self.world_to_screen(hover_world_pos);
+            let tile_size = TILE_SIZE as f32 * self.zoom;
+            self.hover_tile = Some(RectF {
+                x: hover_screen_pos.0 as f32,
+                y: hover_screen_pos.1 as f32,
+                w: tile_size,
+                h: tile_size,
+            });
+            if Mouse::left_held() {
+                let first_layer = room.layers.first_mut().unwrap();
+                if let Tile::Solid { .. } =
+                    first_layer.tiles.get_mut(selected_tile_y, selected_tile_x)
                 {
-                    let first_layer = room.layers.first_mut().unwrap();
-                    let room_mouse = (
-                        world_mouse.0 - room.world_position.x as i32,
-                        world_mouse.1 - room.world_position.y as i32,
-                    );
-
-                    let selected_tile_x =
-                        (room_mouse.0 as f32 / GAME_PIXEL_WIDTH as f32) * GAME_TILE_WIDTH as f32;
-                    let selected_tile_y =
-                        (room_mouse.1 as f32 / GAME_PIXEL_HEIGHT as f32) * GAME_TILE_HEIGHT as f32;
-                    if let Tile::Solid { .. } =
-                        first_layer.tiles[selected_tile_y as usize][selected_tile_x as usize]
-                    {
-                        // first_layer.tiles[selected_tile_y as usize][selected_tile_x as usize] = Tile::Empty {};
-                    } else {
-                        first_layer.tiles[selected_tile_y as usize][selected_tile_x as usize] =
-                            Tile::Solid {
-                                src_x: 0,
-                                src_y: 0,
-                                kind: 0,
-                            };
-                    }
+                    // first_layer.tiles[selected_tile_y as usize][selected_tile_x as usize] = Tile::Empty {};
+                } else {
+                    let tile = Tile::Solid {
+                        src_x: 0,
+                        src_y: 0,
+                        kind: 0,
+                    };
+                    first_layer
+                        .tiles
+                        .set(selected_tile_y, selected_tile_x, tile);
                 }
             }
         }
 
-        if !Mouse::left_held() {
-            if (self.selection.is_some()) {
-                // Drop selection in to a valid square
-                let room = self.selection.as_mut().unwrap();
-
-                room.rect.x =
-                    ((world_mouse.0 as usize / GAME_PIXEL_WIDTH) * GAME_PIXEL_WIDTH) as f32;
-                room.rect.y =
-                    ((world_mouse.1 as usize / GAME_PIXEL_HEIGHT) * GAME_PIXEL_HEIGHT) as f32;
-            }
-            self.selection = None;
-        }
-
-        // The rooms are not panned around
-        // if self.selection.is_none() {
-        //     for room in Content::map().rooms.iter_mut() {
-        //         if room
-        //             .rect
-        //             .contains(&PointF::new(world_mouse.0 as f32, world_mouse.1 as f32))
-        //         {
-        //             // Select
-        //             if Mouse::left_pressed() {
-        //                 self.selection = Some(room);
-        //             }
-        //         }
-        //     }
-        // } else {
-        //     // Move
-        //     self.selection
-        //         .as_mut()
-        //         .unwrap()
-        //         .rect
-        //         .translate_by(&PointF::new(world_mouse_rel.0, world_mouse_rel.1));
-        // }
-
         // Zoom: https://www.youtube.com/watch?v=ZQ8qtAizis4
-        if Mouse::wheel().1 != 0 && self.selection.is_none() {
+        if Mouse::wheel().1 != 0 {
             let screen_position = Mouse::position();
             let before_zoom_world_position = self.screen_to_world(screen_position);
             self.zoom += Mouse::wheel().1 as f32 * 0.1;
@@ -169,33 +149,17 @@ impl Editor {
             self.offset.1 +=
                 after_zoom_world_position.1 as f32 - before_zoom_world_position.1 as f32;
         }
-        if Mouse::right_held() && self.selection.is_none() {
+        if Mouse::right_held() {
             self.offset.0 += world_mouse_rel.0;
             self.offset.1 += world_mouse_rel.1;
         }
     }
 
-    fn screen_to_world(&self, screen: (i32, i32)) -> (i32, i32) {
-        let world = (
-            (screen.0 as f32 / self.zoom) - self.offset.0 as f32,
-            (screen.1 as f32 / self.zoom) - self.offset.1 as f32,
-        );
-        (world.0.round() as i32, world.1.round() as i32)
-    }
-
     pub fn render(&mut self, batch: &mut Batch, target_manager: &TargetManager) {
-        game_state().refresh();
+        if Mouse::left_held() {
+            game_state().refresh();
+        }
         batch.clear();
-
-        Debug::window("Map editor");
-        Debug::display(&format!("Zoom level {:.1}", self.zoom));
-        Debug::separator();
-        let mouse_pos = Mouse::position();
-        Debug::display(
-        &format!(
-                    "Mouse Position: ({:.1},{:.1})",
-                    mouse_pos.0, mouse_pos.1)
-        );
 
         if self.debug_textures {
             let maps = target_manager.maps_color.attachments[0].clone();
@@ -250,23 +214,47 @@ impl Editor {
                 }
             }
 
+            // Draw hover pixel indicator
+            if (self.hover_tile.is_some()) {
+                let hover_tile = self.hover_tile.as_ref().unwrap();
+                batch.rect(hover_tile, (1f32, 1f32, 1f32, 0.5f32));
+            }
+
             // Draw map
             let matrix = glm::translation(&glm::vec3(self.offset.0, self.offset.1, 0.0f32));
             let scale = glm::scaling(&glm::vec3(self.zoom, self.zoom, 0.0f32));
             batch.push_matrix(scale * matrix);
 
-            if let Some(selection) = &self.selection {
-                let mut outter = selection.rect.clone();
-                outter.scale(1.1);
-                batch.rect(&outter, (1f32, 1f32, 1f32, 1.0f32));
-                let mut inner = selection.rect.clone();
-                inner.scale(1.05);
-                batch.rect(&inner, (0f32, 0f32, 0f32, 1.0f32));
-            }
             for room in Content::map().rooms.iter() {
                 batch.sprite(&room.rect, &room.albedo(), (1f32, 1f32, 1f32, 1f32));
             }
             batch.pop_matrix();
         }
+    }
+
+    // Utils
+    fn screen_to_world(&self, screen: (i32, i32)) -> (i32, i32) {
+        let world = (
+            (screen.0 as f32 / self.zoom) - self.offset.0 as f32,
+            (screen.1 as f32 / self.zoom) - self.offset.1 as f32,
+        );
+        (world.0.round() as i32, world.1.round() as i32)
+    }
+    fn world_to_screen(&self, world: (i32, i32)) -> (i32, i32) {
+        let screen = (
+            (world.0 as f32 + self.offset.0) * self.zoom,
+            (world.1 as f32 + self.offset.1) * self.zoom,
+        );
+        (screen.0.round() as i32, screen.1.round() as i32)
+    }
+    fn world_to_room(room: &Room, world_pos: (i32, i32)) -> (i32, i32) {
+        let x = world_pos.0 - room.world_position.x as i32;
+        let y = world_pos.1 - room.world_position.y as i32;
+        (x, y)
+    }
+    fn room_to_world(room: &Room, room_pos: (i32, i32)) -> (i32, i32) {
+        let x = room_pos.0 + room.world_position.x as i32;
+        let y = room_pos.1 + room.world_position.y as i32;
+        (x, y)
     }
 }

@@ -5,6 +5,7 @@ mod game_state;
 mod scene;
 mod system;
 mod target_manager;
+mod map;
 
 extern crate engine;
 extern crate nalgebra_glm as glm;
@@ -19,7 +20,6 @@ use sdl2::{
 use common::{Debug, GameConfig, GameMemory, Keyboard, Mouse};
 use components::{position::Position, room::Room};
 use std::{env, mem::size_of};
-use imgui::{Context, SuspendedContext, Ui};
 
 // Pointer to the game memory (allocated in the main process — not in the dll)
 // "static" is scoped to this dll instance. when hot-reloading a new dll this must be re-set

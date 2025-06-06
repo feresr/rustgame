@@ -12,6 +12,7 @@ use crate::{
     components::{collider::Collider, light::Light, position::Position, sprite::Sprite},
     current_room,
 };
+use crate::game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, GAME_TILE_HEIGHT, ROOM_COUNT_H, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // This shader takes in color + normal (room) textures and multiples them
 pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
@@ -97,7 +98,9 @@ impl RenderSystem {
 
         // Render lights
         batch.push_material(&self.material);
-        batch.sprite(&room.rect, &room.albedo(), (1.0, 1.0, 1.0, 1.0));
+        // batch.sprite(&room.rect, &room.albedo(), (1.0, 1.0, 1.0, 1.0));
+        let rect = RectF::with_size(GAME_PIXEL_WIDTH as f32, GAME_PIXEL_HEIGHT as f32);
+        batch.sprite(&rect, &room.albedo(), (1.0, 1.0, 1.0, 1.0));
         batch.pop_material();
 
         // Lastly, render Sprites
@@ -109,18 +112,18 @@ impl RenderSystem {
             let pivot = sprite.pivot();
             batch.push_matrix(glm::translate(
                 &glm::identity(),
-                &glm::vec3((position.x as i32) as f32, (position.y as i32) as f32, 0f32),
+                &glm::vec3((position.x) as f32, (position.y) as f32, 0f32),
             ));
             batch.push_matrix(glm::scale(
                 &glm::identity(),
-                &glm::vec3((sprite.scale_x) as f32, (sprite.scale_y) as f32, 1f32),
+                &glm::vec3((sprite.scale_x), (sprite.scale_y), 1f32),
             ));
 
             let subtexture = sprite.subtexture();
             rect.x = -pivot.0;
             rect.y = -pivot.1;
-            rect.w = subtexture.source.w as f32;
-            rect.h = subtexture.source.h as f32;
+            rect.w = subtexture.source.w;
+            rect.h = subtexture.source.h;
 
             if sprite.flip_x {
                 rect.x += rect.w;
@@ -142,8 +145,8 @@ impl RenderSystem {
 
         batch.circle((20f32, 20f32), 12f32, 25, (1f32, 1f32, 0f32, 1f32));
         // let ortho = &room.world_ortho;
-        batch.render_with_projection(target, &room.camera_ortho);
-        // batch.render(target);
+        // batch.render_with_projection(target, &room.camera_ortho);
+        batch.render(target);
         batch.clear();
     }
 }

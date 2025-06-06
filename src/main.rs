@@ -21,6 +21,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
+use sdl2::sys::SDL_RenderPresent;
 
 pub const FPS: u64 = 60;
 pub const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);

@@ -1,6 +1,6 @@
 use engine::graphics::{target::Target, texture::TextureFormat};
 
-use crate::game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, ROOM_COUNT_H, ROOM_COUNT_W, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub struct TargetManager {
     pub screen: Target,       // Final composited image presented on screen
@@ -25,18 +25,18 @@ impl TargetManager {
                 &[TextureFormat::RGBA],
             ),
             maps_color: Target::new(
-                GAME_PIXEL_WIDTH as i32 * 2,  // TODO
-                GAME_PIXEL_HEIGHT as i32 * 2, // TODO
+                (GAME_PIXEL_WIDTH * ROOM_COUNT_W) as i32,
+                (GAME_PIXEL_HEIGHT * ROOM_COUNT_H) as i32,
                 &[TextureFormat::RGBA],
             ),
             maps_normal: Target::new(
-                GAME_PIXEL_WIDTH as i32 * 2,  // TODO
-                GAME_PIXEL_HEIGHT as i32 * 2, // TODO
+                (GAME_PIXEL_WIDTH * ROOM_COUNT_W) as i32,
+                (GAME_PIXEL_HEIGHT * ROOM_COUNT_H) as i32,
                 &[TextureFormat::RGBA],
             ),
             maps_outline: Target::new(
-                GAME_PIXEL_WIDTH as i32 * 2,  // TODO
-                GAME_PIXEL_HEIGHT as i32 * 2, // TODO
+                (GAME_PIXEL_WIDTH * ROOM_COUNT_W) as i32,
+                (GAME_PIXEL_HEIGHT * ROOM_COUNT_H) as i32,
                 &[TextureFormat::RGBA],
             ),
             lights: Target::new(

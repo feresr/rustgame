@@ -1,5 +1,3 @@
-use imgui::{Context, SuspendedContext};
-use imgui::sys::igGetCurrentContext;
 use common::{Debug, Keyboard};
 use engine::{
     ecs::World,
@@ -8,12 +6,20 @@ use engine::{
     },
 };
 
-use crate::{components::{button::Button, light::LightSwitch}, content::Content, scene::Scene, system::{
-    animation_system::AnimationSystem, editor::Editor, light_system::LightSystem,
-    movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
-    scene_system::SceneSystem,
-}, target_manager::TargetManager};
+use crate::{
+    components::{button::Button, light::LightSwitch},
+    content::Content,
+    scene::Scene,
+    system::{
+        animation_system::AnimationSystem, editor::Editor, light_system::LightSystem,
+        movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
+        scene_system::SceneSystem,
+    },
+    target_manager::TargetManager,
+};
 
+pub const ROOM_COUNT_W: usize = 4;
+pub const ROOM_COUNT_H: usize = 4;
 pub const SCREEN_WIDTH: usize = GAME_PIXEL_WIDTH * 4;
 pub const SCREEN_HEIGHT: usize = GAME_PIXEL_HEIGHT * 4;
 
@@ -119,6 +125,7 @@ impl GameState {
         // The light system gives a black and white stencil for drawing the light cirlces (and hard shadows)
         post_processing_material.set_texture("u_light_texture", self.target_manager.lights.color());
         self.post_processing_material = post_processing_material;
+        self.batch.clear();
     }
 
     pub fn update(&mut self) -> bool {
@@ -127,7 +134,13 @@ impl GameState {
             self.show_editor = !self.show_editor;
         }
         Debug::window("Game");
-        Debug::display(&format!("Showing editor {} ", self.show_editor));
+        Debug::display(&"Press tab to toggle editor");
+        Debug::button(|| {
+            // self.show_editor == !self.show_editor;
+            dbg!("shit");
+        });
+        Debug::separator();
+        Debug::display(&format!("Showing editor: {} ", self.show_editor));
 
         if !self.show_editor {
             // Make sure we are in the right screen
@@ -144,7 +157,7 @@ impl GameState {
         true
     }
 
-    pub fn render(&mut self)  {
+    pub fn render(&mut self) {
         engine::update();
 
         // Render into low-res target
@@ -153,7 +166,7 @@ impl GameState {
                 .game
                 .clear((0.1f32, 0.1f32, 0.24f32, 1.0f32));
             self.batch.set_sampler(&TextureSampler::nearest());
-            AnimationSystem::tick(&self.world);
+            AnimationSystem::tick(&self.world); // ??
 
             self.batch.set_blend(blend::NORMAL);
             self.render_system
