@@ -1,6 +1,9 @@
 use std::ops::Not;
 
-use crate::game_state::{self, GameState};
+use crate::{
+    components::room::LayerType,
+    game_state::{self, GameState},
+};
 use common::{Debug, Keyboard, Mouse};
 use engine::{
     graphics::{
@@ -134,17 +137,37 @@ impl Editor {
                 w: tile_size,
                 h: tile_size,
             });
-            if Mouse::left_held() {
-                let first_layer = room.layers.first_mut().unwrap();
-                let kind = first_layer.tiles.get(selected_tile_x, selected_tile_y).kind;
-                let tile = Tile {
-                    src_x: 0,
-                    src_y: 0,
-                    kind: kind.other(),
-                };
-                first_layer
-                    .tiles
-                    .set(selected_tile_x, selected_tile_y, tile);
+            if Mouse::left_pressed() {
+                unsafe {
+                    let layer = if draw_background_tiles {
+                        room.layers.iter_mut().find(|layer| {
+                            matches!(
+                                layer.kind,
+                                LayerType::Tiles(
+                                    crate::components::room::TileLayerType::Background
+                                )
+                            )
+                        })
+                    } else {
+                        room.layers.iter_mut().find(|layer| {
+                            matches!(
+                                layer.kind,
+                                LayerType::Tiles(
+                                    crate::components::room::TileLayerType::Foreground
+                                )
+                            )
+                        })
+                    }.unwrap();
+                    let kind = layer.tiles.get(selected_tile_x, selected_tile_y).kind;
+                    let tile = Tile {
+                        src_x: 0,
+                        src_y: 0,
+                        kind: kind.other(),
+                    };
+                    layer
+                        .tiles
+                        .set(selected_tile_x, selected_tile_y, tile);
+                }
             }
         }
 

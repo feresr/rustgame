@@ -26,7 +26,8 @@ use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
 pub enum TileType {
-    Empty, Solid
+    Empty,
+    Solid,
 }
 impl TileType {
     pub fn other(&self) -> Self {
@@ -39,13 +40,17 @@ impl TileType {
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
 pub struct Tile {
-     pub src_x: i64, // pixel coordinates in the tileset
-     pub src_y: i64,
-     pub kind: TileType,
+    pub src_x: i64, // pixel coordinates in the tileset
+    pub src_y: i64,
+    pub kind: TileType,
 }
 impl Default for Tile {
     fn default() -> Self {
-        Self { src_x: Default::default(), src_y: Default::default(), kind: TileType::Empty }
+        Self {
+            src_x: Default::default(),
+            src_y: Default::default(),
+            kind: TileType::Empty,
+        }
     }
 }
 
@@ -83,14 +88,14 @@ impl<'a> Iterator for TileIterator<'a> {
     type Item = (usize, usize, &'a Tile);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(tile) =  self.tiles.next() {
-                let x = self.index % GAME_TILE_WIDTH;
-                let y = self.index / GAME_TILE_WIDTH;
-                self.index += 1;
+        while let Some(tile) = self.tiles.next() {
+            let x = self.index % GAME_TILE_WIDTH;
+            let y = self.index / GAME_TILE_WIDTH;
+            self.index += 1;
 
-                if tile.kind == TileType::Solid {
-                    return Some((x, y, tile))
-                }
+            if tile.kind == TileType::Solid {
+                return Some((x, y, tile));
+            }
         }
         return None;
     }
@@ -115,7 +120,7 @@ impl Tiles {
         }
     }
     pub fn set(&mut self, x: usize, y: usize, tile: Tile) {
-        self.tiles[y * GAME_TILE_WIDTH + x] = tile; 
+        self.tiles[y * GAME_TILE_WIDTH + x] = tile;
     }
 
     pub fn get(&self, x: usize, y: usize) -> &Tile {
@@ -241,12 +246,20 @@ impl Room {
 
         Room {
             world_position: glm::Vec2::new(rect.x, rect.y),
-            layers: vec![Layer {
-                tileset_id: 0,
-                kind: LayerType::Tiles(TileLayerType::Foreground),
-                tiles: Tiles::empty(),
-                entities: vec![],
-            }],
+            layers: vec![
+                Layer {
+                    tileset_id: 0,
+                    kind: LayerType::Tiles(TileLayerType::Foreground),
+                    tiles: Tiles::empty(),
+                    entities: vec![],
+                },
+                Layer {
+                    tileset_id: 0,
+                    kind: LayerType::Tiles(TileLayerType::Background),
+                    tiles: Tiles::empty(),
+                    entities: vec![],
+                },
+            ],
             rect,
             camera_ortho: Default::default(),
             albedo_texture: None,
@@ -352,36 +365,36 @@ impl Room {
     }
 
     pub fn prerender_outlines(&mut self, batch: &mut Batch) {
-        return;
         // Render room
-        // for layer in self.layers.iter().rev() {
-        //     if let LayerType::Tiles(kind) = &layer.kind {
-        //         if kind == "Solid" {
-        //             let tileset = Content::get().tilesets.get(&layer.tileset_id).unwrap();
-        //             for tile in layer.tiles.iter() {
-        //                 let tile_rect = RectF {
-        //                     x: tile.x as f32,
-        //                     y: tile.y as f32,
-        //                     w: TILE_SIZE as f32,
-        //                     h: TILE_SIZE as f32,
-        //                 };
-        //                 batch.sprite(
-        //                     &tile_rect,
-        //                     &SubTexture::new(
-        //                         Rc::clone(&tileset.normal),
-        //                         RectF {
-        //                             x: tile.src_x as f32,
-        //                             y: tile.src_y as f32,
-        //                             w: tileset.tile_size as f32,
-        //                             h: tileset.tile_size as f32,
-        //                         },
-        //                     ),
-        //                     (1f32, 1f32, 1f32, 1f32),
-        //                 );
-        //             }
-        //         }
-        //     }
-        // }
+        for layer in self.layers.iter().rev() {
+            if let LayerType::Tiles(kind) = &layer.kind {
+                if let LayerType::Entities = layer.kind {
+                    continue;
+                }
+                let tileset = Content::get().tilesets.get(&layer.tileset_id).unwrap();
+                for (x, y, tile) in layer.tiles() {
+                    let tile_rect = RectF {
+                        x: TILE_SIZE as f32 * x as f32,
+                        y: TILE_SIZE as f32 * y as f32,
+                        w: TILE_SIZE as f32,
+                        h: TILE_SIZE as f32,
+                    };
+                    batch.sprite(
+                        &tile_rect,
+                        &SubTexture::new(
+                            Rc::clone(&tileset.normal),
+                            RectF {
+                                x: tile.src_x as f32,
+                                y: tile.src_y as f32,
+                                w: tileset.tile_size as f32,
+                                h: tileset.tile_size as f32,
+                            },
+                        ),
+                        (1f32, 1f32, 1f32, 1f32),
+                    );
+                }
+            }
+        }
     }
 
     pub fn set_color_texture(&mut self, color: Rc<Texture>) {

@@ -89,7 +89,7 @@ impl LightSystem {
             for layer in room
                 .layers
                 .iter()
-                .filter(|l| matches!(&l.kind, LayerType::Tiles(_)))
+                .filter(|l| matches!(&l.kind, LayerType::Tiles(crate::components::room::TileLayerType::Foreground)))
             {
                 for (x, y, tile) in layer.tiles() {
                     let tile_position = glm::vec2(
