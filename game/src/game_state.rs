@@ -7,7 +7,7 @@ use engine::{
 };
 
 use crate::{
-    components::{button::Button, light::LightSwitch},
+    components::{button::Button, light::LightSwitch, room::Room},
     content::Content,
     scene::Scene,
     system::{
@@ -16,6 +16,7 @@ use crate::{
         scene_system::SceneSystem,
     },
     target_manager::TargetManager,
+    MEMORY_PTR,
 };
 
 pub const ROOM_COUNT_W: usize = 4;
@@ -52,6 +53,15 @@ impl GameState {
     pub fn init_systems(&mut self) {
         self.player_system.init(&mut self.world);
         self.scene_system.scene.init(&mut self.world);
+    }
+
+    pub fn get() -> &'static mut Self {
+        unsafe { &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState) }
+    }
+
+    pub fn current_room() -> &'static Room {
+        let scene = &mut GameState::get().scene_system.scene;
+        Content::map().get(scene.room_x as usize, scene.room_y as usize)
     }
 
     pub fn new() -> Self {
@@ -105,14 +115,16 @@ impl GameState {
     }
 
     // This is so that we can see shader updates when re-loading the game lib
-    pub fn refresh(&mut self) {
+    pub fn refresh() {
+        let game_state = GameState::get();
+
         Content::map().prerender(
-            &mut self.batch,
-            &self.target_manager.maps_color,
-            &self.target_manager.maps_normal,
-            &self.target_manager.maps_outline,
+            &mut game_state.batch,
+            &game_state.target_manager.maps_color,
+            &game_state.target_manager.maps_normal,
+            &game_state.target_manager.maps_outline,
         );
-        self.target_manager.screen.clear((0f32, 0f32, 0f32, 0f32));
+        game_state.target_manager.screen.clear((0f32, 0f32, 0f32, 0f32));
         let crt_shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, CRT_FRAGMENT_SOURCE);
         let mut post_processing_material =
@@ -123,9 +135,9 @@ impl GameState {
         // post_processing_material.set_texture("u_texture", self.target_manager.color.color());
         post_processing_material.set_sampler("u_light_texture", &sampler);
         // The light system gives a black and white stencil for drawing the light cirlces (and hard shadows)
-        post_processing_material.set_texture("u_light_texture", self.target_manager.lights.color());
-        self.post_processing_material = post_processing_material;
-        self.batch.clear();
+        post_processing_material.set_texture("u_light_texture", game_state.target_manager.lights.color());
+        game_state.post_processing_material = post_processing_material;
+        game_state.batch.clear();
     }
 
     pub fn update(&mut self) -> bool {

@@ -66,7 +66,7 @@ impl Map {
         normal_target.clear((0f32, 0f32, 0f32, 0f32));
         outline_target.clear((0f32, 0f32, 0f32, 0f32));
 
-        for (_, room) in self.rooms.iter_mut().enumerate() {
+        for room in self.rooms.iter_mut(){
             batch.push_matrix(glm::translation(&glm::vec3(
                 room.world_position.x,
                 room.world_position.y,
@@ -79,7 +79,7 @@ impl Map {
             batch.render(&color_target);
         }
 
-        for (_, room) in self.rooms.iter_mut().enumerate() {
+        for room in self.rooms.iter_mut() {
             batch.push_matrix(glm::translation(&glm::vec3(
                 room.world_position.x,
                 room.world_position.y,

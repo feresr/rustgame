@@ -12,7 +12,7 @@ use engine::{
 use ldtk_rust::Project;
 use std::mem::size_of;
 
-use crate::components::sprite::Frame;
+use crate::components::{room::{MapData, Room, SavedRoom}, sprite::Frame};
 use crate::{
     components::sprite::{Animation, Tileset},
     game_state::GameState,
@@ -172,8 +172,14 @@ impl Content {
         let project = Project::new("game/src/assets/map.ldtk");
         // let project_ase = Aseprite::new("game/src/assets/map.ase");
 
+        let mut map = Map::empty();
+        let map_data = MapData::load();
+        if let Some(data) = map_data {
+            map.rooms = data.rooms.into_iter().map(|saved_room| Room::from(saved_room)).collect();
+        }
+
         let content = Content {
-            map: Map::empty(),
+            map, 
             tilesets,
             textures,
             sprites,

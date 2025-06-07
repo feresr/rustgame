@@ -1,4 +1,4 @@
-use crate::game_state;
+use crate::game_state::{self, GameState};
 use common::{Debug, Keyboard, Mouse};
 use engine::{
     graphics::{
@@ -72,7 +72,7 @@ impl Editor {
 
         if Keyboard::pressed(Keycode::S) {
             let rooms = &Content::map().rooms;
-            MapData::save(10, 10, rooms);
+            MapData::save(4, 4, rooms);
         }
 
         let room = Content::map().rooms.iter_mut().find(|room| {
@@ -119,7 +119,8 @@ impl Editor {
             });
             if Mouse::left_held() {
                 let first_layer = room.layers.first_mut().unwrap();
-                if let Tile::Solid { .. } = first_layer.tiles.get_mut(selected_tile_x, selected_tile_y) {
+                if let Tile::Solid { .. } = first_layer.tiles.get_mut(selected_tile_x, selected_tile_y)
+                {
                     // first_layer.tiles[selected_tile_y as usize][selected_tile_x as usize] = Tile::Empty {};
                 } else {
                     let tile = Tile::Solid {
@@ -155,7 +156,7 @@ impl Editor {
 
     pub fn render(&mut self, batch: &mut Batch, target_manager: &TargetManager) {
         if Mouse::left_held() {
-            game_state().refresh();
+            GameState::refresh();
         }
         batch.clear();
 

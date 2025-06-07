@@ -9,7 +9,7 @@ use crate::{
         room::LayerType,
         sprite::Sprite,
     },
-    content::{self, Content}, current_room,
+    content::{self, Content},
     game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE},
 };
 
@@ -54,9 +54,7 @@ impl Scene for GameScene {
         // Todo: make accessing each layer kind a bit easier
         if let Some(layer) = room.layers.iter().find(|layer| matches!(layer.kind, LayerType::Tiles(_))) {
             for (x, y, tile) in layer.solid_tiles() {
-                let x = (x as f32 / TILE_SIZE as f32) as u32;
-                let y = (y as f32 / TILE_SIZE as f32) as u32;
-                collisions[(x + y * GAME_TILE_WIDTH as u32) as usize] = true;
+                collisions[(x + y * GAME_TILE_WIDTH) as usize] = true;
             }
         }
         // make this a factory to create the room

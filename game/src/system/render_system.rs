@@ -1,18 +1,23 @@
 use std::f32::consts::TAU;
 
 use engine::{
+    create_transform,
     ecs::{World, WorldOp},
     graphics::{
         self, batch::Batch, common::RectF, material::Material, target::Target,
         texture::TextureSampler,
     },
 };
+use glm::pi;
 
+use crate::game_state::{
+    GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, GAME_TILE_HEIGHT, ROOM_COUNT_H, SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+};
 use crate::{
     components::{collider::Collider, light::Light, position::Position, sprite::Sprite},
-    current_room,
+    game_state::GameState,
 };
-use crate::game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, GAME_TILE_HEIGHT, ROOM_COUNT_H, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // This shader takes in color + normal (room) textures and multiples them
 pub const FRAGMENT_SHADER_SOURCE: &str = "#version 330 core\n
@@ -76,7 +81,7 @@ impl RenderSystem {
         target.clear((0f32, 0f32, 0f32, 0f32));
         batch.clear();
 
-        let room = current_room();
+        let room = GameState::current_room();
         self.material
             .set_texture("u_color_texture", room.albedo().texture);
         self.material
@@ -104,26 +109,22 @@ impl RenderSystem {
         batch.pop_material();
 
         // Lastly, render Sprites
-        let mut rect = RectF::default();
         for sprite_entity in world.all_with::<Sprite>() {
             let sprite = sprite_entity.get::<Sprite>();
             let position = sprite_entity.get::<Position>();
+            let subtexture = sprite.subtexture();
 
             let pivot = sprite.pivot();
-            batch.push_matrix(glm::translate(
-                &glm::identity(),
-                &glm::vec3((position.x) as f32, (position.y) as f32, 0f32),
-            ));
-            batch.push_matrix(glm::scale(
-                &glm::identity(),
-                &glm::vec3((sprite.scale_x), (sprite.scale_y), 1f32),
-            ));
+            let pivot_y = -(subtexture.source.h - pivot.1);
+            let matrix = create_transform(
+                position.as_vec2(),
+                glm::vec2(sprite.scale_x, sprite.scale_y),
+                glm::vec2(pivot.0, pivot_y),
+            );
 
-            let subtexture = sprite.subtexture();
-            rect.x = -pivot.0;
-            rect.y = -pivot.1;
-            rect.w = subtexture.source.w;
-            rect.h = subtexture.source.h;
+            batch.push_matrix(matrix);
+
+            let mut rect = RectF::with_size(subtexture.source.w, subtexture.source.h);
 
             if sprite.flip_x {
                 rect.x += rect.w;
@@ -136,7 +137,7 @@ impl RenderSystem {
 
             batch.sprite(&rect, subtexture, (1f32, 1f32, 1f32, 1f32));
 
-            batch.pop_matrix();
+            // batch.pop_matrix();
             batch.pop_matrix();
         }
 

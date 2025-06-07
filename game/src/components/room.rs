@@ -2,10 +2,11 @@ extern crate serde_big_array;
 
 #[macro_use]
 use serde_big_array::BigArray;
-use std::fs;
+use std::{fs, io};
 use std::rc::Rc;
 
 use crate::game_state::{GameState, GAME_TILE_HEIGHT, GAME_TILE_WIDTH};
+use crate::map::Map;
 use crate::{
     content::Content,
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
@@ -123,10 +124,17 @@ pub struct MapData {
     pub rooms : Vec<SavedRoom>,
 }
 impl MapData {
+
+    pub fn load() -> Option<MapData> {
+        let room = fs::read_to_string("rooms/world.yml").ok()?;
+        let deserialized = serde_yml::from_str(room.as_str()).ok()?;
+        deserialized
+    }
+
     pub fn save(width : u32, height : u32, rooms : &Vec<Room>)  {
         let mut saved_rooms = vec![];
         for  room in rooms.iter() {
-            let saved = SavedRoom::from((0,0), room);
+            let saved = SavedRoom::from(room);
             saved_rooms.push(saved);
         }
         
@@ -145,9 +153,9 @@ pub struct SavedRoom {
     pub layers: Vec<Layer>,
 }
 impl SavedRoom {
-    fn from(world_position: (u32, u32), room: &Room) -> SavedRoom {
+    fn from(room: &Room) -> SavedRoom {
         SavedRoom {
-            world_position,
+            world_position: (room.world_position.x as u32, room.world_position.y as u32),
             layers: room.layers.clone(),
         }
     }
@@ -166,17 +174,7 @@ pub struct Room {
     outline_texture: Option<SubTexture>,
 }
 impl Room {
-    pub fn save(&self) {
-        // let sr = SavedRoom {
-        //     world_position: (self.world_position.x as u32, self.world_position.y as u32),
-        //     layers: self.layers.clone(),
-        // };
-        let serialized = serde_yml::to_string(&self.layers).unwrap();
-        fs::create_dir_all("rooms/").unwrap();
-        println!("Writing to: {}", std::fs::canonicalize("rooms/").unwrap().display());
 
-        fs::write(format!("rooms/foo{}-{}.yml", self.world_position.x, self.world_position.y), serialized).unwrap();
-    }
     pub fn from(saved_room: SavedRoom) -> Room {
         let position = saved_room.world_position;
         let rect = RectF {

@@ -4,8 +4,7 @@ use crate::{
         position::Position,
         room::{LayerType, Tile},
     },
-    current_room,
-    game_state::TILE_SIZE,
+        game_state::{GameState, TILE_SIZE},
 };
 use engine::{
     ecs::{World, WorldOp},
@@ -56,7 +55,7 @@ impl LightSystem {
 
         let base_color = (0.0, 0.0, 0.0, 1.0);
 
-        let room = current_room();
+        let room = GameState::current_room();
         let room_position = Position::new(room.rect.x as i32, room.rect.y as i32);
 
         let projection_distance: f32 = 140.0 + 5.0f32 * f32::sin(self.time.0 as f32 / 60f32);

@@ -31,15 +31,15 @@ impl PlayerSystem {
             ColliderType::Rect {
                 rect: RectF {
                     x: -3.0,
-                    y: -8.0,
+                    y: 0.0,
                     w: 6.0,
                     h: 8.0,
                 },
             },
             true,
         ));
-        player.assign(Position::new( 24 , 24 ));
-        player.assign(Gravity { value: 0.3f32 });
+        player.assign(Position::new( 40 , 40 ));
+        player.assign(Gravity { value: 0.2f32 });
     }
 
     pub fn update(&self, world: &mut World) {

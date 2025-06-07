@@ -23,19 +23,7 @@ use std::{env, mem::size_of};
 
 // Pointer to the game memory (allocated in the main process — not in the dll)
 // "static" is scoped to this dll instance. when hot-reloading a new dll this must be re-set
-static mut MEMORY_PTR: *mut GameMemory = std::ptr::null_mut();
-
-// Globally accessible utils
-pub fn game_state() -> &'static mut GameState {
-    unsafe { &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState) }
-}
-fn current_scene() -> &'static mut GameScene {
-    &mut game_state().scene_system.scene
-}
-fn current_room() -> &'static mut Room {
-    let scene = current_scene();
-    Content::map().get(scene.room_x as usize, scene.room_y as usize)
-}
+pub static mut MEMORY_PTR: *mut GameMemory = std::ptr::null_mut();
 
 #[no_mangle]
 pub extern "C" fn init(
@@ -51,29 +39,29 @@ pub extern "C" fn init(
         Debug::init(&mut (*MEMORY_PTR).debug);
         engine::init(&video_subsystem, &audio_subsystem);
 
-        if !(*MEMORY_PTR).initialized {
-            let game_size = size_of::<GameState>(); // ~1232 bytes
-            let available_memory = (*MEMORY_PTR).storage.len();
-            assert!(
-                game_size <= available_memory,
-                "Game is too large for game_memory storage. Game size: {}, available mem: {}",
-                game_size,
-                available_memory
-            );
-
-            // storage is initialized with GameState and Content [ [GameState] [Content] ]
-            let storage_ptr = (*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState;
-            let content_ptr = storage_ptr.add(size_of::<GameState>()) as *mut Content;
-
-            Content::load(content_ptr);
-            storage_ptr.write(GameState::new()); // Directly write Game into storage
-
-            (*MEMORY_PTR).initialized = true;
-            game_state().init_systems();
-        } else {
-            let game: &mut GameState = &mut *((*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState);
-            game.refresh();
+        if (*MEMORY_PTR).initialized {
+            GameState::refresh();
+            return;
         }
+
+        let game_size = size_of::<GameState>(); // ~1232 bytes
+        let available_memory = (*MEMORY_PTR).storage.len();
+        assert!(
+            game_size <= available_memory,
+            "Game is too large for game_memory storage. Game size: {}, available mem: {}",
+            game_size,
+            available_memory
+        );
+
+        // storage is initialized with GameState and Content [ [GameState] [Content] ]
+        let storage_ptr = (*MEMORY_PTR).storage.as_mut_ptr() as *mut GameState;
+        let content_ptr = storage_ptr.add(size_of::<GameState>()) as *mut Content;
+
+        Content::load(content_ptr);
+        storage_ptr.write(GameState::new()); // Directly write Game into storage
+
+        (*MEMORY_PTR).initialized = true;
+        GameState::get().init_systems();
     }
 }
 
@@ -89,7 +77,7 @@ pub extern "C" fn get_config() -> GameConfig {
 // instead of passing it around to every single function
 #[no_mangle]
 pub extern "C" fn update_game() {
-    let game = game_state();
+    let game =  GameState::get();
     game.update();
     game.render();
 }

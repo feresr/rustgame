@@ -61,3 +61,17 @@ pub fn deinit() {
 pub fn update() {
     check_gl_errors!("GL error engine::update");
 }
+
+// TODO make translation in place
+pub fn create_transform(position: glm::Vec2, scale: glm::Vec2, pivot: glm::Vec2) -> glm::Mat4 {
+    let translation = glm::translate(
+        &glm::identity(),
+        &glm::vec3((position.x) as f32, (position.y) as f32, 0f32),
+    );
+    let scale = glm::scale(&translation, &glm::vec3((scale.x), (scale.y), 1f32));
+    let pivot = glm::translate(
+        &scale,
+        &glm::vec3((-pivot.x) as f32, (pivot.y) as f32, 0f32),
+    );
+    pivot
+}
