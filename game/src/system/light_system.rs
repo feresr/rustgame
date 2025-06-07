@@ -56,7 +56,7 @@ impl LightSystem {
         let base_color = (0.0, 0.0, 0.0, 1.0);
 
         let room = GameState::current_room();
-        let room_position = Position::new(room.rect.x as i32, room.rect.y as i32);
+        let room_position = Position::new(room.world_position.x as i32, room.world_position.y as i32);
 
         let projection_distance: f32 = 140.0 + 5.0f32 * f32::sin(self.time.0 as f32 / 60f32);
 
@@ -91,10 +91,10 @@ impl LightSystem {
                 .iter()
                 .filter(|l| matches!(&l.kind, LayerType::Tiles(_)))
             {
-                for (x, y, tile) in layer.solid_tiles() {
+                for (x, y, tile) in layer.tiles() {
                     let tile_position = glm::vec2(
-                        room_position.x as f32 + x as f32,
-                        room_position.y as f32 + y as f32,
+                        room_position.x as f32 + x as f32 * TILE_SIZE as f32,
+                        room_position.y as f32 + y as f32 * TILE_SIZE as f32,
                     );
                     // draw_shadow, only if tile is close enough to the light
                     if glm::distance(&tile_position, &light_position) < projection_distance {

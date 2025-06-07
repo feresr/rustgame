@@ -1,3 +1,5 @@
+use std::ops::Not;
+
 use crate::game_state::{self, GameState};
 use common::{Debug, Keyboard, Mouse};
 use engine::{
@@ -23,6 +25,8 @@ pub struct Editor {
     zoom: f32,
     offset: (f32, f32),
 }
+
+static mut draw_background_tiles: bool = false;
 
 impl Default for Editor {
     fn default() -> Self {
@@ -69,6 +73,15 @@ impl Editor {
             "World mouse: ({:.1},{:.1})",
             world_mouse.0, world_mouse.1
         ));
+        unsafe {
+            Debug::checkbox(
+                "Draw background tiles",
+                draw_background_tiles,
+                Box::new(|| {
+                    draw_background_tiles = draw_background_tiles.not();
+                }),
+            );
+        }
 
         if Keyboard::pressed(Keycode::S) {
             let rooms = &Content::map().rooms;
@@ -87,6 +100,10 @@ impl Editor {
                 room_mouse.0, room_mouse.1
             ));
             Debug::separator();
+            Debug::display(&format!(
+                "Current room tile count {}",
+                room.layers.first().unwrap().tiles().count()
+            ));
             Debug::display(&format!(
                 "Current room world position: ({:.1},{:.1})",
                 room.world_position[0], room.world_position[1]
@@ -119,19 +136,15 @@ impl Editor {
             });
             if Mouse::left_held() {
                 let first_layer = room.layers.first_mut().unwrap();
-                if let Tile::Solid { .. } = first_layer.tiles.get_mut(selected_tile_x, selected_tile_y)
-                {
-                    // first_layer.tiles[selected_tile_y as usize][selected_tile_x as usize] = Tile::Empty {};
-                } else {
-                    let tile = Tile::Solid {
-                        src_x: 0,
-                        src_y: 0,
-                        kind: 0,
-                    };
-                    first_layer
-                        .tiles
-                        .set(selected_tile_x, selected_tile_y, tile);
-                }
+                let kind = first_layer.tiles.get(selected_tile_x, selected_tile_y).kind;
+                let tile = Tile {
+                    src_x: 0,
+                    src_y: 0,
+                    kind: kind.other(),
+                };
+                first_layer
+                    .tiles
+                    .set(selected_tile_x, selected_tile_y, tile);
             }
         }
 
@@ -155,7 +168,7 @@ impl Editor {
     }
 
     pub fn render(&mut self, batch: &mut Batch, target_manager: &TargetManager) {
-        if Mouse::left_held() {
+        if Mouse::left_pressed() {
             GameState::refresh();
         }
         batch.clear();

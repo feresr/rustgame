@@ -28,27 +28,6 @@ impl Map {
         }
     }
 
-    pub fn new(ldtk: &Project) -> Self {
-        let map_width = 5; // ldtk.world_grid_width.unwrap() as usize;
-        let map_height = 2; // ldtk.world_grid_height.unwrap() as usize;
-        let room_count = map_width * map_height;
-
-        let mut rooms = Vec::with_capacity(room_count);
-
-        for level in ldtk.levels.iter() {
-            let room = Room::from_level(level);
-            let x = level.world_x / GAME_PIXEL_WIDTH as i64;
-            let y = level.world_y / GAME_PIXEL_HEIGHT as i64;
-            let index = (x + (y * map_width as i64)) as usize;
-            rooms.push(room);
-        }
-        Map {
-            width: map_width,
-            height: map_height,
-            rooms,
-        }
-    }
-
     pub fn get(&mut self, x: usize, y: usize) -> &mut Room {
         assert!(x < self.width, "x: {} < w: {}", x, self.width);
         assert!(y < self.height, "y: {} < h: {}", y, self.height);

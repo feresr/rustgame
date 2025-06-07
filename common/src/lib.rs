@@ -1,6 +1,6 @@
-use imgui::Context;
+use imgui::{Context, Ui};
 use sdl2::keyboard::Keycode;
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Not};
 
 #[macro_export]
 macro_rules! check_gl_errors {
@@ -18,7 +18,6 @@ macro_rules! check_gl_errors {
 
 // 4 Kb
 const GAME_MEMORY: usize = 1024 * 8;
-
 
 #[repr(C)]
 pub struct GameMemory {
@@ -58,13 +57,14 @@ enum UiElement {
     Text(String),
     Separator,
     Button(fn()),
+    Checkbox(String, bool, Box<dyn Fn() -> ()>),
 }
 
 #[repr(C)]
 #[derive(Default)]
 pub struct DebugWindow {
     title: String,
-    size : (f32, f32),
+    size: (f32, f32),
     items: Vec<UiElement>,
 }
 
@@ -100,6 +100,14 @@ impl Debug {
         let window = Self::get().windows.last_mut().unwrap();
         window.items.push(UiElement::Button(f));
     }
+
+    pub fn checkbox(name: &str, value: bool, f: Box<dyn Fn() -> ()>) {
+        let window = Self::get().windows.last_mut().unwrap();
+        window
+            .items
+            .push(UiElement::Checkbox(name.to_string(), value, f));
+    }
+
     pub fn display(item: &str) {
         let window = Self::get().windows.last_mut().unwrap();
         window.items.push(UiElement::Text(item.to_string()));
@@ -118,9 +126,12 @@ impl Debug {
         let ui = imgui.frame();
         for window in Self::get().windows.iter_mut() {
             ui.window(window.title.as_str())
-                .size([window.size.0, window.size.1], imgui::Condition::FirstUseEver)
+                .size(
+                    [window.size.0, window.size.1],
+                    imgui::Condition::FirstUseEver,
+                )
                 .build(|| {
-                    for item in window.items.iter() {
+                    for item in window.items.iter_mut() {
                         match item {
                             UiElement::Text(text) => {
                                 ui.text(text.as_str());
@@ -130,6 +141,11 @@ impl Debug {
                             }
                             UiElement::Button(f) => {
                                 if ui.color_button("Click me", [1.0, 0.0, 0.0, 1.0]) {
+                                    f()
+                                }
+                            }
+                            UiElement::Checkbox(name, value, f) => {
+                                if ui.checkbox(name, value) {
                                     f()
                                 }
                             }

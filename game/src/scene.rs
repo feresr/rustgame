@@ -52,8 +52,8 @@ impl Scene for GameScene {
         let mut collisions = vec![false; GAME_TILE_WIDTH * GAME_TILE_HEIGHT];
 
         // Todo: make accessing each layer kind a bit easier
-        if let Some(layer) = room.layers.iter().find(|layer| matches!(layer.kind, LayerType::Tiles(_))) {
-            for (x, y, tile) in layer.solid_tiles() {
+        if let Some(layer) = room.layers.iter().find(|layer| matches!(layer.kind, LayerType::Tiles(crate::components::room::TileLayerType::Foreground))) {
+            for (x, y, tile) in layer.tiles() {
                 collisions[(x + y * GAME_TILE_WIDTH) as usize] = true;
             }
         }

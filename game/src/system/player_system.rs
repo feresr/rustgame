@@ -26,7 +26,7 @@ impl PlayerSystem {
         player.assign(Player::default());
         player.assign(Mover::default());
         player.assign(Sprite::new(&Content::sprite("output")));
-        player.assign(Light::with_offset(0f32, -8f32));
+        player.assign(Light::with_offset(0f32, 8f32));
         player.assign(Collider::new(
             ColliderType::Rect {
                 rect: RectF {

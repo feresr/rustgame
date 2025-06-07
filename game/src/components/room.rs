@@ -2,8 +2,8 @@ extern crate serde_big_array;
 
 #[macro_use]
 use serde_big_array::BigArray;
-use std::{fs, io};
 use std::rc::Rc;
+use std::{fs, io};
 
 use crate::game_state::{GameState, GAME_TILE_HEIGHT, GAME_TILE_WIDTH};
 use crate::map::Map;
@@ -25,17 +25,39 @@ use rand::thread_rng;
 use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
-pub enum Tile {
-    Solid {
-        src_x: i64, // pixel coordinates in the tileset
-        src_y: i64,
-        kind: u32,
-    },
-    Empty {},
+pub enum TileType {
+    Empty, Solid
 }
+impl TileType {
+    pub fn other(&self) -> Self {
+        match self {
+            TileType::Empty => TileType::Solid,
+            TileType::Solid => TileType::Empty,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
+pub struct Tile {
+     pub src_x: i64, // pixel coordinates in the tileset
+     pub src_y: i64,
+     pub kind: TileType,
+}
+impl Default for Tile {
+    fn default() -> Self {
+        Self { src_x: Default::default(), src_y: Default::default(), kind: TileType::Empty }
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum TileLayerType {
+    Foreground,
+    Background,
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum LayerType {
-    Tiles(String), // Background and foreground
+    Tiles(TileLayerType), // Background and foreground
     Entities,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -58,16 +80,19 @@ pub struct TileIterator<'a> {
 }
 
 impl<'a> Iterator for TileIterator<'a> {
-    // this actually
     type Item = (usize, usize, &'a Tile);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.tiles.next().map(|tile| {
-            let x = self.index % GAME_TILE_WIDTH;
-            let y = self.index / GAME_TILE_WIDTH;
-            self.index += 1;
-            (x, y, tile)
-        })
+        while let Some(tile) =  self.tiles.next() {
+                let x = self.index % GAME_TILE_WIDTH;
+                let y = self.index / GAME_TILE_WIDTH;
+                self.index += 1;
+
+                if tile.kind == TileType::Solid {
+                    return Some((x, y, tile))
+                }
+        }
+        return None;
     }
 }
 impl<'a> IntoIterator for &'a Tiles {
@@ -86,15 +111,17 @@ impl<'a> IntoIterator for &'a Tiles {
 impl Tiles {
     pub fn empty() -> Tiles {
         Tiles {
-            tiles: [Tile::Empty {}; GAME_TILE_WIDTH * GAME_TILE_HEIGHT],
+            tiles: [Tile::default(); GAME_TILE_WIDTH * GAME_TILE_HEIGHT],
         }
     }
     pub fn set(&mut self, x: usize, y: usize, tile: Tile) {
-        self.tiles[y * GAME_TILE_WIDTH + x] = tile
+        self.tiles[y * GAME_TILE_WIDTH + x] = tile; 
     }
+
     pub fn get(&self, x: usize, y: usize) -> &Tile {
         &self.tiles[y * GAME_TILE_WIDTH + x]
     }
+
     pub fn get_mut(&mut self, x: usize, y: usize) -> &mut Tile {
         let index = y * GAME_TILE_WIDTH + x;
         &mut self.tiles[index]
@@ -110,36 +137,35 @@ pub struct Layer {
 }
 
 impl Layer {
-    pub fn solid_tiles(&self) -> impl Iterator<Item = (usize, usize, &Tile)> {
-        self.tiles
-            .into_iter()
-            .filter(|(x, y, tile)| matches!(tile, Tile::Solid { .. }))
+    pub fn tiles(&self) -> impl Iterator<Item = (usize, usize, &Tile)> {
+        self.tiles.into_iter()
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MapData {
-    pub width : u32,
-    pub height : u32,
-    pub rooms : Vec<SavedRoom>,
+    pub width: u32,
+    pub height: u32,
+    pub rooms: Vec<SavedRoom>,
 }
 impl MapData {
-
     pub fn load() -> Option<MapData> {
         let room = fs::read_to_string("rooms/world.yml").ok()?;
         let deserialized = serde_yml::from_str(room.as_str()).ok()?;
         deserialized
     }
 
-    pub fn save(width : u32, height : u32, rooms : &Vec<Room>)  {
+    pub fn save(width: u32, height: u32, rooms: &Vec<Room>) {
         let mut saved_rooms = vec![];
-        for  room in rooms.iter() {
+        for room in rooms.iter() {
             let saved = SavedRoom::from(room);
             saved_rooms.push(saved);
         }
-        
+
         let map_data = MapData {
-            width, height, rooms: saved_rooms,
+            width,
+            height,
+            rooms: saved_rooms,
         };
         let map_data_string = serde_yml::to_string(&map_data).unwrap();
         fs::create_dir_all("rooms/").unwrap();
@@ -174,23 +200,32 @@ pub struct Room {
     outline_texture: Option<SubTexture>,
 }
 impl Room {
-
     pub fn from(saved_room: SavedRoom) -> Room {
         let position = saved_room.world_position;
         let rect = RectF {
-            x: position.0 as f32 * GAME_PIXEL_WIDTH as f32,
-            y: position.1 as f32 * GAME_PIXEL_HEIGHT as f32,
+            x: position.0 as f32,
+            y: position.1 as f32,
             w: GAME_PIXEL_WIDTH as f32,
             h: GAME_PIXEL_HEIGHT as f32,
         };
+
+        let left = position.0 as f32;
+        let bottom = position.1 as f32;
         Room {
             world_position: glm::vec2(
                 saved_room.world_position.0 as f32,
                 saved_room.world_position.1 as f32,
             ),
             layers: saved_room.layers,
-            rect,
-            camera_ortho: Default::default(),
+            rect: rect.clone(),
+            camera_ortho: glm::Mat4::new_orthographic(
+                left,
+                left + rect.w,
+                bottom,
+                bottom + rect.h,
+                0.0f32,
+                1f32,
+            ),
             albedo_texture: None,
             normal_texture: None,
             outline_texture: None,
@@ -208,7 +243,7 @@ impl Room {
             world_position: glm::Vec2::new(rect.x, rect.y),
             layers: vec![Layer {
                 tileset_id: 0,
-                kind: LayerType::Tiles("empty".to_string()),
+                kind: LayerType::Tiles(TileLayerType::Foreground),
                 tiles: Tiles::empty(),
                 entities: vec![],
             }],
@@ -220,95 +255,6 @@ impl Room {
         }
     }
 
-    pub fn from_level(level: &Level) -> Self {
-        let mut layers: Vec<Layer> = Vec::new();
-        for layer in level.layer_instances.as_ref().unwrap() {
-            match layer.layer_instance_type.as_str() {
-                "Tiles" => {
-                    // let tiles = layer
-                    //     .grid_tiles
-                    //     .iter()
-                    //     .map(|f| Tile::Solid {
-                    //         x: f.px[0] as u32,
-                    //         y: f.px[1] as u32,
-                    //         src_x: f.src[0],
-                    //         src_y: f.src[1],
-                    //         kind: f.t as u32,
-                    //     })
-                    //     .collect();
-                    layers.push(Layer {
-                        kind: LayerType::Tiles(layer.identifier.to_owned()),
-                        tileset_id: layer.tileset_def_uid.expect("Missing tileset id"),
-                        tiles: Tiles::empty(),
-                        entities: vec![],
-                    })
-                }
-                "Entities" => {
-                    let map_entities: Vec<MapEntity> = layer
-                        .entity_instances
-                        .iter()
-                        .map(|entity_instance| {
-                            let mut custom_fields: Vec<String> = vec![];
-                            for instance in entity_instance.field_instances.iter() {
-                                if let Some(v) = instance.value.as_ref() {
-                                    if v.is_string() {
-                                        let v = v.as_str().unwrap();
-                                        custom_fields.push(String::from(v));
-                                    }
-                                }
-                            }
-                            return MapEntity {
-                                identifier: entity_instance.identifier.clone(),
-                                px: entity_instance.px[0] as i32,
-                                py: entity_instance.px[1] as i32,
-                                custom_fields,
-                            };
-                        })
-                        .collect();
-                    layers.push(Layer {
-                        tileset_id: layer.layer_def_uid, // do I use this for anything?
-                        kind: LayerType::Entities,
-                        tiles: Tiles::empty(),
-                        entities: map_entities,
-                    })
-                }
-                _ => {}
-            }
-        }
-
-        assert!(
-            level.px_wid == GAME_PIXEL_WIDTH as i64,
-            "Level width must be GAME_PIXEl_WIDTH"
-        );
-        assert!(
-            level.px_hei == GAME_PIXEL_HEIGHT as i64,
-            "Level width must be GAME_PIXEL_HEIGHT"
-        );
-
-        let rect = RectF {
-            x: level.world_x as f32,
-            y: level.world_y as f32,
-            w: GAME_PIXEL_WIDTH as f32,
-            h: GAME_PIXEL_HEIGHT as f32,
-        };
-
-        Room {
-            world_position: glm::Vec2::new(level.world_x as f32, level.world_y as f32),
-            layers,
-            rect,
-            albedo_texture: None,
-            normal_texture: None,
-            outline_texture: None,
-            camera_ortho: glm::ortho(
-                level.world_x as f32,
-                level.world_x as f32 + GAME_PIXEL_WIDTH as f32,
-                level.world_y as f32,
-                level.world_y as f32 + GAME_PIXEL_HEIGHT as f32,
-                -1.0,
-                1.0,
-            ),
-        }
-    }
     /**
      * Returs the normal texture for this map, it will render it needed
      */
@@ -341,31 +287,26 @@ impl Room {
                 continue;
             }
             let tileset = Content::get().tilesets.get(&layer.tileset_id).unwrap();
-            for (x, y, tile) in layer.solid_tiles() {
-                match tile {
-                    Tile::Solid { src_x, src_y, kind } => {
-                        let tile_rect = RectF {
-                            x: x as f32,
-                            y: y as f32,
-                            w: TILE_SIZE as f32,
-                            h: TILE_SIZE as f32,
-                        };
-                        batch.sprite(
-                            &tile_rect,
-                            &SubTexture::new(
-                                Rc::clone(&tileset.normal),
-                                RectF {
-                                    x: *src_x as f32,
-                                    y: *src_y as f32,
-                                    w: tileset.tile_size as f32,
-                                    h: tileset.tile_size as f32,
-                                },
-                            ),
-                            (1f32, 1f32, 1f32, 1f32),
-                        );
-                    }
-                    Tile::Empty { .. } => {}
-                }
+            for (x, y, tile) in layer.tiles() {
+                let tile_rect = RectF {
+                    x: x as f32,
+                    y: y as f32,
+                    w: TILE_SIZE as f32,
+                    h: TILE_SIZE as f32,
+                };
+                batch.sprite(
+                    &tile_rect,
+                    &SubTexture::new(
+                        Rc::clone(&tileset.normal),
+                        RectF {
+                            x: tile.src_x as f32,
+                            y: tile.src_y as f32,
+                            w: tileset.tile_size as f32,
+                            h: tileset.tile_size as f32,
+                        },
+                    ),
+                    (1f32, 1f32, 1f32, 1f32),
+                );
             }
         }
     }
@@ -380,37 +321,32 @@ impl Room {
                 .tilesets
                 .get(&layer.tileset_id)
                 .expect("No tileset found");
-            for (x, y, tile) in layer.solid_tiles() {
+            for (x, y, tile) in layer.tiles() {
                 let tile_rect = RectF {
                     x: TILE_SIZE as f32 * x as f32,
                     y: TILE_SIZE as f32 * y as f32,
                     w: TILE_SIZE as f32,
                     h: TILE_SIZE as f32,
                 };
-                match tile {
-                    Tile::Solid { src_y, src_x, .. } => {
-                        // batch.rect(&tile_rect, (1f32, 1f32, 1f32, 1f32));
-                        let r = [0f32, 8f32, 16f32];
-                        let mut rand = thread_rng();
-                        let random_value = r.choose(&mut rand).unwrap();
-                        let random_value2 = r.choose(&mut rand).unwrap();
+                // batch.rect(&tile_rect, (1f32, 1f32, 1f32, 1f32));
+                let r = [0f32, 8f32, 16f32];
+                let mut rand = thread_rng();
+                let random_value = r.choose(&mut rand).unwrap();
+                let random_value2 = r.choose(&mut rand).unwrap();
 
-                        batch.sprite(
-                            &tile_rect,
-                            &SubTexture::new(
-                                Rc::clone(&tileset.texture),
-                                RectF {
-                                    x: *random_value,
-                                    y: *random_value2,
-                                    w: 8f32,
-                                    h: 8f32,
-                                },
-                            ),
-                            (1f32, 1f32, 1f32, 1f32),
-                        );
-                    }
-                    Tile::Empty { .. } => {}
-                }
+                batch.sprite(
+                    &tile_rect,
+                    &SubTexture::new(
+                        Rc::clone(&tileset.texture),
+                        RectF {
+                            x: *random_value,
+                            y: *random_value2,
+                            w: 8f32,
+                            h: 8f32,
+                        },
+                    ),
+                    (1f32, 1f32, 1f32, 1f32),
+                );
             }
         }
     }

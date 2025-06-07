@@ -1,5 +1,6 @@
 use std::f32::consts::TAU;
 
+use common::Debug;
 use engine::{
     create_transform,
     ecs::{World, WorldOp},
@@ -104,8 +105,8 @@ impl RenderSystem {
         // Render lights
         batch.push_material(&self.material);
         // batch.sprite(&room.rect, &room.albedo(), (1.0, 1.0, 1.0, 1.0));
-        let rect = RectF::with_size(GAME_PIXEL_WIDTH as f32, GAME_PIXEL_HEIGHT as f32);
-        batch.sprite(&rect, &room.albedo(), (1.0, 1.0, 1.0, 1.0));
+        // let rect = RectF::with_size(GAME_PIXEL_WIDTH as f32, GAME_PIXEL_HEIGHT as f32);
+        batch.sprite(&room.rect, &room.albedo(), (1.0, 1.0, 1.0, 1.0));
         batch.pop_material();
 
         // Lastly, render Sprites
@@ -144,10 +145,11 @@ impl RenderSystem {
         // Only in debug
         Collider::render(&world, batch);
 
+        Debug::display(format!("Current room camera ortho {}", &room.camera_ortho).as_str());
+
         batch.circle((20f32, 20f32), 12f32, 25, (1f32, 1f32, 0f32, 1f32));
-        // let ortho = &room.world_ortho;
-        // batch.render_with_projection(target, &room.camera_ortho);
-        batch.render(target);
+        batch.render_with_projection(target, &room.camera_ortho);
+        // batch.render(target);
         batch.clear();
     }
 }
