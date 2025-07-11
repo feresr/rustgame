@@ -97,6 +97,10 @@ impl Editor {
         });
         if room.is_some() {
             let room = room.unwrap();
+
+            // let id = room.albedo().texture.id;
+            // Debug::image(id as usize);
+
             let room_mouse = Self::world_to_room(&room, (world_mouse.0, world_mouse.1));
             Debug::display(&format!(
                 "Room mouse: ({:.1},{:.1})",
@@ -137,7 +141,8 @@ impl Editor {
                 w: tile_size,
                 h: tile_size,
             });
-            if Mouse::left_pressed() {
+            if Mouse::left_held() {
+                room.is_dirty = true;
                 unsafe {
                     let layer = if draw_background_tiles {
                         room.layers.iter_mut().find(|layer| {
@@ -157,16 +162,15 @@ impl Editor {
                                 )
                             )
                         })
-                    }.unwrap();
+                    }
+                    .unwrap();
                     let kind = layer.tiles.get(selected_tile_x, selected_tile_y).kind;
                     let tile = Tile {
                         src_x: 0,
                         src_y: 0,
-                        kind: kind.other(),
+                        kind: crate::components::room::TileType::Solid,
                     };
-                    layer
-                        .tiles
-                        .set(selected_tile_x, selected_tile_y, tile);
+                    layer.tiles.set(selected_tile_x, selected_tile_y, tile);
                 }
             }
         }
@@ -191,9 +195,6 @@ impl Editor {
     }
 
     pub fn render(&mut self, batch: &mut Batch, target_manager: &TargetManager) {
-        if Mouse::left_pressed() {
-            GameState::refresh();
-        }
         batch.clear();
 
         if self.debug_textures {
@@ -223,7 +224,19 @@ impl Editor {
                 (1f32, 1f32, 1f32, 1f32),
             );
         } else {
-            // This should be a shader?
+            // Draw map
+            let matrix = glm::translation(&glm::vec3(self.offset.0, self.offset.1, 0.0f32));
+            let scale = glm::scaling(&glm::vec3(self.zoom, self.zoom, 0.0f32));
+            batch.push_matrix(scale * matrix);
+
+            for room in Content::map().rooms.iter() {
+                batch.sprite(&room.rect, &room.albedo(), (1f32, 1f32, 1f32, 1f32));
+            }
+            batch.pop_matrix();
+            
+            // Debug::image(texture_id, size);
+
+            // Draw editor guidelines, should this be a shader?
             for i in -15..15 {
                 let mut guide = RectF::with_size(1f32, SCREEN_HEIGHT as f32);
                 guide.translate_by(&PointF::new(
@@ -254,16 +267,6 @@ impl Editor {
                 let hover_tile = self.hover_tile.as_ref().unwrap();
                 batch.rect(hover_tile, (1f32, 1f32, 1f32, 0.5f32));
             }
-
-            // Draw map
-            let matrix = glm::translation(&glm::vec3(self.offset.0, self.offset.1, 0.0f32));
-            let scale = glm::scaling(&glm::vec3(self.zoom, self.zoom, 0.0f32));
-            batch.push_matrix(scale * matrix);
-
-            for room in Content::map().rooms.iter() {
-                batch.sprite(&room.rect, &room.albedo(), (1f32, 1f32, 1f32, 1f32));
-            }
-            batch.pop_matrix();
         }
     }
 

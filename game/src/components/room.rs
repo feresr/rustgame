@@ -30,7 +30,7 @@ pub enum TileType {
     Solid,
 }
 impl TileType {
-    pub fn other(&self) -> Self {
+    pub fn Solid(&self) -> Self {
         match self {
             TileType::Empty => TileType::Solid,
             TileType::Solid => TileType::Empty,
@@ -43,6 +43,15 @@ pub struct Tile {
     pub src_x: i64, // pixel coordinates in the tileset
     pub src_y: i64,
     pub kind: TileType,
+}
+impl Tile {
+    fn with_kind(kind: TileType) -> Self {
+        Tile {
+            src_x: 0,
+            src_y: 0,
+            kind,
+        }
+    }
 }
 impl Default for Tile {
     fn default() -> Self {
@@ -117,6 +126,11 @@ impl Tiles {
     pub fn empty() -> Tiles {
         Tiles {
             tiles: [Tile::default(); GAME_TILE_WIDTH * GAME_TILE_HEIGHT],
+        }
+    }
+    pub fn full() -> Tiles {
+        Tiles {
+            tiles: [Tile::with_kind(TileType::Solid); GAME_TILE_WIDTH * GAME_TILE_HEIGHT],
         }
     }
     pub fn set(&mut self, x: usize, y: usize, tile: Tile) {
@@ -200,6 +214,7 @@ pub struct Room {
     pub rect: RectF,
     // This is essentially the camera in world space, move out of here?
     pub camera_ortho: glm::Mat4,
+    pub is_dirty : bool, // does it need to be re-render in the maps_color target
     albedo_texture: Option<SubTexture>,
     normal_texture: Option<SubTexture>,
     outline_texture: Option<SubTexture>,
@@ -221,6 +236,7 @@ impl Room {
                 saved_room.world_position.0 as f32,
                 saved_room.world_position.1 as f32,
             ),
+            is_dirty: true,
             layers: saved_room.layers,
             rect: rect.clone(),
             camera_ortho: glm::Mat4::new_orthographic(
@@ -246,6 +262,7 @@ impl Room {
 
         Room {
             world_position: glm::Vec2::new(rect.x, rect.y),
+            is_dirty: true,
             layers: vec![
                 Layer {
                     tileset_id: 0,
@@ -256,7 +273,7 @@ impl Room {
                 Layer {
                     tileset_id: 0,
                     kind: LayerType::Tiles(TileLayerType::Background),
-                    tiles: Tiles::empty(),
+                    tiles: Tiles::full(),
                     entities: vec![],
                 },
             ],
@@ -295,6 +312,11 @@ impl Room {
     }
 
     pub fn prerender_normals(&mut self, batch: &mut Batch) {
+        batch.push_matrix(glm::translation(&glm::vec3(
+            self.world_position.x,
+            self.world_position.y,
+            0.0,
+        )));
         for layer in self.layers.iter().rev() {
             if let LayerType::Entities = layer.kind {
                 continue;
@@ -302,30 +324,41 @@ impl Room {
             let tileset = Content::get().tilesets.get(&layer.tileset_id).unwrap();
             for (x, y, tile) in layer.tiles() {
                 let tile_rect = RectF {
-                    x: x as f32,
-                    y: y as f32,
+                    x: TILE_SIZE as f32 * x as f32,
+                    y: TILE_SIZE as f32 * y as f32,
                     w: TILE_SIZE as f32,
                     h: TILE_SIZE as f32,
                 };
+                let r = [0f32, 8f32, 16f32];
+                let mut rand = thread_rng();
+                let random_value = r.choose(&mut rand).unwrap();
+                let random_value2 = r.choose(&mut rand).unwrap();
                 batch.sprite(
                     &tile_rect,
                     &SubTexture::new(
                         Rc::clone(&tileset.normal),
                         RectF {
-                            x: tile.src_x as f32,
-                            y: tile.src_y as f32,
-                            w: tileset.tile_size as f32,
-                            h: tileset.tile_size as f32,
+                            x: *random_value as f32,
+                            y: *random_value2 as f32,
+                            w: 8f32,
+                            h: 8f32,
                         },
                     ),
                     (1f32, 1f32, 1f32, 1f32),
                 );
             }
         }
+        batch.pop_matrix();
     }
 
     pub fn prerender_colors(&mut self, batch: &mut Batch) {
         // Render room
+        batch.push_matrix(glm::translation(&glm::vec3(
+            self.world_position.x,
+            self.world_position.y,
+            0.0,
+        )));
+
         for layer in self.layers.iter().rev() {
             if let LayerType::Entities = layer.kind {
                 continue;
@@ -347,6 +380,14 @@ impl Room {
                 let random_value = r.choose(&mut rand).unwrap();
                 let random_value2 = r.choose(&mut rand).unwrap();
 
+                let color = match &layer.kind {
+                    LayerType::Tiles(tile_layer_type) => match tile_layer_type {
+                        TileLayerType::Foreground => (1f32, 1f32, 1f32, 1f32),
+                        TileLayerType::Background => (0.15f32, 0.15f32, 0.3f32, 1.0f32),
+                    },
+                    LayerType::Entities => panic!("unreachable"),
+                };
+
                 batch.sprite(
                     &tile_rect,
                     &SubTexture::new(
@@ -358,10 +399,11 @@ impl Room {
                             h: 8f32,
                         },
                     ),
-                    (1f32, 1f32, 1f32, 1f32),
+                    color,
                 );
             }
         }
+        batch.pop_matrix();
     }
 
     pub fn prerender_outlines(&mut self, batch: &mut Batch) {
@@ -397,6 +439,7 @@ impl Room {
         }
     }
 
+    // colors is the big color texture with all the maps
     pub fn set_color_texture(&mut self, color: Rc<Texture>) {
         self.albedo_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));
     }

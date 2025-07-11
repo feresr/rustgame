@@ -1,4 +1,4 @@
-use crate::components::room::{Room};
+use crate::components::room::Room;
 use crate::game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, ROOM_COUNT_H, ROOM_COUNT_W};
 use crate::system::scene_system::OUTLINE_SHADER;
 use engine::graphics;
@@ -45,18 +45,12 @@ impl Map {
         normal_target.clear((0f32, 0f32, 0f32, 0f32));
         outline_target.clear((0f32, 0f32, 0f32, 0f32));
 
-        for room in self.rooms.iter_mut(){
-            batch.push_matrix(glm::translation(&glm::vec3(
-                room.world_position.x,
-                room.world_position.y,
-                0.0,
-            )));
-            room.prerender_colors(batch);
-            batch.pop_matrix();
-
-            room.set_color_texture(color_target.color());
-            batch.render(&color_target);
-        }
+        // for room in self.rooms.iter_mut() {
+        //     room.prerender_colors(batch);
+        //     room.set_color_texture(color_target.color());
+        // }
+        // batch.render(&color_target);
+        // batch.clear();
 
         for room in self.rooms.iter_mut() {
             batch.push_matrix(glm::translation(&glm::vec3(
@@ -67,12 +61,11 @@ impl Map {
             room.prerender_normals(batch);
             batch.pop_matrix();
             room.set_normal_texture(normal_target.color());
-            batch.render(&normal_target);
         }
+        batch.render(&normal_target);
+        batch.clear();
 
         // Write outlined normals
-
-        batch.clear();
 
         // Write solid block in to this temp target
         let temp = Target::new(
@@ -89,9 +82,10 @@ impl Map {
             room.prerender_outlines(batch);
             batch.pop_matrix();
             room.set_outline_texture(outline_target.color());
-            batch.render(&temp);
         }
+        batch.render(&temp);
         batch.clear();
+
         let outline_shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, OUTLINE_SHADER);
         let material = Material::new(outline_shader);

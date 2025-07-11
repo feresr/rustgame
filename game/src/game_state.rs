@@ -11,9 +11,7 @@ use crate::{
     content::Content,
     scene::Scene,
     system::{
-        animation_system::AnimationSystem, editor::Editor, light_system::LightSystem,
-        movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem,
-        scene_system::SceneSystem,
+        animation_system::AnimationSystem, editor::Editor, light_system::LightSystem, movement_system::MovementSystem, player_system::PlayerSystem, render_system::RenderSystem, room_render_system::RoomRenderSystem, scene_system::SceneSystem
     },
     target_manager::TargetManager,
     MEMORY_PTR,
@@ -60,6 +58,10 @@ impl GameState {
     }
 
     pub fn current_room() -> &'static Room {
+        let scene = &mut GameState::get().scene_system.scene;
+        Content::map().get(scene.room_x as usize, scene.room_y as usize)
+    }
+    pub fn current_room_mut() -> &'static mut Room {
         let scene = &mut GameState::get().scene_system.scene;
         Content::map().get(scene.room_x as usize, scene.room_y as usize)
     }
@@ -114,16 +116,21 @@ impl GameState {
         }
     }
 
+    pub fn rerender() {
+        let game_state = GameState::get();
+
+        // Content::map().prerender(
+        //     &mut game_state.batch,
+        //     &game_state.target_manager.maps_color,
+        //     &game_state.target_manager.maps_normal,
+        //     &game_state.target_manager.maps_outline,
+        // );
+    }
+
     // This is so that we can see shader updates when re-loading the game lib
     pub fn refresh() {
         let game_state = GameState::get();
-
-        Content::map().prerender(
-            &mut game_state.batch,
-            &game_state.target_manager.maps_color,
-            &game_state.target_manager.maps_normal,
-            &game_state.target_manager.maps_outline,
-        );
+        GameState::rerender();
         game_state.target_manager.screen.clear((0f32, 0f32, 0f32, 0f32));
         let crt_shader =
             graphics::shader::Shader::new(graphics::VERTEX_SHADER_SOURCE, CRT_FRAGMENT_SOURCE);
@@ -171,6 +178,7 @@ impl GameState {
 
     pub fn render(&mut self) {
         engine::update();
+        RoomRenderSystem::render(&mut self.batch, &mut self.target_manager);
 
         // Render into low-res target
         {
@@ -221,6 +229,7 @@ impl GameState {
 
             self.target_manager.screen.clear((0f32, 0f32, 0f32, 1f32));
             self.batch.render(&self.target_manager.screen);
+            self.batch.clear();
         }
     }
 }

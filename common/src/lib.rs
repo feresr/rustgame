@@ -1,6 +1,6 @@
-use imgui::{Context, Ui};
+use imgui::{Context, Image, TextureId};
 use sdl2::keyboard::Keycode;
-use std::{collections::HashSet, ops::Not};
+use std::collections::HashSet;
 
 #[macro_export]
 macro_rules! check_gl_errors {
@@ -58,6 +58,7 @@ enum UiElement {
     Separator,
     Button(fn()),
     Checkbox(String, bool, Box<dyn Fn() -> ()>),
+    Image(usize, (f32, f32)),
 }
 
 #[repr(C)]
@@ -100,6 +101,10 @@ impl Debug {
         let window = Self::get().windows.last_mut().unwrap();
         window.items.push(UiElement::Button(f));
     }
+    pub fn image(textureId: usize, size: (f32, f32)) {
+        let window = Self::get().windows.last_mut().unwrap();
+        window.items.push(UiElement::Image(textureId, size));
+    }
 
     pub fn checkbox(name: &str, value: bool, f: Box<dyn Fn() -> ()>) {
         let window = Self::get().windows.last_mut().unwrap();
@@ -124,6 +129,7 @@ impl Debug {
     }
     pub fn render(imgui: &mut Context) {
         let ui = imgui.frame();
+
         for window in Self::get().windows.iter_mut() {
             ui.window(window.title.as_str())
                 .size(
@@ -148,6 +154,12 @@ impl Debug {
                                 if ui.checkbox(name, value) {
                                     f()
                                 }
+                            }
+                            UiElement::Image(textureId, size) => {
+                                Image::new(TextureId::new(*textureId), [size.0, size.1])
+                                    .uv0([0.0, 0.0])
+                                    .uv1([0.5, 0.5])
+                                    .build(&ui);
                             }
                         }
                     }
