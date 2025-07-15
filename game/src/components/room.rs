@@ -1,5 +1,6 @@
 extern crate serde_big_array;
 
+use rand::seq::IndexedRandom;
 #[macro_use]
 use serde_big_array::BigArray;
 use std::rc::Rc;
@@ -7,6 +8,7 @@ use std::{fs, io};
 
 use crate::game_state::{GameState, GAME_TILE_HEIGHT, GAME_TILE_WIDTH};
 use crate::map::Map;
+use crate::target_manager::TargetManager;
 use crate::{
     content::Content,
     game_state::{GAME_PIXEL_HEIGHT, GAME_PIXEL_WIDTH, TILE_SIZE},
@@ -215,10 +217,8 @@ pub struct Room {
     // This is essentially the camera in world space, move out of here?
     pub camera_ortho: glm::Mat4,
     pub is_dirty : bool, // does it need to be re-render in the maps_color target
-    albedo_texture: Option<SubTexture>,
-    normal_texture: Option<SubTexture>,
-    outline_texture: Option<SubTexture>,
 }
+
 impl Room {
     pub fn from(saved_room: SavedRoom) -> Room {
         let position = saved_room.world_position;
@@ -247,9 +247,6 @@ impl Room {
                 0.0f32,
                 1f32,
             ),
-            albedo_texture: None,
-            normal_texture: None,
-            outline_texture: None,
         }
     }
     pub fn empty(position: (u32, u32)) -> Room {
@@ -279,9 +276,6 @@ impl Room {
             ],
             rect,
             camera_ortho: Default::default(),
-            albedo_texture: None,
-            normal_texture: None,
-            outline_texture: None,
         }
     }
 
@@ -289,29 +283,23 @@ impl Room {
      * Returs the normal texture for this map, it will render it needed
      */
     pub fn normal(&self) -> SubTexture {
-        self.normal_texture
-            .as_ref()
-            .expect("missing normal, did you forget to call pre-render()?")
-            .clone()
+       let texture = &GameState::get().target_manager.maps_normal.color();
+       return SubTexture::new(texture.clone(), self.rect.clone());
     }
     /**
      * Returs the color texture for this map, it will render it needed
      */
     pub fn albedo(&self) -> SubTexture {
-        self.albedo_texture
-            .as_ref()
-            .expect("missing albedo, did you forget to call pre-render()?")
-            .clone()
+       let texture = &GameState::get().target_manager.maps_color.color();
+       return SubTexture::new(texture.clone(), self.rect.clone());
     }
 
     pub fn outline(&self) -> SubTexture {
-        self.outline_texture
-            .as_ref()
-            .expect("missing outline, did you forget to call pre-render()?")
-            .clone()
+       let texture = &GameState::get().target_manager.maps_outline.color();
+       return SubTexture::new(texture.clone(), self.rect.clone());
     }
 
-    pub fn prerender_normals(&mut self, batch: &mut Batch) {
+    pub fn render_normals_into(&mut self, batch: &mut Batch) {
         batch.push_matrix(glm::translation(&glm::vec3(
             self.world_position.x,
             self.world_position.y,
@@ -351,7 +339,7 @@ impl Room {
         batch.pop_matrix();
     }
 
-    pub fn prerender_colors(&mut self, batch: &mut Batch) {
+    pub fn render_colors_into(&mut self, batch: &mut Batch) {
         // Render room
         batch.push_matrix(glm::translation(&glm::vec3(
             self.world_position.x,
@@ -439,16 +427,6 @@ impl Room {
         }
     }
 
-    // colors is the big color texture with all the maps
-    pub fn set_color_texture(&mut self, color: Rc<Texture>) {
-        self.albedo_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));
-    }
-    pub fn set_outline_texture(&mut self, color: Rc<Texture>) {
-        self.outline_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));
-    }
-    pub fn set_normal_texture(&mut self, color: Rc<Texture>) {
-        self.normal_texture = Some(SubTexture::new(color.clone(), self.rect.clone()));
-    }
 }
 impl Component for Room {
     const CAPACITY: usize = 8;

@@ -6,7 +6,6 @@ use common::{Debug, GameMemory, Keyboard, Mouse};
 use gamelib::GameLib;
 use imgui::sys::{igGetCurrentContext, igSetAllocatorFunctions, igSetCurrentContext, ImGuiMemAllocFunc, ImGuiStorage_SetAllInt};
 use imgui::{Context, SuspendedContext};
-use imgui_sdl2_support::SdlPlatform;
 use notify::{Config, Error, RecommendedWatcher, RecursiveMode, Watcher};
 use once_cell::unsync::Lazy;
 use sdl2::event::Event;
@@ -93,6 +92,8 @@ fn main() {
     let _ctx = window.gl_create_context().unwrap();
 
     let mut imgui = Context::create();
+    let mut imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
+
     imgui.set_ini_filename(None);
     imgui.set_log_filename(None);
 
@@ -100,7 +101,7 @@ fn main() {
     imgui
         .fonts()
         .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
-    let mut platform = SdlPlatform::init(&mut imgui);
+    // let mut platform = SdlPlatform::init(&mut imgui);
 
     let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
         video_subsystem.gl_get_proc_address(s) as _
@@ -131,9 +132,9 @@ fn main() {
         Mouse::clear();
 
         for ref event in events.poll_iter() {
-            if (platform.handle_event(&mut imgui, event)) {
-               // continue;
-            }
+            imgui_sdl2.handle_event(&mut imgui, &event);
+            if imgui_sdl2.ignore_event(&event) { continue; }
+
             match event {
                 Event::Window {
                     timestamp: _,
@@ -197,32 +198,37 @@ fn main() {
                 _ => {}
             }
         }
+
         let keys: HashSet<Keycode> = events
             .keyboard_state()
             .pressed_scancodes()
             .filter_map(Keycode::from_scancode)
             .collect();
 
-        for button in events.mouse_state().pressed_mouse_buttons() {
-            match button {
-                sdl2::mouse::MouseButton::Left => {
-                    Mouse::hold_left();
-                }
-                sdl2::mouse::MouseButton::Right => {
-                    Mouse::hold_right();
-                }
-                _ => {}
-            }
-        }
+        // why here and in line 181
+        // for button in events.mouse_state().pressed_mouse_buttons() {
+        //     match button {
+        //         sdl2::mouse::MouseButton::Left => {
+        //             Mouse::hold_left();
+        //         }
+        //         sdl2::mouse::MouseButton::Right => {
+        //             Mouse::hold_right();
+        //         }
+        //         _ => {}
+        //     }
+        // }
 
         Keyboard::hold(keys);
 
         (game.update)();
         // Update
-        platform.prepare_frame(&mut imgui, &window, &events);
+        imgui_sdl2.prepare_frame(imgui.io_mut(), &window, &events.mouse_state());
+
+        let ui = imgui.frame();
+        imgui_sdl2.prepare_render(&ui, &window);
 
         if !Debug::is_empty() {
-            Debug::render(&mut imgui);
+            Debug::render(ui);
             renderer.render(&mut imgui);
         }
         window.gl_swap_window();

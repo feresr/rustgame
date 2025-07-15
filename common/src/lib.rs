@@ -1,4 +1,4 @@
-use imgui::{Context, Image, TextureId};
+use imgui::{Context, Image, ImageButton, TextureId, Ui};
 use sdl2::keyboard::Keycode;
 use std::collections::HashSet;
 
@@ -58,7 +58,14 @@ enum UiElement {
     Separator,
     Button(fn()),
     Checkbox(String, bool, Box<dyn Fn() -> ()>),
-    Image(usize, (f32, f32)),
+    SameLine,
+    NewLine,
+    Image(
+        u32, // id
+        usize,
+        (f32, f32),           // Size of the image
+        ([f32; 2], [f32; 2]), // UV coordinates
+    ),
 }
 
 #[repr(C)]
@@ -73,6 +80,7 @@ pub struct DebugWindow {
 #[derive(Default)]
 pub struct Debug {
     pub windows: Vec<DebugWindow>,
+    pub events: HashSet<u32>,
 }
 impl Debug {
     pub fn init(debug: *mut Debug) {
@@ -101,9 +109,30 @@ impl Debug {
         let window = Self::get().windows.last_mut().unwrap();
         window.items.push(UiElement::Button(f));
     }
-    pub fn image(textureId: usize, size: (f32, f32)) {
+    pub fn image(id: u32, textureId: usize, size: (f32, f32)) {
         let window = Self::get().windows.last_mut().unwrap();
-        window.items.push(UiElement::Image(textureId, size));
+        window.items.push(UiElement::Image(
+            id,
+            textureId,
+            size,
+            ([0.0, 0.0], [1.0, 1.0]),
+        ));
+    }
+    pub fn same_line() {
+        let window = Self::get().windows.last_mut().unwrap();
+        window.items.push(UiElement::SameLine);
+    }
+
+    pub fn new_line() {
+        let window = Self::get().windows.last_mut().unwrap();
+        window.items.push(UiElement::NewLine);
+    }
+
+    pub fn sprite(id: u32, texture_id: usize, size: (f32, f32), uv: ([f32; 2], [f32; 2])) -> bool {
+        let window = Self::get().windows.last_mut().unwrap();
+        window.items.push(UiElement::Image(id, texture_id, size, uv));
+        let events = &Self::get().events;
+        return events.contains(&id);
     }
 
     pub fn checkbox(name: &str, value: bool, f: Box<dyn Fn() -> ()>) {
@@ -127,8 +156,10 @@ impl Debug {
     pub fn clear() {
         Self::get().windows.clear();
     }
-    pub fn render(imgui: &mut Context) {
-        let ui = imgui.frame();
+    pub fn render(ui: &Ui) {
+
+        let debug = Debug::get();
+        debug.events.clear();
 
         for window in Self::get().windows.iter_mut() {
             ui.window(window.title.as_str())
@@ -155,12 +186,22 @@ impl Debug {
                                     f()
                                 }
                             }
-                            UiElement::Image(textureId, size) => {
-                                Image::new(TextureId::new(*textureId), [size.0, size.1])
-                                    .uv0([0.0, 0.0])
-                                    .uv1([0.5, 0.5])
-                                    .build(&ui);
+                            UiElement::Image(id, texture_id, size, uv) => {
+                                if ui
+                                    .image_button_config(
+                                        id.to_string(),
+                                        TextureId::new(*texture_id),
+                                        [size.0, size.1],
+                                    )
+                                    .uv0(uv.0)
+                                    .uv1(uv.1)
+                                    .build()
+                                {
+                                    debug.events.insert(*id);
+                                }
                             }
+                            UiElement::SameLine => ui.same_line(),
+                            UiElement::NewLine => ui.new_line(),
                         }
                     }
                 });
@@ -194,23 +235,25 @@ impl Mouse {
 
     // Setters
     pub fn release_left() {
-        Self::get().left = false;
+        let mouse = Self::get();
+        mouse.left = false;
+        mouse.left_held = false;
     }
     pub fn press_left() {
-        Self::get().left = true;
-    }
-    pub fn hold_left() {
-        Self::get().left_held = true;
+        let mouse = Self::get();
+        mouse.left = !mouse.left_held; // left_held is false on the first iteration, true afterwards
+        mouse.left_held = true;
     }
 
     pub fn press_right() {
-        Self::get().right = true;
+        let mouse = Self::get();
+        mouse.right = !mouse.right_held; // right_held is false on the first iteration, true afterwards
+        mouse.right_held = true;
     }
     pub fn release_right() {
-        Self::get().right = false;
-    }
-    pub fn hold_right() {
-        Self::get().right_held = true;
+        let mouse = Self::get();
+        mouse.right = false;
+        mouse.right_held = false;
     }
 
     // Getters
@@ -248,10 +291,10 @@ impl Mouse {
     pub fn clear() {
         Self::get().position_rel = (0, 0);
         Self::get().wheel = (0, 0);
-        Self::get().left = false;
-        Self::get().right = false;
-        Self::get().left_held = false;
-        Self::get().right_held = false;
+        // Self::get().left = false;
+        // Self::get().right = false;
+        // Self::get().left_held = false;
+        // Self::get().right_held = false;
     }
 }
 

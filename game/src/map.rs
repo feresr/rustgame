@@ -58,9 +58,8 @@ impl Map {
                 room.world_position.y,
                 0.0,
             )));
-            room.prerender_normals(batch);
+            room.render_normals_into(batch);
             batch.pop_matrix();
-            room.set_normal_texture(normal_target.color());
         }
         batch.render(&normal_target);
         batch.clear();
@@ -81,7 +80,6 @@ impl Map {
             )));
             room.prerender_outlines(batch);
             batch.pop_matrix();
-            room.set_outline_texture(outline_target.color());
         }
         batch.render(&temp);
         batch.clear();

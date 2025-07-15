@@ -4,6 +4,7 @@ use crate::{
     components::room::LayerType,
     game_state::{self, GameState},
 };
+
 use common::{Debug, Keyboard, Mouse};
 use engine::{
     graphics::{
@@ -12,6 +13,7 @@ use engine::{
     },
     Keycode,
 };
+use rand::prelude::*;
 
 use crate::components::room::{MapData, Tile};
 use crate::game_state::{GAME_TILE_HEIGHT, GAME_TILE_WIDTH, TILE_SIZE};
@@ -76,6 +78,38 @@ impl Editor {
             "World mouse: ({:.1},{:.1})",
             world_mouse.0, world_mouse.1
         ));
+        let mut tileset = Content::get().tilesets.get_mut(&0).unwrap();
+        let tile_size = tileset.tile_size;
+        let texdture_id = tileset.texture.id as usize;
+        let mut rng = rand::rng();
+
+        for i in 0..tileset.rows {
+            for j in 0..tileset.columns {
+                let uv = (
+                    (i as u32 * tile_size) as f32 / tileset.texture.width as f32,
+                    (j as u32 * tile_size) as f32 / tileset.texture.height as f32,
+                );
+                let random = (i * 4 + j) as u32; // => unique = j
+
+                if Debug::sprite(
+                    random,
+                    texdture_id,
+                    (tile_size as f32 * 4f32, tile_size as f32 * 4f32),
+                    (
+                        [uv.0, uv.1],
+                        [
+                            uv.0 + (tile_size as f32 / tileset.texture.width as f32),
+                            uv.1 + (tile_size as f32 / tileset.texture.height as f32),
+                        ],
+                    ),
+                ) {
+                    println!("Clikced {}", random);
+                };
+                Debug::same_line();
+            }
+            Debug::new_line();
+        }
+
         unsafe {
             Debug::checkbox(
                 "Draw background tiles",
@@ -142,6 +176,7 @@ impl Editor {
                 h: tile_size,
             });
             if Mouse::left_held() {
+                println!("left_held");
                 room.is_dirty = true;
                 unsafe {
                     let layer = if draw_background_tiles {
@@ -233,7 +268,7 @@ impl Editor {
                 batch.sprite(&room.rect, &room.albedo(), (1f32, 1f32, 1f32, 1f32));
             }
             batch.pop_matrix();
-            
+
             // Debug::image(texture_id, size);
 
             // Draw editor guidelines, should this be a shader?

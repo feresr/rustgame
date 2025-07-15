@@ -44,7 +44,7 @@ pub struct GameState {
     post_processing_material: Material,
     show_editor: bool,
     editor: Editor,
-    pub target_manager: TargetManager, // low-res target
+    pub target_manager: TargetManager, 
 }
 
 impl GameState {
