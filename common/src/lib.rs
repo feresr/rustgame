@@ -311,8 +311,8 @@ impl Mouse {
 
 #[repr(C)]
 pub struct Keyboard {
-    pub held: HashSet<Keycode>,
-    pub pressed: HashSet<Keycode>,
+    pub pressed: HashSet<Keycode>, // The key was just pressed (one time event)
+    pub held: HashSet<Keycode>, // The key is being held down for longer period
 }
 
 impl Keyboard {
@@ -337,8 +337,12 @@ impl Keyboard {
         Self::get().held.remove(key);
     }
     pub fn press(key: Keycode) {
+        // This will be invoked multiple times if the user holds the key down
+        // On the first iteration we set pressed = !held and held = true
+        // Resulting in pressed = true, held = true on the first pass
+        // and pressed = false, held = true in subsequent passes.
         let keyboard = Self::get();
-        if keyboard.held.contains(&key) {
+        if keyboard.held.contains(&key) { 
             keyboard.pressed.remove(&key);
         } else {
             keyboard.pressed.insert(key);

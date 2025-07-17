@@ -158,17 +158,8 @@ fn main() {
                 } => {
                     break 'game_loop;
                 }
-                Event::KeyDown {
-                    keycode: Some(kc), ..
-                } => {
-                    // TODO: do the smae as we do w
-                    if !Keyboard::held(kc) {
-                        Keyboard::press(kc.clone());
-                    }
-                }
-                Event::KeyUp {
-                    keycode: Some(kc), ..
-                } => Keyboard::release(&kc),
+                Event::KeyDown { keycode: Some(kc), ..  } =>  Keyboard::press(kc.clone()),
+                Event::KeyUp { keycode: Some(kc), ..  } => Keyboard::release(&kc),
                 Event::MouseButtonDown { mouse_btn, .. } => match mouse_btn {
                     sdl2::mouse::MouseButton::Left => {
                         Mouse::press_left();
