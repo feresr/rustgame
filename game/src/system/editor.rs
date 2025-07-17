@@ -91,8 +91,9 @@ impl Editor {
                 );
                 let random = (i * 4 + j) as u32; // => unique = j
 
+                let id = format!("{}-{}", i, j);
                 if Debug::sprite(
-                    random,
+                    &id,
                     texdture_id,
                     (tile_size as f32 * 4f32, tile_size as f32 * 4f32),
                     (
@@ -103,7 +104,7 @@ impl Editor {
                         ],
                     ),
                 ) {
-                    println!("Clikced {}", random);
+                    println!("Clikced {}", id);
                 };
                 Debug::same_line();
             }

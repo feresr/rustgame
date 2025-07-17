@@ -33,10 +33,10 @@ impl RoomRenderSystem {
         // Debug::image(tileset.normal.id as usize);
 
         let color = target_manager.maps_color.color();
-        Debug::image(0, color.id as usize, (color.width as f32 / 2f32, color.height as f32 / 2f32));
+        Debug::image("", color.id as usize, (color.width as f32 / 2f32, color.height as f32 / 2f32));
         let color = target_manager.maps_normal.color();
-        Debug::image(0, color.id as usize, (color.width as f32 / 2f32, color.height as f32 / 2f32));
+        Debug::image("", color.id as usize, (color.width as f32 / 2f32, color.height as f32 / 2f32));
         let color = target_manager.maps_outline.color();
-        Debug::image(0, color.id as usize, (color.width as f32 / 2f32, color.height as f32 / 2f32));
+        Debug::image("", color.id as usize, (color.width as f32 / 2f32, color.height as f32 / 2f32));
     }
 }

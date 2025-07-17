@@ -1,6 +1,6 @@
-use imgui::{Context, Image, ImageButton, TextureId, Ui};
+use imgui::{TextureId, Ui};
 use sdl2::keyboard::Keycode;
-use std::collections::HashSet;
+use std::{collections::HashSet, hash::{Hash, Hasher}};
 
 #[macro_export]
 macro_rules! check_gl_errors {
@@ -61,8 +61,8 @@ enum UiElement {
     SameLine,
     NewLine,
     Image(
-        u32, // id
-        usize,
+        u64, // id
+        usize, // Texture id
         (f32, f32),           // Size of the image
         ([f32; 2], [f32; 2]), // UV coordinates
     ),
@@ -80,7 +80,7 @@ pub struct DebugWindow {
 #[derive(Default)]
 pub struct Debug {
     pub windows: Vec<DebugWindow>,
-    pub events: HashSet<u32>,
+    pub events: HashSet<u64>,
 }
 impl Debug {
     pub fn init(debug: *mut Debug) {
@@ -109,10 +109,14 @@ impl Debug {
         let window = Self::get().windows.last_mut().unwrap();
         window.items.push(UiElement::Button(f));
     }
-    pub fn image(id: u32, textureId: usize, size: (f32, f32)) {
+    pub fn image(id: &str, textureId: usize, size: (f32, f32)) {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        id.hash(&mut hasher);
+        let hash = hasher.finish();
+
         let window = Self::get().windows.last_mut().unwrap();
         window.items.push(UiElement::Image(
-            id,
+            hash,
             textureId,
             size,
             ([0.0, 0.0], [1.0, 1.0]),
@@ -128,11 +132,18 @@ impl Debug {
         window.items.push(UiElement::NewLine);
     }
 
-    pub fn sprite(id: u32, texture_id: usize, size: (f32, f32), uv: ([f32; 2], [f32; 2])) -> bool {
+    pub fn sprite(id: &str, texture_id: usize, size: (f32, f32), uv: ([f32; 2], [f32; 2])) -> bool {
+        // Why am I hashing it muself, can't I just use the str?
+        // answer I don't wan to have to copy the str into the set (expensive) 
+        // I can't hold a refernce because who holds the actual value
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        id.hash(&mut hasher);
+        let hash = hasher.finish();
+
         let window = Self::get().windows.last_mut().unwrap();
-        window.items.push(UiElement::Image(id, texture_id, size, uv));
+        window.items.push(UiElement::Image(hash, texture_id, size, uv));
         let events = &Self::get().events;
-        return events.contains(&id);
+        return events.contains(&hash);
     }
 
     pub fn checkbox(name: &str, value: bool, f: Box<dyn Fn() -> ()>) {
@@ -323,19 +334,22 @@ impl Keyboard {
 
     pub fn release(key: &Keycode) {
         Self::get().pressed.remove(key);
+        Self::get().held.remove(key);
     }
     pub fn press(key: Keycode) {
-        Self::get().pressed.insert(key);
+        let keyboard = Self::get();
+        if keyboard.held.contains(&key) {
+            keyboard.pressed.remove(&key);
+        } else {
+            keyboard.pressed.insert(key);
+        }
+        Self::get().held.insert(key);
     }
 
     pub fn pressed(key: Keycode) -> bool {
         Self::get().pressed.contains(&key)
     }
 
-    pub fn hold(keys: HashSet<Keycode>) {
-        Self::get().held.clear();
-        Self::get().held = keys;
-    }
     pub fn held(key: &Keycode) -> bool {
         Self::get().held.contains(key)
     }

@@ -161,6 +161,7 @@ fn main() {
                 Event::KeyDown {
                     keycode: Some(kc), ..
                 } => {
+                    // TODO: do the smae as we do w
                     if !Keyboard::held(kc) {
                         Keyboard::press(kc.clone());
                     }
@@ -198,27 +199,6 @@ fn main() {
                 _ => {}
             }
         }
-
-        let keys: HashSet<Keycode> = events
-            .keyboard_state()
-            .pressed_scancodes()
-            .filter_map(Keycode::from_scancode)
-            .collect();
-
-        // why here and in line 181
-        // for button in events.mouse_state().pressed_mouse_buttons() {
-        //     match button {
-        //         sdl2::mouse::MouseButton::Left => {
-        //             Mouse::hold_left();
-        //         }
-        //         sdl2::mouse::MouseButton::Right => {
-        //             Mouse::hold_right();
-        //         }
-        //         _ => {}
-        //     }
-        // }
-
-        Keyboard::hold(keys);
 
         (game.update)();
         // Update
