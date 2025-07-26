@@ -52,6 +52,7 @@ impl Target {
             width,
             height,
             attachments: Vec::new(),
+            // My game uses (0,0) as origin, all textures must be fillped
             projection: glm::ortho(0f32, width as f32, 0f32, height as f32, -1f32, 1f32),
         };
 

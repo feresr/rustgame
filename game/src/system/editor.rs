@@ -29,6 +29,7 @@ pub struct Editor {
     debug_textures: bool,
     zoom: f32,
     offset: (f32, f32),
+    selected_tile: Option<Tile>,
 }
 
 static mut draw_background_tiles: bool = false;
@@ -40,6 +41,7 @@ impl Default for Editor {
             debug_textures: false,
             zoom: 1f32,
             offset: (0f32, 0f32),
+            selected_tile: None,
         }
     }
 }
@@ -83,33 +85,50 @@ impl Editor {
         let texdture_id = tileset.texture.id as usize;
         let mut rng = rand::rng();
 
-        for i in 0..tileset.rows {
-            for j in 0..tileset.columns {
-                let uv = (
-                    (i as u32 * tile_size) as f32 / tileset.texture.width as f32,
-                    (j as u32 * tile_size) as f32 / tileset.texture.height as f32,
-                );
-                let random = (i * 4 + j) as u32; // => unique = j
+        // Draw tile selector
 
-                let id = format!("{}-{}", i, j);
-                if Debug::sprite(
-                    &id,
-                    texdture_id,
-                    (tile_size as f32 * 4f32, tile_size as f32 * 4f32),
-                    (
-                        [uv.0, uv.1],
-                        [
-                            uv.0 + (tile_size as f32 / tileset.texture.width as f32),
-                            uv.1 + (tile_size as f32 / tileset.texture.height as f32),
-                        ],
-                    ),
-                ) {
-                    println!("Clikced {}", id);
-                };
-                Debug::same_line();
-            }
-            Debug::new_line();
+        for (index, tile) in tileset.tiles.iter().enumerate() {
+            if Debug::sprite(
+                &format!("tile-{}{}", tile.src_x, tile.src_y),
+                texdture_id,
+                (tile_size as f32 * 4f32, tile_size as f32 * 4f32),
+                (
+                    [tile.uv_x, tile.uv_y],
+                    [
+                        tile.uv_x + (tile_size as f32 / tileset.texture.width as f32),
+                        tile.uv_y + (tile_size as f32 / tileset.texture.height as f32),
+                    ],
+                ),
+            ) {
+                self.selected_tile = Some(tileset.tiles[index]);
+            };
         }
+        // // for i in 0..tileset.rows {
+        //     for j in 0..tileset.columns {
+        //         let uv = (
+        //             (i as u32 * tile_size) as f32 / tileset.texture.width as f32,
+        //             (j as u32 * tile_size) as f32 / tileset.texture.height as f32,
+        //         );
+        //         let id = format!("{}-{}", i, j);
+        //         if Debug::sprite(
+        //             &id,
+        //             texdture_id,
+        //             (tile_size as f32 * 4f32, tile_size as f32 * 4f32),
+        //             (
+        //                 [uv.0, uv.1],
+        //                 [
+        //                     uv.0 + (tile_size as f32 / tileset.texture.width as f32),
+        //                     uv.1 + (tile_size as f32 / tileset.texture.height as f32),
+        //                 ],
+        //             ),
+        //         ) {
+        //             let index = (i * tileset.columns + j) as usize;
+        //             self.selected_tile = Some(tileset.tiles[index]);
+        //         };
+        //         Debug::same_line();
+        //     }
+        //     Debug::new_line();
+        // }
 
         unsafe {
             Debug::checkbox(
@@ -200,13 +219,10 @@ impl Editor {
                         })
                     }
                     .unwrap();
-                    let kind = layer.tiles.get(selected_tile_x, selected_tile_y).kind;
-                    let tile = Tile {
-                        src_x: 0,
-                        src_y: 0,
-                        kind: crate::components::room::TileType::Solid,
-                    };
-                    layer.tiles.set(selected_tile_x, selected_tile_y, tile);
+                    // let kind = layer.tiles.get(selected_tile_x, selected_tile_y).kind;
+                    if let Some(t) = self.selected_tile {
+                        layer.tiles.set(selected_tile_x, selected_tile_y, t);
+                    }
                 }
             }
         }
@@ -268,6 +284,7 @@ impl Editor {
             for room in Content::map().rooms.iter() {
                 batch.sprite(&room.rect, &room.albedo(), (1f32, 1f32, 1f32, 1f32));
             }
+
             batch.pop_matrix();
 
             // Debug::image(texture_id, size);

@@ -26,7 +26,7 @@ impl AudioPlayer {
                 position: 0,
                 should_loop: true,
             })
-            .unwrap();
+            .expect("cannot open music playback");
         music_device.resume();
 
         // TODO: Mix sounds. Right now only playing one sound at a time is supported

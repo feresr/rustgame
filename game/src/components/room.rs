@@ -44,6 +44,8 @@ impl TileType {
 pub struct Tile {
     pub src_x: i64, // pixel coordinates in the tileset
     pub src_y: i64,
+    pub uv_x: f32,
+    pub uv_y: f32,
     pub kind: TileType,
 }
 impl Tile {
@@ -51,6 +53,8 @@ impl Tile {
         Tile {
             src_x: 0,
             src_y: 0,
+            uv_x: 0f32,
+            uv_y: 0f32,
             kind,
         }
     }
@@ -60,6 +64,8 @@ impl Default for Tile {
         Self {
             src_x: Default::default(),
             src_y: Default::default(),
+            uv_x: 0f32,
+            uv_y: 0f32,
             kind: TileType::Empty,
         }
     }
@@ -216,26 +222,24 @@ pub struct Room {
     pub rect: RectF,
     // This is essentially the camera in world space, move out of here?
     pub camera_ortho: glm::Mat4,
-    pub is_dirty : bool, // does it need to be re-render in the maps_color target
+    pub is_dirty: bool, // does it need to be re-render in the maps_color target
 }
 
 impl Room {
     pub fn from(saved_room: SavedRoom) -> Room {
         let position = saved_room.world_position;
+        let left = position.0 as f32;
+        let bottom = position.1 as f32;
+
         let rect = RectF {
-            x: position.0 as f32,
-            y: position.1 as f32,
+            x: left,
+            y: bottom,
             w: GAME_PIXEL_WIDTH as f32,
             h: GAME_PIXEL_HEIGHT as f32,
         };
 
-        let left = position.0 as f32;
-        let bottom = position.1 as f32;
         Room {
-            world_position: glm::vec2(
-                saved_room.world_position.0 as f32,
-                saved_room.world_position.1 as f32,
-            ),
+            world_position: glm::vec2( left, bottom),
             is_dirty: true,
             layers: saved_room.layers,
             rect: rect.clone(),
@@ -283,20 +287,20 @@ impl Room {
      * Returs the normal texture for this map, it will render it needed
      */
     pub fn normal(&self) -> SubTexture {
-       let texture = &GameState::get().target_manager.maps_normal.color();
-       return SubTexture::new(texture.clone(), self.rect.clone());
+        let texture = &GameState::get().target_manager.maps_normal.color();
+        return SubTexture::new(texture.clone(), self.rect.clone());
     }
     /**
      * Returs the color texture for this map, it will render it needed
      */
     pub fn albedo(&self) -> SubTexture {
-       let texture = &GameState::get().target_manager.maps_color.color();
-       return SubTexture::new(texture.clone(), self.rect.clone());
+        let texture = &GameState::get().target_manager.maps_color.color();
+        return SubTexture::new(texture.clone(), self.rect.clone());
     }
 
     pub fn outline(&self) -> SubTexture {
-       let texture = &GameState::get().target_manager.maps_outline.color();
-       return SubTexture::new(texture.clone(), self.rect.clone());
+        let texture = &GameState::get().target_manager.maps_outline.color();
+        return SubTexture::new(texture.clone(), self.rect.clone());
     }
 
     pub fn render_normals_into(&mut self, batch: &mut Batch) {
@@ -342,7 +346,7 @@ impl Room {
     pub fn render_colors_into(&mut self, batch: &mut Batch) {
         // Render room
         batch.push_matrix(glm::translation(&glm::vec3(
-            self.world_position.x,
+            self.world_position.x, // 0 0 should mean bottom left
             self.world_position.y,
             0.0,
         )));
@@ -364,9 +368,6 @@ impl Room {
                 };
                 // batch.rect(&tile_rect, (1f32, 1f32, 1f32, 1f32));
                 let r = [0f32, 8f32, 16f32];
-                let mut rand = thread_rng();
-                let random_value = r.choose(&mut rand).unwrap();
-                let random_value2 = r.choose(&mut rand).unwrap();
 
                 let color = match &layer.kind {
                     LayerType::Tiles(tile_layer_type) => match tile_layer_type {
@@ -381,8 +382,8 @@ impl Room {
                     &SubTexture::new(
                         Rc::clone(&tileset.texture),
                         RectF {
-                            x: *random_value,
-                            y: *random_value2,
+                            x: tile.src_x as f32,
+                            y: tile.src_y as f32,
                             w: 8f32,
                             h: 8f32,
                         },
@@ -426,7 +427,6 @@ impl Room {
             }
         }
     }
-
 }
 impl Component for Room {
     const CAPACITY: usize = 8;

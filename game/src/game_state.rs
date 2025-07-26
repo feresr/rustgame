@@ -92,14 +92,6 @@ impl GameState {
 
         let mut batch = graphics::batch::Batch::default();
 
-        // Render all maps colors and normals into a huge texture
-        Content::map().prerender(
-            &mut batch,
-            &target_manager.maps_color,
-            &target_manager.maps_normal,
-            &target_manager.maps_outline,
-        );
-
         Self {
             world,
             batch,
@@ -154,10 +146,6 @@ impl GameState {
         }
         Debug::window("Game");
         Debug::display(&"Press tab to toggle editor");
-        Debug::button(|| {
-            // self.show_editor == !self.show_editor;
-            dbg!("shit");
-        });
         Debug::separator();
         Debug::display(&format!("Showing editor: {} ", self.show_editor));
 

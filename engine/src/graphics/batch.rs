@@ -610,6 +610,12 @@ impl Batch {
     ) {
         let last_vertex_index = self.vertices.len() as u32;
 
+        /**
+         * 0 ---- 1
+         * |      |
+         * |      |
+         * 2 ---- 3
+         */
         self.indices.extend([
             1 + last_vertex_index,
             0 + last_vertex_index,

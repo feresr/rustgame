@@ -113,6 +113,10 @@ impl Texture {
         let mut comp: i32 = 0;
         let img: *mut u8;
         unsafe {
+            // Textures in open gl must have origin at top left
+            // Usually when drawing, the origin in at bottom left. 
+            // My engine uses bottom-left as (0,0) for both position and UVs
+            // Textures will appear flipped in imgui and that's ok
             stb_image_rust::stbi_set_flip_vertically_on_load_thread(1);
             img = stb_image_rust::stbi_load_from_memory(
                 contents.as_mut_ptr(),

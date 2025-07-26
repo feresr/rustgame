@@ -3,7 +3,10 @@ use engine::{
     graphics::texture::{SubTexture, Texture},
 };
 use ldtk_rust::TilesetDefinition;
+use serde::de;
 use std::{collections::HashMap, rc::Rc};
+
+use crate::components::room::Tile;
 
 #[derive(Debug)]
 pub struct Frame {
@@ -19,6 +22,7 @@ pub struct Tileset {
     pub tile_size: u32,
     pub rows: i64,
     pub columns: i64,
+    pub tiles: Vec<Tile>,
 }
 impl Tileset {
     pub fn from_ldtk(definition: TilesetDefinition) -> Self {
@@ -27,12 +31,30 @@ impl Tileset {
         let path = format!("game/src/assets/{}", &path);
         let texture = Rc::new(Texture::from_path(&path));
         let normal = Rc::new(Texture::from_path(&path.replace(".png", "-normal.png")));
+        let mut tiles = Vec::with_capacity((definition.c_hei * definition.c_wid) as usize);
+
+        let tile_size = definition.tile_grid_size;
+        let dx = tile_size as f32 / texture.width as f32;
+        let dy = tile_size as f32 / texture.height as f32;
+
+        for y in 0..definition.c_hei {
+            for x in 0..definition.c_wid {
+                tiles.push(Tile {
+                    uv_x: dx * (x as f32),
+                    uv_y: dy * (y as f32),
+                    src_x: x * tile_size,
+                    src_y: y * tile_size,
+                    kind: crate::components::room::TileType::Solid,
+                });
+            }
+        }
         Self {
             texture,
             normal,
             tile_size: definition.tile_grid_size as u32,
             rows: definition.c_hei,
             columns: definition.c_wid,
+            tiles: tiles,
         }
     }
 }
@@ -49,8 +71,8 @@ pub struct Sprite {
     animations: &'static HashMap<String, Animation>,
     current_animation: &'static Animation,
     next_animation: &'static Animation,
-    pub scale_x : f32,
-    pub scale_y : f32,
+    pub scale_x: f32,
+    pub scale_y: f32,
     pub flip_x: bool,
     pub flip_y: bool,
     pub playing: bool,
@@ -72,7 +94,7 @@ impl Sprite {
     }
 
     pub fn pivot(&self) -> (f32, f32) {
-        let frame : &Frame = self
+        let frame: &Frame = self
             .current_animation
             .frames
             .get(self.current_frame)
