@@ -81,6 +81,7 @@ fn main() {
     let window = video_subsystem
         .window("Window", window_size.0, window_size.1)
         // .allow_highdpi() TODO bring this back?
+        .always_on_top()
         .opengl()
         // .borderless()
         .build()
@@ -119,6 +120,7 @@ fn main() {
     Debug::init(&mut game_memory.debug);
 
     (game.init)(&video_subsystem, &audio_subsystem, &mut game_memory);
+
     'game_loop: loop {
         // Reload game if needed
         if check_for_updates_non_blocking(&rx) {
