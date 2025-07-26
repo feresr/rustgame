@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sdl2 = "0.34.0"
+sdl2 = "0.36.0"
 imgui = "0.11.0"
 
 [lib]

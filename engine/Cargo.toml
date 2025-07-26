@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../common" }
-sdl2 = "0.34.0"
+sdl2 = "0.36.0"
 gl = "0.14.0"             #OpenGL bindings
 nalgebra-glm = "0.19.0"
 stb_image_rust = "2.27.2"
