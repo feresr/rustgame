@@ -7,9 +7,9 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../common" }
-sdl2 = "0.36.0"
-gl = "0.14.0"             #OpenGL bindings
-nalgebra-glm = "0.19.0"
+sdl2 = { workspace = true}
+gl = { workspace = true }             #OpenGL bindings
+nalgebra-glm = {workspace = true} 
 stb_image_rust = "2.27.2"
 rand = "0.8.5"
 vorbis_rs = "0.5.4"
@@ -17,4 +17,4 @@ vorbis_rs = "0.5.4"
 # dev dependencies
 # imgui = ">=0.9.0, <0.10.0"
 # imgui-sdl2 = "0.15.1"            # imgui windowing and event handling
-# imgui-opengl-renderer = "0.12.0" # imgui rendering
+# imgui-opengl-renderer = "0.12.1" # imgui rendering

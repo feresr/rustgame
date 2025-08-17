@@ -142,11 +142,14 @@ impl Tiles {
         }
     }
     pub fn set(&mut self, x: usize, y: usize, tile: Tile) {
-        self.tiles[y * GAME_TILE_WIDTH + x] = tile;
+        // The tile (0, 0) is at the bottom left
+        let flipped_y = GAME_TILE_HEIGHT - 1 - y;
+        self.tiles[flipped_y * GAME_TILE_WIDTH + x] = tile;
     }
 
     pub fn get(&self, x: usize, y: usize) -> &Tile {
-        &self.tiles[y * GAME_TILE_WIDTH + x]
+        let flipped_y = GAME_TILE_HEIGHT - 1 - y;
+        &self.tiles[flipped_y * GAME_TILE_WIDTH + x]
     }
 
     pub fn get_mut(&mut self, x: usize, y: usize) -> &mut Tile {

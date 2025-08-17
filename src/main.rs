@@ -4,23 +4,27 @@ mod gamelib;
 
 use common::{Debug, GameMemory, Keyboard, Mouse};
 use gamelib::GameLib;
-use imgui::sys::{igGetCurrentContext, igSetAllocatorFunctions, igSetCurrentContext, ImGuiMemAllocFunc, ImGuiStorage_SetAllInt};
+use imgui::sys::{
+    igGetCurrentContext, igSetAllocatorFunctions, igSetCurrentContext, ImGuiMemAllocFunc,
+    ImGuiStorage_SetAllInt,
+};
 use imgui::{Context, SuspendedContext};
 use notify::{Config, Error, RecommendedWatcher, RecursiveMode, Watcher};
 use once_cell::unsync::Lazy;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::libc::kill;
+use sdl2::sys::SDL_RenderPresent;
 use sdl2::video::GLProfile;
 use sdl2::{AudioSubsystem, Sdl, VideoSubsystem};
 use std::collections::HashSet;
 use std::env;
 use std::f64::consts::PI;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
-use sdl2::sys::SDL_RenderPresent;
 
 pub const FPS: u64 = 60;
 pub const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
@@ -98,6 +102,11 @@ fn main() {
     imgui.set_ini_filename(None);
     imgui.set_log_filename(None);
 
+    // let viewport = imgui.main_viewport_mut();
+    // viewport.flags |=
+    // viewport.flags |= imgui::ViewportFlags::CAN_HOST_OTHER_WINDOWS;
+    // imgui::TreeNodeFlags::DockSpaceOverViewport(Some(&viewport), imgui::TreeNodeFlags::empty());
+
     /* setup platform and renderer, and fonts to imgui */
     imgui
         .fonts()
@@ -121,6 +130,11 @@ fn main() {
 
     (game.init)(&video_subsystem, &audio_subsystem, &mut game_memory);
 
+    let io = imgui.io_mut();
+
+    // io.config_flags |= imgui::ConfigFlags::VIEWPORTS_ENABLE;
+    //.config_flags |= imgui::ConfigFlags::DOCKING_ENABLE;
+
     'game_loop: loop {
         // Reload game if needed
         if check_for_updates_non_blocking(&rx) {
@@ -135,7 +149,9 @@ fn main() {
 
         for ref event in events.poll_iter() {
             imgui_sdl2.handle_event(&mut imgui, &event);
-            if imgui_sdl2.ignore_event(&event) { continue; }
+            if imgui_sdl2.ignore_event(&event) {
+                continue;
+            }
 
             match event {
                 Event::Window {
@@ -160,8 +176,12 @@ fn main() {
                 } => {
                     break 'game_loop;
                 }
-                Event::KeyDown { keycode: Some(kc), ..  } =>  Keyboard::press(kc.clone()),
-                Event::KeyUp { keycode: Some(kc), ..  } => Keyboard::release(&kc),
+                Event::KeyDown {
+                    keycode: Some(kc), ..
+                } => Keyboard::press(kc.clone()),
+                Event::KeyUp {
+                    keycode: Some(kc), ..
+                } => Keyboard::release(&kc),
                 Event::MouseButtonDown { mouse_btn, .. } => match mouse_btn {
                     sdl2::mouse::MouseButton::Left => {
                         Mouse::press_left();
@@ -195,9 +215,12 @@ fn main() {
 
         (game.update)();
         // Update
-        imgui_sdl2.prepare_frame(imgui.io_mut(), &window, &events.mouse_state());
+        let io = imgui.io_mut();
+        imgui_sdl2.prepare_frame(io, &window, &events.mouse_state());
 
         let ui = imgui.frame();
+        // ui.dockspace_over_main_viewport(); // Allow imgui windows to snap to the main viewport
+
         imgui_sdl2.prepare_render(&ui, &window);
 
         if !Debug::is_empty() {

@@ -1,3 +1,8 @@
 /target
 .vscode/launch.json
 .vscode/settings.json
+common/target
+game/target
+engine/target
+game/Cargo.lock
+Cargo.lock

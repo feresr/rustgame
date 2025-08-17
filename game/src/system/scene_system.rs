@@ -41,7 +41,7 @@ impl SceneSystem {
             room_y = (position.y as f32 / GAME_PIXEL_HEIGHT as f32) as usize;
         }
 
-        Debug::display(&format!("Player in room: {} {} ", room_x, room_y));
+        // Debug::display(&format!("Player in room: {} {} ", room_x, room_y));
         if (room_x, room_y) != (self.scene.room_x as usize, self.scene.room_y as usize) {
             let new_scene = GameScene::with_room(room_x as i32, room_y as i32);
             self.scene.destroy(world);

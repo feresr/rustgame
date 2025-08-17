@@ -35,10 +35,11 @@ pub fn audio() -> &'static mut AudioPlayer {
 pub fn init(video_subsystem: &VideoSubsystem, audio_subsystem: &AudioSubsystem) {
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
 
-    let audio_player = AudioPlayer::new(audio_subsystem);
-    unsafe {
-        AUDIO = Some(audio_player);
-    }
+    // This is crashing :(
+    // let audio_player = AudioPlayer::new(audio_subsystem);
+    // unsafe {
+    //     AUDIO = Some(audio_player);
+    // }
 
     unsafe {
         gl::Disable(gl::CULL_FACE);

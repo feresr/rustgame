@@ -110,6 +110,7 @@ impl Debug {
         window.items.push(UiElement::Button(f));
     }
     pub fn image(id: &str, textureId: usize, size: (f32, f32)) {
+        return;
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         id.hash(&mut hasher);
         let hash = hasher.finish();
@@ -133,6 +134,7 @@ impl Debug {
     }
 
     pub fn sprite(id: &str, texture_id: usize, size: (f32, f32), uv: ([f32; 2], [f32; 2])) -> bool {
+        return false;
         // Why am I hashing it muself, can't I just use the str?
         // answer I don't wan to have to copy the str into the set (expensive) 
         // I can't hold a refernce because who holds the actual value
